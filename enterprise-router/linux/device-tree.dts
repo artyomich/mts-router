@@ -1,0 +1,79 @@
+/*
+ * Device Tree for MTS-ER-1000 Enterprise Router
+ * NXP S32G + Broadcom TomTom
+ */
+
+/dts-v1/;
+/include/ "nxp/s32g.dtsi"
+/include/ "broadcom/tomtom.dtsi"
+
+/ {
+    model = "MTS-ER-1000 Enterprise Router";
+    compatible = "mts,er1000", "nxp,s32g";
+
+    chosen {
+        bootargs = "console=ttyS0,115200n8 root=/dev/mmcblk0p2 rw";
+        stdout-path = "serial:0";
+    };
+
+    memory {
+        reg = <0x00000000 0x00000000 0x00000000 0x02000000>; /* 32MB base */
+    };
+
+    /* SoC */
+    s32g: cpu@0 {
+        compatible = "nxp,s32g";
+        num-cores = <8>;
+        architecture = "arm64";
+        clock-frequency = <2000000000>;
+        status = "okay";
+    };
+
+    /* ASIC */
+    tomtom: asic@1 {
+        compatible = "broadcom,tomtom";
+        reg = <0x00000000 0x00001000>;
+        interrupts = <0 42 4>;
+        num-tables = <4096>;
+        max-entries = <1048576>;
+        status = "okay";
+    };
+
+    /* Ethernet ports */
+    &eth {
+        status = "okay";
+        num-ports = <12>;
+        wan-ports = <4>;
+        lan-ports = <8>;
+    };
+
+    /* eMMC storage */
+    &mmc {
+        status = "okay";
+        bus-width = <8>;
+        max-frequency = <52000000>;
+    };
+
+    /* Crypto */
+    &sec {
+        status = "okay";
+        ipsec-engine = <1>;
+        tls-engine = <1>;
+    };
+
+    /* I2C for management */
+    &i2c_bmc {
+        status = "okay";
+        clock-frequency = <100000>;
+
+        power@40 {
+            compatible = "pmbus,power";
+            reg = <0x40>;
+        };
+
+        fan@2c {
+            compatible = "pmbus,fan";
+            reg = <0x2c>;
+        };
+    };
+};

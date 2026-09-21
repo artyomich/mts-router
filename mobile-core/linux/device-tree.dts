@@ -1,0 +1,72 @@
+/*
+ * Device Tree for MTS-MC-5000 Mobile Core
+ * Marvell ThunderX3 + AMD EPYC 7002
+ */
+
+/dts-v1/;
+/include/ "marvell/thunderx3.dtsi"
+/include/ "amd/epyc-naples.dtsi"
+
+/ {
+    model = "MTS-MC-5000 Mobile Core";
+    compatible = "mts,mc5000", "marvell,thunderx3";
+
+    chosen {
+        bootargs = "console=ttyS0,115200n8 root=/dev/nvme0n1p2 rw";
+        stdout-path = "serial:0";
+    };
+
+    memory {
+        reg = <0x00000000 0x00000000 0x00000000 0x20000000>; /* 512MB base */
+    };
+
+    /* PCIe for ThunderX3 */
+    &pcie {
+        status = "okay";
+        num-lanes = <16>;
+        max-speed = <4>; /* PCIe Gen4 */
+    };
+
+    /* ThunderX3 ARM64 */
+    thunderx3: cpu@0 {
+        compatible = "marvell,thunderx3";
+        num-cores = <96>;
+        architecture = "arm64";
+        clock-frequency = <2000000000>;
+        status = "okay";
+    };
+
+    /* NVMe storage */
+    &nvme {
+        status = "okay";
+        num-controllers = <2>;
+    };
+
+    /* BMC */
+    &bmc {
+        status = "okay";
+        i2c-bus = <&i2c_bmc>;
+    };
+
+    /* I2C for management */
+    &i2c_bmc {
+        status = "okay";
+        clock-frequency = <100000>;
+
+        power@40 {
+            compatible = "pmbus,power";
+            reg = <0x40>;
+        };
+
+        fan@2c {
+            compatible = "pmbus,fan";
+            reg = <0x2c>;
+        };
+    };
+
+    /* Clocks */
+    &clocks {
+        status = "okay";
+        reference-clock = <100000000>;
+    };
+};

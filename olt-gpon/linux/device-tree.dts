@@ -1,0 +1,121 @@
+/*
+ * Device Tree for MTS-OLT-2000 GPON OLT
+ * Intel Tofino 2 + AMD EPYC 7002 + Realtek RTL960x
+ */
+
+/dts-v1/;
+/include/ "intel/tofino2.dtsi"
+/include/ "amd/epyc-naples.dtsi"
+/include/ "realtek/rtl960x.dtsi"
+
+/ {
+    model = "MTS-OLT-2000 GPON OLT";
+    compatible = "mts,olt2000", "intel,tofino2";
+
+    chosen {
+        bootargs = "console=ttyS0,115200n8 root=/dev/nvme0n1p2 rw";
+        stdout-path = "serial:0";
+    };
+
+    memory {
+        reg = <0x00000000 0x00000000 0x00000000 0x08000000>; /* 128MB base */
+    };
+
+    /* PCIe for Tofino 2 */
+    &pcie {
+        status = "okay";
+        num-lanes = <16>;
+        max-speed = <4>;
+    };
+
+    /* Tofino 2 ASIC */
+    tofino2: tofino@0 {
+        compatible = "intel,tofino2";
+        reg = <0x00000000 0x00000000 0x00001000>;
+        interrupts = <0 42 4>;
+        num-pipelines = <4>;
+        max-ports = <128>;
+        max-tables = <4096>;
+        max-entries = <1048576>;
+        status = "okay";
+    };
+
+    /* GPON line cards */
+    gpon-cards {
+        compatible = "mts,gpon-cards";
+        num-cards = <4>;
+        per-card-ports = <16>;
+
+        gpon-card@0 {
+            reg = <0>;
+            compatible = "realtek,rtl960x";
+            num-ports = <16>;
+            max-onu = <128>;
+            status = "okay";
+        };
+
+        gpon-card@1 {
+            reg = <1>;
+            compatible = "realtek,rtl960x";
+            num-ports = <16>;
+            max-onu = <128>;
+            status = "okay";
+        };
+
+        gpon-card@2 {
+            reg = <2>;
+            compatible = "realtek,rtl960x";
+            num-ports = <16>;
+            max-onu = <128>;
+            status = "okay";
+        };
+
+        gpon-card@3 {
+            reg = <3>;
+            compatible = "realtek,rtl960x";
+            num-ports = <16>;
+            max-onu = <128>;
+            status = "okay";
+        };
+    };
+
+    /* Uplink ports */
+    &uplink {
+        status = "okay";
+        num-ports = <6>;
+        max-speed = <100000000000>;
+    };
+
+    /* NVMe storage */
+    &nvme {
+        status = "okay";
+        num-controllers = <2>;
+    };
+
+    /* BMC */
+    &bmc {
+        status = "okay";
+        i2c-bus = <&i2c_bmc>;
+    };
+
+    /* I2C for management */
+    &i2c_bmc {
+        status = "okay";
+        clock-frequency = <100000>;
+
+        tofino2@20 {
+            compatible = "intel,tofino2-i2c";
+            reg = <0x20>;
+        };
+
+        power@40 {
+            compatible = "pmbus,power";
+            reg = <0x40>;
+        };
+
+        fan@2c {
+            compatible = "pmbus,fan";
+            reg = <0x2c>;
+        };
+    };
+};

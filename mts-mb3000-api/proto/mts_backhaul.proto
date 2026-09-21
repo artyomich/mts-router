@@ -1,0 +1,173 @@
+syntax = "proto3";
+
+package mts.backhaul.v1;
+
+option cc_generic_services = true;
+
+// PTP (Precision Time Protocol) status
+message PtpStatus {
+    string device_name = 1;        // e.g., "ptp4l"
+    string mode = 2;               // grandmaster, boundary, ordinary
+    int64 current_time = 3;        // current PTP time in nanoseconds
+    int64 offset_from_master = 4;  // offset from master clock (ns)
+    int64 mean_path_delay = 5;     // mean path delay (ns)
+    double frequency_offset = 6;   // frequency offset (ppm)
+    string status = 7;             // active, inactive, fault
+}
+
+// SyncE (Synchronous Ethernet) status
+message SyncEStatus {
+    string port_name = 1;
+    string mode = 2;               // master, slave, transparent
+    int32 frequency = 3;           // target frequency (Hz)
+    double actual_frequency = 4;   // actual frequency (Hz)
+    double phase_offset = 5;       // phase offset (ns)
+    string status = 6;             // locked, unlocked, holdover
+}
+
+// MPLS-TP Pseudowire status
+message MplsTpPwStatus {
+    uint32 pw_id = 1;
+    string ingress_port = 2;
+    string egress_port = 3;
+    string encapsulation = 4;      // eth, hdlc, unstructured
+    uint32 qos_class = 5;
+    uint64 rx_bytes = 6;
+    uint64 tx_bytes = 7;
+    uint64 rx_packets = 8;
+    uint64 tx_packets = 9;
+    uint64 rx_errors = 10;
+    uint64 tx_errors = 11;
+    string status = 12;            // up, down, initializing
+}
+
+// Port status
+message PortStatus {
+    string name = 1;
+    string type = 2;               // sfp, sfp+, qsfp
+    uint32 speed = 3;              // speed in Mbps
+    string duplex = 4;             // full, half
+    string status = 5;             // up, down, error
+    double rx_power = 6;           // RX optical power (dBm)
+    double tx_power = 7;           // TX optical power (dBm)
+    double temperature = 8;        // module temperature (C)
+    double voltage = 9;            // module voltage (V)
+}
+
+// Device health
+message DeviceHealth {
+    string device_id = 1;
+    string model = 2;
+    string firmware = 3;
+    double cpu_usage = 4;
+    double memory_usage = 5;
+    double temperature = 6;
+    string status = 7;             // healthy, degraded, critical
+}
+
+// Service responses
+message PtpStatusResponse {
+    PtpStatus ptp_status = 1;
+}
+
+message SyncEStatusResponse {
+    repeated SyncEStatus sync_e_status = 1;
+}
+
+message MplsTpPwResponse {
+    repeated MplsTpPwStatus pw_status = 1;
+}
+
+message PortStatusResponse {
+    repeated PortStatus port_status = 1;
+}
+
+message DeviceHealthResponse {
+    DeviceHealth health = 1;
+}
+
+message SetGrandmasterRequest {
+    string device_id = 1;
+    bool enable = 2;
+}
+
+message SetGrandmasterResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message CreatePwRequest {
+    uint32 pw_id = 1;
+    string ingress_port = 2;
+    string egress_port = 3;
+    string encapsulation = 4;
+    uint32 qos_class = 5;
+}
+
+message CreatePwResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+// MTS Mobile Backhaul Service
+service MtsBackhaulService {
+    // Get PTP status
+    rpc GetPtpStatus(Empty) returns (PtpStatusResponse);
+    
+    // Get SyncE status
+    rpc GetSyncEStatus(Empty) returns (SyncEStatusResponse);
+    
+    // Get MPLS-TP pseudowires status
+    rpc GetMplsTpPwStatus(Empty) returns (MplsTpPwResponse);
+    
+    // Get port status
+    rpc GetPortStatus(Empty) returns (PortStatusResponse);
+    
+    // Get device health
+    rpc GetDeviceHealth(Empty) returns (DeviceHealthResponse);
+    
+    // Set grandmaster mode
+    rpc SetGrandmaster(SetGrandmasterRequest) returns (SetGrandmasterResponse);
+    
+    // Create MPLS-TP pseudowire
+    rpc CreatePw(CreatePwRequest) returns (CreatePwResponse);
+    
+    // Delete MPLS-TP pseudowire
+    rpc DeletePw(PwDeleteRequest) returns (PwDeleteResponse);
+    
+    // Subscribe to telemetry stream
+    rpc SubscribeTelemetry(TelemetrySubscription) returns (stream TelemetryData);
+}
+
+message Empty {}
+
+message PwDeleteRequest {
+    uint32 pw_id = 1;
+}
+
+message PwDeleteResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+// Telemetry
+message TelemetrySubscription {
+    repeated string paths = 1;
+    int64 sample_interval = 2;  // in milliseconds
+}
+
+message TelemetryData {
+    int64 timestamp = 1;
+    map<string, double> metrics = 2;
+    repeated PortStats ports = 3;
+}
+
+message PortStats {
+    string name = 1;
+    uint64 rx_bytes = 2;
+    uint64 tx_bytes = 3;
+    uint64 rx_packets = 4;
+    uint64 tx_packets = 5;
+    uint64 rx_errors = 6;
+    uint64 tx_errors = 7;
+}

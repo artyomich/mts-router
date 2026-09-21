@@ -1,0 +1,88 @@
+/*
+ * Device Tree for MTS-RG-500 Residential Gateway
+ * MediaTek MT7981 + Realtek RTL960x
+ */
+
+/dts-v1/;
+/include/ "mediatek/mt7981.dtsi"
+/include/ "realtek/rtl960x.dtsi"
+
+/ {
+    model = "MTS-RG-500 Residential Gateway";
+    compatible = "mts,rg500", "mediatek,mt7981";
+
+    chosen {
+        bootargs = "console=ttyS0,115200n8 root=/dev/mtdblock2 rw";
+        stdout-path = "serial:0";
+    };
+
+    memory {
+        reg = <0x00000000 0x00000000 0x00000000 0x00200000>; /* 2MB base */
+    };
+
+    /* SoC */
+    mt7981: cpu@0 {
+        compatible = "mediatek,mt7981";
+        num-cores = <4>;
+        architecture = "arm64";
+        clock-frequency = <2000000000>;
+        status = "okay";
+    };
+
+    /* WiFi 6 */
+    &wifi {
+        status = "okay";
+        band-2ghz = <1>;
+        band-5ghz = <1>;
+        max-clients = <64>;
+    };
+
+    /* GPON PHY */
+    gpon-phy {
+        compatible = "realtek,rtl960x-gpon";
+        reg = <0x00000000 0x00001000>;
+        interrupts = <0 42 4>;
+        num-ports = <1>;
+        max-onu = <128>;
+        status = "okay";
+    };
+
+    /* Ethernet ports */
+    &eth {
+        status = "okay";
+        num-ports = <4>;
+        max-speed = <1000000000>;
+    };
+
+    /* USB */
+    &usb {
+        status = "okay";
+        num-ports = <1>;
+        max-speed = <480000000>;
+    };
+
+    /* VoIP */
+    &voip {
+        status = "okay";
+        num-ports = <1>;
+        codec = "g711,g729,opus";
+    };
+
+    /* NAND Flash */
+    &nand {
+        status = "okay";
+        bus-width = <8>;
+        max-frequency = <20000000>;
+    };
+
+    /* I2C for management */
+    &i2c_bmc {
+        status = "okay";
+        clock-frequency = <100000>;
+
+        power@40 {
+            compatible = "pmbus,power";
+            reg = <0x40>;
+        };
+    };
+};

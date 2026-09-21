@@ -1,0 +1,73 @@
+/*
+ * Device Tree for MTS-MB-3000 Mobile Backhaul
+ * NXP S32G3 + Marvell 88Q5242
+ */
+
+/dts-v1/;
+/include/ "nxp/s32g.dtsi"
+/include/ "marvell/88q5242.dtsi"
+
+/ {
+    model = "MTS-MB-3000 Mobile Backhaul";
+    compatible = "mts,mb3000", "nxp,s32g";
+
+    chosen {
+        bootargs = "console=ttyS0,115200n8 root=/dev/mmcblk0p2 rw";
+        stdout-path = "serial:0";
+    };
+
+    memory {
+        reg = <0x00000000 0x00000000 0x00000000 0x02000000>; /* 32MB base */
+    };
+
+    /* SoC */
+    s32g: cpu@0 {
+        compatible = "nxp,s32g3";
+        num-cores = <8>;
+        architecture = "arm64";
+        clock-frequency = <2000000000>;
+        status = "okay";
+    };
+
+    /* Ethernet switch */
+    &switch {
+        status = "okay";
+        num-ports = <32>;
+        max-speed = <10000000000>;
+    };
+
+    /* eMMC storage */
+    &mmc {
+        status = "okay";
+        bus-width = <8>;
+        max-frequency = <52000000>;
+    };
+
+    /* I2C for management */
+    &i2c_bmc {
+        status = "okay";
+        clock-frequency = <100000>;
+
+        power@40 {
+            compatible = "pmbus,power";
+            reg = <0x40>;
+        };
+
+        fan@2c {
+            compatible = "pmbus,fan";
+            reg = <0x2c>;
+        };
+    };
+
+    /* PTP hardware timestamping */
+    &ptp {
+        status = "okay";
+        clock-frequency = <125000000>;
+    };
+
+    /* SyncE */
+    &sync {
+        status = "okay";
+        clock-frequency = <156250000>;
+    };
+};

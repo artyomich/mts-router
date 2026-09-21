@@ -1,0 +1,94 @@
+@startuml C1_Overall_System_Architecture
+' C1: Overall System Architecture - MTS-MB-3000 Mobile Backhaul gRPC API Backend
+' Level 1: External actors and subsystems
+
+title MTS-MB-3000 Mobile Backhaul - Overall System Architecture
+
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+skinparam rectangle {
+  BackgroundColor white
+  BorderColor #333333
+  ArrowColor #2c3e50
+}
+
+' External clients
+rectangle "Network Management System (NMS)" as NMS {
+  rectangle "OSS/BSS" as OSS
+  rectangle "Monitoring System" as Monitoring
+}
+
+' MTS-MB-3000 Device
+rectangle "MTS-MB-3000 Device" as Device {
+  component "gRPC Server\n(ports:50051)" as GRPCServer {
+    component "MtsBackhaulServiceImpl" as ServiceImpl
+  }
+  
+  component "Hardware Abstraction Layer" as HAL {
+    rectangle "PtpHal" as PtpHal
+    rectangle "SyncEHal" as SyncEHal
+    rectangle "MplsTpHal" as MplsTpHal
+  }
+  
+  component "Linux Kernel" as LinuxKernel {
+    rectangle "LinuxPTP (ptp4l)" as LinuxPTP
+    rectangle "SyncE Driver" as SyncEDriver
+    rectangle "MPLS Subsystem" as Mplssubsystem
+    rectangle "Network Stack" as NetStack
+  }
+  
+  component "Hardware" as HW {
+    rectangle "S32G3 SoC" as S32G3
+    rectangle "10G SFP+ Ports" as Ports
+    rectangle "1G RJ45 Ports" as RJ45
+  }
+}
+
+' External protocols
+rectangle "External Protocols" as Protocols {
+  rectangle "SNMP" as SNMP
+  rectangle "NETCONF/YANG" as NETCONF
+  rectangle "Telemetry" as Telemetry
+}
+
+' Relationships from NMS
+NMS --> GRPCServer : gRPC/protobuf
+OSS --> GRPCServer : config/monitor
+Monitoring --> Telemetry : streaming
+
+' Internal relationships
+ServiceImpl --> PtpHal : uses
+ServiceImpl --> SyncEHal : uses
+ServiceImpl --> MplsTpHal : uses
+
+PtpHal --> LinuxPTP : sysfs/ioctl
+SyncEHal --> SyncEDriver : ioctl/sysfs
+MplsTpHal --> Mplssubsystem : iproute2
+
+LinuxPTP --> S32G3 : hardware PTP
+SyncEDriver --> S32G3 : hardware SyncE
+Mplssubsystem --> NetStack : forwarding
+
+S32G3 --> Ports : 10G uplink
+S32G3 --> RJ45 : 1G access
+
+' Protocol interfaces
+GRPCServer --> SNMP : export
+GRPCServer --> NETCONF : export
+Telemetry --> Monitoring : push
+
+legend right
+  |*C1 Diagram: Overall System Architecture*|
+  |*Shows external systems and*|
+  |*high-level MTS-MB-3000 components*|
+  ||
+  |*Key boundaries:*|
+  |*1. External management systems*|
+  |*2. gRPC API server*|
+  |*3. HAL abstraction layer*|
+  |*4. Linux kernel subsystems*|
+  |*5. S32G3 hardware platform*|
+  |*6. External protocol interfaces*|
+endlegend
+
+@enduml

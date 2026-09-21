@@ -1,0 +1,80 @@
+/*
+ * Device Tree for MTS-CR-9000 Core Router
+ * AMD EPYC 7003 + Intel Tofino 2
+ */
+
+/dts-v1/;
+/include/ "amd/epyc-rome.dtsi"
+/include/ "intel/tofino2.dtsi"
+
+/ {
+    model = "MTS-CR-9000 Core Router";
+    compatible = "mts,cr9000", "amd,rome";
+
+    chosen {
+        bootargs = "console=ttyS0,115200n8 root=/dev/nvme0n1p2 rw";
+        stdout-path = "serial:0";
+    };
+
+    memory {
+        reg = <0x00000000 0x00000000 0x00000000 0x40000000>; /* 1GB base */
+    };
+
+    /* PCIe for Tofino 2 */
+    &pcie {
+        status = "okay";
+        num-lanes = <64>;
+        max-speed = <4>; /* PCIe Gen4 */
+    };
+
+    /* Tofino 2 ASIC */
+    tofino2: tofino@0 {
+        compatible = "intel,tofino2";
+        reg = <0x00000000 0x00000000 0x00001000>;
+        interrupts = <0 42 4>;
+        num-pipelines = <4>;
+        max-ports = <128>;
+        max-tables = <4096>;
+        max-entries = <1048576>;
+        status = "okay";
+    };
+
+    /* NVMe storage */
+    &nvme {
+        status = "okay";
+        num-controllers = <4>;
+    };
+
+    /* BMC */
+    &bmc {
+        status = "okay";
+        i2c-bus = <&i2c_bmc>;
+    };
+
+    /* I2C for management */
+    &i2c_bmc {
+        status = "okay";
+        clock-frequency = <100000>;
+
+        tofino2@20 {
+            compatible = "intel,tofino2-i2c";
+            reg = <0x20>;
+        };
+
+        power@40 {
+            compatible = "pmbus,power";
+            reg = <0x40>;
+        };
+
+        fan@2c {
+            compatible = "pmbus,fan";
+            reg = <0x2c>;
+        };
+    };
+
+    /* Clocks */
+    &clocks {
+        status = "okay";
+        reference-clock = <100000000>;
+    };
+};

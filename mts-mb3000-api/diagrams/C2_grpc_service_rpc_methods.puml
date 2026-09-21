@@ -1,0 +1,127 @@
+@startuml C2_gRPC_Service_RPC_Methods
+' C2: gRPC Service RPC Methods - MTS-MB-3000 Mobile Backhaul
+' Redesigned: vertically compact layout with RPC methods grouped by type
+
+title MTS-MB-3000 - gRPC Service RPC Methods (Compact)
+
+skinparam backgroundColor white
+skinparam component {
+  BackgroundColor #ecf0f1
+  BorderColor #2c3e50
+  FontColor #2c3e50
+}
+
+' === CLIENT LAYER ===
+package "External Clients" <<Client>> {
+  [NMS/OSS\nClient] as Client
+}
+
+' === gRPC SERVICE LAYER ===
+package "gRPC Service Layer" <<Service>> {
+  
+  package "Unary RPC (8 methods)" {
+    [GetPtpStatus] as GetPtp
+    [GetSyncEStatus] as GetSyncE
+    [GetMplsTpPwStatus] as GetMpls
+    [GetPortStatus] as GetPort
+    [GetDeviceHealth] as GetHealth
+    [SetGrandmaster] as SetGM
+    [CreatePw] as CreatePw
+    [DeletePw] as DeletePw
+  }
+  
+  package "Streaming RPC (1 method)" {
+    [SubscribeTelemetry] as SubTelemetry
+  }
+}
+
+' === HAL LAYER ===
+package "HAL Layer" <<HAL>> {
+  
+  package "PtpHal" as PtpHal {
+    [getStatus()] as PtpGet
+    [setGrandmasterMode()] as PtpSet
+  }
+  
+  package "SyncEHal" as SyncEHal {
+    [getStatus()] as SyncGet
+    [setMode()] as SyncSet
+  }
+  
+  package "MplsTpHal" as MplsHal {
+    [getStatus()] as MplsGet
+    [createPw()] as MplsCreate
+    [deletePw()] as MplsDelete
+  }
+}
+
+' === RESPONSE MESSAGES ===
+package "Protobuf Responses" <<Proto>> {
+  [PtpStatus] as PtpResp
+  [SyncEStatus[]] as SyncResp
+  [MplsTpPwStatus[]] as MplsResp
+  [PortStatus[]] as PortResp
+  [DeviceHealth] as HealthResp
+  [TelemetryData[]] as TelemetryResp
+}
+
+' === RPC to HAL mappings (vertical compact) ===
+' PTP-related RPCs
+GetPtp ..> PtpGet : PtpStatus
+GetPtp --> PtpResp
+SetGM ..> PtpSet : configure
+
+' SyncE-related RPCs
+GetSyncE ..> SyncGet : SyncEStatus[]
+GetSyncE --> SyncResp
+
+' MPLS-related RPCs
+GetMpls ..> MplsGet : MplsTpPwStatus[]
+GetMpls --> MplsResp
+CreatePw ..> MplsCreate : create
+CreatePw --> MplsResp
+DeletePw ..> MplsDelete : delete
+DeletePw --> MplsResp
+
+' Simple RPCs (no HAL)
+GetPort --> PortResp
+GetHealth --> HealthResp
+
+' Streaming
+SubTelemetry --> TelemetryResp
+SubTelemetry ..> PtpGet : read
+SubTelemetry ..> SyncGet : read
+SubTelemetry ..> MplsGet : read
+
+' === Client connections ===
+Client --> GetPtp : Empty()
+Client --> GetSyncE : Empty()
+Client --> GetMpls : Empty()
+Client --> GetPort : Empty()
+Client --> GetHealth : Empty()
+Client --> SetGM : SetGrandmasterRequest
+Client --> CreatePw : CreatePwRequest
+Client --> DeletePw : PwDeleteRequest
+Client --> SubTelemetry : TelemetrySubscription
+
+legend right
+  |*C2: gRPC Service RPC Methods (Compact)*|
+  ||
+  |*Unary RPC (8):*|
+  |1. GetPtpStatus -> PtpHal|
+  |2. GetSyncEStatus -> SyncEHal|
+  |3. GetMplsTpPwStatus -> MplsTpHal|
+  |4. GetPortStatus (local)|
+  |5. GetDeviceHealth (local)|
+  |6. SetGrandmaster -> PtpHal|
+  |7. CreatePw -> MplsTpHal|
+  |8. DeletePw -> MplsTpHal|
+  ||
+  |*Streaming RPC (1):*|
+  |1. SubscribeTelemetry (all HAL)|
+  ||
+  |*HAL modules:*|
+  |PtpHal, SyncEHal, MplsTpHal|
+endlegend
+
+@enduml

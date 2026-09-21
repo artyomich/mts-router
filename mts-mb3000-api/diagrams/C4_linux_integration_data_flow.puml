@@ -1,0 +1,141 @@
+@startuml C4_Linux_Integration_Data_Flow
+' C4: Linux Integration & Data Flow
+' Redesigned: vertically compact layered architecture with internal data paths
+
+title MTS-MB-3000 - Linux Integration & Data Flow (Compact)
+
+skinparam backgroundColor white
+skinparam rectangle {
+  BackgroundColor #f8f9fa
+  BorderColor #333333
+  FontColor #333333
+}
+
+' === LAYER 1: External Clients ===
+package "External Clients" <<Client>> {
+  [NMS/OSS] as NMS
+  [Monitoring\nSystem] as Mon
+}
+
+' === LAYER 2: gRPC Service ===
+package "gRPC Service" <<Service>> {
+  rectangle "MtsBackhaulServiceImpl" as ServiceImpl {
+    [GetPtpStatus] as GetPtp
+    [GetSyncEStatus] as GetSyncE
+    [GetMplsTpPwStatus] as GetMpls
+    [SubscribeTelemetry] as SubTel
+  }
+}
+
+' === LAYER 3: HAL Layer ===
+package "HAL Layer (C++)" <<HAL>> {
+  
+  package "PtpHal" as PtpHal {
+    [readFromSysfs] as PtpRead
+    [parsePtp4lLogs] as PtpParse
+    [setGrandmasterMode] as PtpSet
+  }
+  
+  package "SyncEHal" as SyncEHal {
+    [readFromSysfs] as SyncRead
+    [parseProcNet] as SyncParse
+    [configurePort] as SyncConfig
+  }
+  
+  package "MplsTpHal" as MplsHal {
+    [readFromSysfs] as MplsRead
+    [parseProcNet] as MplsParse
+    [configurePw] as MplsConfig
+  }
+}
+
+' === LAYER 4: Linux Filesystem ===
+package "Linux Filesystem" <<FS>> {
+  
+  package "sysfs" as Sysfs {
+    [/sys/class/ptp/ptp0/] as PtpSysfs
+    [/sys/class/net/ethX/] as NetSysfs
+  }
+  
+  package "procfs" as Procfs {
+    [/proc/net/mpls/] as MplsProc
+    [/proc/net/dev/] as NetProc
+  }
+}
+
+' === LAYER 5: Linux Kernel ===
+package "Linux Kernel 6.x" <<Kernel>> {
+  [LinuxPTP\n(ptp4l)] as LinuxPTP
+  [SyncE\nDriver] as SyncEDrv
+  [MPLS\nSubsystem] as Mplssub
+  [Network\nSubsystem] as NetSub
+}
+
+' === LAYER 6: Hardware ===
+package "S32G3 SoC Hardware" <<HW>> {
+  [PTP Hardware\nClock] as PHC
+  [SyncE Clock\nEngine] as SCE
+  [10G MAC\n(SFP+)] as MAC10G
+  [1G MAC\n(RJ45)] as MAC1G
+}
+
+' === DATA FLOW: Client to Service ===
+NMS --> GetPtp : PtpStatus
+NMS --> GetSyncE : SyncEStatus[]
+NMS --> GetMpls : MplsTpPwStatus[]
+Mon --> SubTel : TelemetryData[]
+
+' === DATA FLOW: Service to HAL ===
+GetPtp ..> PtpRead : PtpStatus
+GetSyncE ..> SyncRead : SyncEStatus[]
+GetMpls ..> MplsRead : MplsTpPwStatus[]
+SubTel ..> PtpRead : stream
+SubTel ..> SyncRead : stream
+SubTel ..> MplsRead : stream
+
+' === DATA FLOW: HAL to Filesystem ===
+PtpRead --> PtpSysfs : read()
+PtpParse --> LinuxPTP : tail -f
+SyncRead --> NetSysfs : read()
+SyncParse --> NetProc : read()
+MplsRead --> NetSysfs : read()
+MplsParse --> MplsProc : read()
+
+' === DATA FLOW: Configuration (reverse) ===
+PtpSet --> LinuxPTP : configure
+SyncConfig --> SyncEDrv : ioctl
+MplsConfig --> Mplssub : ip mpls
+
+' === DATA FLOW: Kernel to Hardware ===
+LinuxPTP --> PHC : PTP events
+SyncEDrv --> SCE : SyncE events
+Mplssub --> MAC10G : forwarding
+NetSub --> MAC1G : packets
+
+' === Hardware to Kernel ===
+PHC ..> LinuxPTP : events
+SCE ..> SyncEDrv : events
+MAC10G ..> Mplssub : packets
+MAC1G ..> NetSub : packets
+
+legend right
+  |*C4: Linux Integration & Data Flow (Compact)*|
+  ||
+  |*6-Layer Architecture (top to bottom):*|
+  |1. External Clients (NMS/OSS, Monitoring)|
+  |2. gRPC Service (MtsBackhaulServiceImpl)|
+  |3. HAL Layer (PtpHal, SyncEHal, MplsTpHal)|
+  |4. Linux Filesystem (sysfs, procfs)|
+  |5. Linux Kernel (LinuxPTP, SyncE, MPLS)|
+  |6. S32G3 Hardware (PHC, SyncE, MAC)|
+  ||
+  |*Data Flow (downward):*|
+  |Hardware -> Kernel -> sysfs/procfs -> HAL|
+  |-> gRPC -> External Clients|
+  ||
+  |*Control Flow (upward):*|
+  |Client -> gRPC -> HAL -> ioctl/iproute2|
+  |-> Kernel -> Hardware|
+endlegend
+
+@enduml

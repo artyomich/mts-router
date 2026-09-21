@@ -1,0 +1,133 @@
+@startuml C3_HAL_Layer_Architecture
+' C3: HAL (Hardware Abstraction Layer) Architecture
+' Shows three HAL modules with their interfaces, data structures, and Linux subsystem integration
+
+title MTS-MB-3000 - HAL Layer Architecture
+
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+skinparam rectangle {
+  BackgroundColor #f8f9fa
+  BorderColor #333333
+}
+
+package "mts::hal namespace" as HalNs {
+  
+  component "PtpHal" as PtpHal {
+    rectangle "getStatus()" as PtpGetStatus
+    rectangle "setGrandmasterMode()" as PtpSetGM
+    rectangle "isAvailable()" as PtpAvail
+    rectangle "getDeviceName()" as PtpDevName
+  }
+  
+  component "SyncEHal" as SyncEHal {
+    rectangle "getStatus()" as SyncGetStatus
+    rectangle "setMode()" as SyncSetMode
+    rectangle "isAvailable()" as SyncAvail
+    rectangle "getPortList()" as SyncPortList
+  }
+  
+  component "MplsTpHal" as MplsHal {
+    rectangle "getStatus()" as MplsGetStatus
+    rectangle "createPw()" as MplsCreate
+    rectangle "deletePw()" as MplsDelete
+    rectangle "isAvailable()" as MplsAvail
+    rectangle "getPwList()" as MplsPwList
+  }
+  
+}
+
+' Data structures
+rectangle "PtpStatus struct" as PtpStruct {
+  [device_name]
+  [mode]
+  [current_time]
+  [offset_from_master]
+  [mean_path_delay]
+  [frequency_offset]
+  [status]
+  [phase_offset]
+}
+
+rectangle "SyncEStatus struct" as SyncStruct {
+  [port_name]
+  [mode]
+  [frequency]
+  [actual_frequency]
+  [phase_offset]
+  [status]
+}
+
+rectangle "MplsTpPwStatus struct" as MplsStruct {
+  [pw_id]
+  [ingress_port]
+  [egress_port]
+  [encapsulation]
+  [qos_class]
+  [rx_bytes/tx_bytes]
+  [rx_packets/tx_packets]
+  [rx_errors/tx_errors]
+  [status]
+}
+
+' Linux subsystems
+rectangle "Linux sysfs" as Sysfs {
+  [/sys/class/ptp/]
+  [/sys/class/net/]
+}
+
+rectangle "Linux procfs" as Procfs {
+  [/proc/net/]
+  [/proc/net/mpls/]
+}
+
+rectangle "Linux utilities" as Utils {
+  [iproute2]
+  [ioctl]
+}
+
+rectangle "Daemon" as Daemon {
+  [ptp4l]
+}
+
+' Relationships for PtpHal
+PtpHal --> PtpStruct : returns
+PtpHal --> Sysfs : readFromSysfs()
+PtpHal --> Daemon : parsePtp4lLogs()
+
+' Relationships for SyncEHal
+SyncEHal --> SyncStruct : returns
+SyncEHal --> Sysfs : readFromSysfs()
+SyncEHal --> Procfs : parseProcNet()
+SyncEHal --> Utils : ioctl
+
+' Relationships for MplsTpHal
+MplsHal --> MplsStruct : returns
+MplsHal --> Sysfs : readFromSysfs()
+MplsHal --> Procfs : parseProcNet()
+MplsHal --> Utils : iproute2
+
+legend right
+  |*C3 Diagram: HAL Layer Architecture*|
+  |*Three independent HAL modules:*|
+  ||
+  |*1. PtpHal (Precision Time Protocol)*|
+  |*- Manages PTP synchronization*|
+  |*- Reads from /sys/class/ptp/*|
+  |*- Parses ptp4l daemon logs*|
+  |*- Supports Grandmaster mode*|
+  ||
+  |*2. SyncEHal (Synchronous Ethernet)*|
+  |*- Manages SyncE port status*|
+  |*- Reads from /sys/class/net/*|
+  |*- Uses ioctl for hardware config*|
+  |*- Supports master/slave/transparent*|
+  ||
+  |*3. MplsTpHal (MPLS-TP)*|
+  |*- Manages MPLS pseudowires*|
+  |*- Uses iproute2 for MPLS mgmt*|
+  |*- Reads stats from /proc/net/*|
+  |*- Supports eth/hdlc encapsulation*|
+endlegend
+
+@enduml
