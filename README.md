@@ -43,8 +43,22 @@
 4. **Единое API** — унифицированный интерфейс управления для всех устройств
 5. **SDN-ready** — поддержка OpenFlow, NETCONF/YANG, gRPC telemetry
 
+## Реализованный пример
+
+В папке [`mts-mb3000-api/`](mts-mb3000-api/) представлена полная реализация для маршрутизатора **MTS-MB-3000** (Mobile Backhaul), демонстрирующая:
+
+- **Hardware Abstraction Layer (HAL)** — три модуля: PtpHal, SyncEHal, MplsTpHal с работой через sysfs/procfs/ioctl
+- **gRPC Service** — 10 RPC методов для управления телеком-протоколами (PTP, SyncE, MPLS-TP)
+- **Linux Integration** — прямое взаимодействие с Linux kernel subsystems (LinuxPTP, SyncE driver, MPLS)
+- **C++ Design Patterns** — RAII, thread safety, mock mode, smart pointers, signal handling
+
+Подробная документация: [`mts-mb3000-api/README.md`](mts-mb3000-api/README.md)
+
+---
+
 ## Текущее состояние
 
+- [x] Реализованный пример HAL + gRPC + Linux Integration (MTS-MB-3000)
 - [ ] Анализ текущего оборудования МТС
 - [ ] Спецификации каждого типа маршрутизаторов
 - [ ] Выбор чипов для каждого сегмента
