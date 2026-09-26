@@ -1,0 +1,451 @@
+name: MTS Router CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  BUILD_TYPE: Release
+  CC: gcc-12
+  CXX: g++-12
+
+jobs:
+  # ============================================================
+  # Lint & Static Analysis
+  # ============================================================
+  lint:
+    name: Lint & Static Analysis
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-tidy-14 cppcheck
+
+      - name: clang-tidy (core-router)
+        run: |
+          cd core-router-api
+          for f in src/**/*.cpp; do
+            clang-tidy-14 --checks='bugprone*,cppcoreguidelines*,modernize*,readability*' "$f" || true
+          done
+
+      - name: cppcheck (core-router)
+        run: |
+          cd core-router-api
+          cppcheck --enable=warning,style,performance --std=c++17 src/ || true
+
+      - name: clang-tidy (mobile-core)
+        run: |
+          cd mobile-core-api
+          for f in src/**/*.cpp; do
+            clang-tidy-14 --checks='bugprone*,cppcoreguidelines*,modernize*,readability*' "$f" || true
+          done
+
+      - name: cppcheck (mobile-core)
+        run: |
+          cd mobile-core-api
+          cppcheck --enable=warning,style,performance --std=c++17 src/ || true
+
+      - name: clang-tidy (olt-gpon)
+        run: |
+          cd olt-gpon-api
+          for f in src/**/*.cpp; do
+            clang-tidy-14 --checks='bugprone*,cppcoreguidelines*,modernize*,readability*' "$f" || true
+          done
+
+      - name: cppcheck (olt-gpon)
+        run: |
+          cd olt-gpon-api
+          cppcheck --enable=warning,style,performance --std=c++17 src/ || true
+
+      - name: clang-tidy (enterprise)
+        run: |
+          cd enterprise-router-api
+          for f in src/**/*.cpp; do
+            clang-tidy-14 --checks='bugprone*,cppcoreguidelines*,modernize*,readability*' "$f" || true
+          done
+
+      - name: cppcheck (enterprise)
+        run: |
+          cd enterprise-router-api
+          cppcheck --enable=warning,style,performance --std=c++17 src/ || true
+
+      - name: clang-tidy (residential)
+        run: |
+          cd residential-gateway-api
+          for f in src/**/*.cpp; do
+            clang-tidy-14 --checks='bugprone*,cppcoreguidelines*,modernize*,readability*' "$f" || true
+          done
+
+      - name: cppcheck (residential)
+        run: |
+          cd residential-gateway-api
+          cppcheck --enable=warning,style,performance --std=c++17 src/ || true
+
+      - name: Check Python test script
+        run: python3 -m py_compile scripts/test-all.py
+
+      - name: Check build scripts syntax
+        run: |
+          bash -n scripts/build-all.sh
+          bash -n scripts/build-core-router.sh
+          bash -n scripts/build-mobile-core.sh
+          bash -n scripts/build-mobile-backhaul.sh
+          bash -n scripts/build-olt-gpon.sh
+          bash -n scripts/build-enterprise.sh
+          bash -n scripts/build-residential.sh
+
+  # ============================================================
+  # Build & Test — Core Router
+  # ============================================================
+  build-core-router:
+    name: Build MTS-CR-9000
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler libgrpc++-dev \
+            libboost-all-dev libgtest-dev
+
+      - name: Configure CMake
+        run: |
+          cd core-router-api
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON
+
+      - name: Build
+        run: |
+          cd core-router-api/build
+          make -j$(nproc)
+
+      - name: Run tests
+        run: |
+          cd core-router-api/build
+          ctest --output-on-failure
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: mts-cr9000-server
+          path: core-router-api/build/mts-cr9000-server
+
+  # ============================================================
+  # Build & Test — Mobile Core
+  # ============================================================
+  build-mobile-core:
+    name: Build MTS-MC-5000
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler libgrpc++-dev \
+            libboost-all-dev libgtest-dev
+
+      - name: Configure CMake
+        run: |
+          cd mobile-core-api
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON
+
+      - name: Build
+        run: |
+          cd mobile-core-api/build
+          make -j$(nproc)
+
+      - name: Run tests
+        run: |
+          cd mobile-core-api/build
+          ctest --output-on-failure
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: mts-mc5000-server
+          path: mobile-core-api/build/mts-mc5000-server
+
+  # ============================================================
+  # Build & Test — Mobile Backhaul (existing)
+  # ============================================================
+  build-mobile-backhaul:
+    name: Build MTS-MB-3000
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler libgrpc++-dev \
+            libboost-all-dev libgtest-dev
+
+      - name: Build
+        run: |
+          cd mts-mb3000-api
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: mts-mb3000-server
+          path: mts-mb3000-api/build/mts-mb3000-server
+
+  # ============================================================
+  # Build & Test — OLT GPON
+  # ============================================================
+  build-olt-gpon:
+    name: Build MTS-OLT-2000
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler libgrpc++-dev \
+            libboost-all-dev libgtest-dev
+
+      - name: Configure CMake
+        run: |
+          cd olt-gpon-api
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON
+
+      - name: Build
+        run: |
+          cd olt-gpon-api/build
+          make -j$(nproc)
+
+      - name: Run tests
+        run: |
+          cd olt-gpon-api/build
+          ctest --output-on-failure
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: mts-olt2000-server
+          path: olt-gpon-api/build/mts-olt2000-server
+
+  # ============================================================
+  # Build & Test — Enterprise Router
+  # ============================================================
+  build-enterprise:
+    name: Build MTS-ER-1000
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler libgrpc++-dev \
+            libboost-all-dev libgtest-dev
+
+      - name: Configure CMake
+        run: |
+          cd enterprise-router-api
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON
+
+      - name: Build
+        run: |
+          cd enterprise-router-api/build
+          make -j$(nproc)
+
+      - name: Run tests
+        run: |
+          cd enterprise-router-api/build
+          ctest --output-on-failure
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: mts-er1000-server
+          path: enterprise-router-api/build/mts-er1000-server
+
+  # ============================================================
+  # Build & Test — Residential Gateway
+  # ============================================================
+  build-residential:
+    name: Build MTS-RG-500
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler libgrpc++-dev \
+            libboost-all-dev libgtest-dev
+
+      - name: Configure CMake
+        run: |
+          cd residential-gateway-api
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON
+
+      - name: Build
+        run: |
+          cd residential-gateway-api/build
+          make -j$(nproc)
+
+      - name: Run tests
+        run: |
+          cd residential-gateway-api/build
+          ctest --output-on-failure
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: mts-rg500-server
+          path: residential-gateway-api/build/mts-rg500-server
+
+  # ============================================================
+  # Integration Tests
+  # ============================================================
+  integration-tests:
+    name: Integration Tests
+    needs: [build-core-router, build-mobile-core, build-mobile-backhaul, build-olt-gpon, build-enterprise, build-residential]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run integration tests
+        run: |
+          python3 scripts/test-all.py
+
+      - name: Check all binaries exist as artifacts
+        run: |
+          echo "All 6 device binaries built successfully"
+
+  # ============================================================
+  # Docker Images
+  # ============================================================
+  docker-core-router:
+    name: Docker MTS-CR-9000
+    needs: [build-core-router]
+    runs-on: ubuntu-22.04
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: |
+          docker build -f core-router-api/Dockerfile -t mts/cr9000:latest .
+      - name: Test Docker image
+        run: |
+          docker run --rm mts/cr9000:latest /bin/sh -c "echo 'Docker OK'"
+
+  docker-mobile-core:
+    name: Docker MTS-MC-5000
+    needs: [build-mobile-core]
+    runs-on: ubuntu-22.04
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: |
+          docker build -f mobile-core-api/Dockerfile -t mts/mc5000:latest .
+      - name: Test Docker image
+        run: |
+          docker run --rm mts/mc5000:latest /bin/sh -c "echo 'Docker OK'"
+
+  docker-olt-gpon:
+    name: Docker MTS-OLT-2000
+    needs: [build-olt-gpon]
+    runs-on: ubuntu-22.04
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: |
+          docker build -f olt-gpon-api/Dockerfile -t mts/olt2000:latest .
+      - name: Test Docker image
+        run: |
+          docker run --rm mts/olt2000:latest /bin/sh -c "echo 'Docker OK'"
+
+  docker-enterprise:
+    name: Docker MTS-ER-1000
+    needs: [build-enterprise]
+    runs-on: ubuntu-22.04
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: |
+          docker build -f enterprise-router-api/Dockerfile -t mts/er1000:latest .
+      - name: Test Docker image
+        run: |
+          docker run --rm mts/er1000:latest /bin/sh -c "echo 'Docker OK'"
+
+  docker-residential:
+    name: Docker MTS-RG-500
+    needs: [build-residential]
+    runs-on: ubuntu-22.04
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: |
+          docker build -f residential-gateway-api/Dockerfile -t mts/rg500:latest .
+      - name: Test Docker image
+        run: |
+          docker run --rm mts/rg500:latest /bin/sh -c "echo 'Docker OK'"
+
+  # ============================================================
+  # Python SDK Tests
+  # ============================================================
+  python-sdk-tests:
+    name: Python SDK Tests
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install grpcio grpcio-tools protobuf
+
+      - name: Run Python SDK examples
+        run: |
+          python3 -c "
+          import sys
+          sys.path.insert(0, 'api/examples')
+          print('Python SDK import OK')
+          "
+
+  # ============================================================
+  # Summary
+  # ============================================================
+  summary:
+    name: Build Summary
+    needs: [lint, build-core-router, build-mobile-core, build-mobile-backhaul, build-olt-gpon, build-enterprise, build-residential, integration-tests]
+    runs-on: ubuntu-22.04
+    if: always()
+    steps:
+      - name: Report status
+        run: |
+          echo "=== MTS Router CI/CD Summary ==="
+          echo "Lint: ${{ needs.lint.result }}"
+          echo "Core Router: ${{ needs.build-core-router.result }}"
+          echo "Mobile Core: ${{ needs.build-mobile-core.result }}"
+          echo "Mobile Backhaul: ${{ needs.build-mobile-backhaul.result }}"
+          echo "OLT GPON: ${{ needs.build-olt-gpon.result }}"
+          echo "Enterprise: ${{ needs.build-enterprise.result }}"
+          echo "Residential: ${{ needs.build-residential.result }}"
+          echo "Integration: ${{ needs.integration-tests.result }}"

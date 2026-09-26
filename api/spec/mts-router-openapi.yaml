@@ -1,0 +1,1018 @@
+openapi: 3.0.3
+info:
+  title: MTS Router API
+  description: |
+    MTS Router REST API для управления всеми устройствами семейства:
+    Core Router (CR-9000), Mobile Core (MC-5000), Mobile Backhaul (MB-3000),
+    OLT GPON (OLT-2000), Enterprise Router (ER-1000), Residential Gateway (RG-500).
+  version: 1.0.0
+  contact:
+    name: MTS Router Team
+    email: dev@mts.ru
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://mts-router.local/api/v1
+    description: Production
+  - url: http://localhost:8080/api/v1
+    description: Development
+
+tags:
+  - name: core-router
+    description: MTS-CR-9000 Core Router
+  - name: mobile-core
+    description: MTS-MC-5000 Mobile Core
+  - name: mobile-backhaul
+    description: MTS-MB-3000 Mobile Backhaul
+  - name: olt-gpon
+    description: MTS-OLT-2000 OLT GPON
+  - name: enterprise
+    description: MTS-ER-1000 Enterprise Router
+  - name: residential
+    description: MTS-RG-500 Residential Gateway
+  - name: system
+    description: System-wide operations
+  - name: metrics
+    description: Prometheus metrics
+
+paths:
+  # ============================================================
+  # Health & System
+  # ============================================================
+  /health:
+    get:
+      tags: [system]
+      summary: Health check for all devices
+      operationId: getAllHealth
+      responses:
+        '200':
+          description: Health status of all devices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /health/{device}:
+    get:
+      tags: [system]
+      summary: Health check for specific device
+      operationId: getDeviceHealth
+      parameters:
+        - name: device
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [core-router, mobile-core, mobile-backhaul, olt-gpon, enterprise, residential]
+      responses:
+        '200':
+          description: Device health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceHealth'
+        '404':
+          description: Device not found
+
+  /metrics:
+    get:
+      tags: [metrics]
+      summary: Prometheus metrics endpoint
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Prometheus-format metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  # ============================================================
+  # Core Router (CR-9000)
+  # ============================================================
+  /core-router/bgp/status:
+    get:
+      tags: [core-router]
+      summary: Get BGP peer status
+      operationId: getBgpStatus
+      responses:
+        '200':
+          description: BGP peer status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BgpStatus'
+
+  /core-router/bgp/peers:
+    get:
+      tags: [core-router]
+      summary: List all BGP peers
+      operationId: listBgpPeers
+      responses:
+        '200':
+          description: List of BGP peers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BgpPeer'
+
+  /core-router/lsp/status:
+    get:
+      tags: [core-router]
+      summary: Get MPLS LSP status
+      operationId: getLspStatus
+      responses:
+        '200':
+          description: MPLS LSP status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LspStatus'
+
+  /core-router/lsp:
+    post:
+      tags: [core-router]
+      summary: Configure MPLS LSP
+      operationId: configureLsp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LspConfig'
+      responses:
+        '200':
+          description: LSP configured successfully
+        '400':
+          description: Invalid configuration
+
+  /core-router/srv6/sids:
+    get:
+      tags: [core-router]
+      summary: Get SRv6 SID list
+      operationId: getSrv6Sids
+      responses:
+        '200':
+          description: List of SRv6 SIDs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /core-router/ports/{portId}/stats:
+    get:
+      tags: [core-router]
+      summary: Get port statistics
+      operationId: getPortStats
+      parameters:
+        - name: portId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Port statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortStats'
+
+  /core-router/p4/tables:
+    get:
+      tags: [core-router]
+      summary: Get P4 pipeline table statistics
+      operationId: getP4TableStats
+      responses:
+        '200':
+          description: P4 table statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/P4TableStats'
+
+  # ============================================================
+  # Mobile Core (MC-5000)
+  # ============================================================
+  /mobile-core/sessions:
+    get:
+      tags: [mobile-core]
+      summary: List all PDU sessions
+      operationId: listSessions
+      responses:
+        '200':
+          description: List of PDU sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PduSession'
+    post:
+      tags: [mobile-core]
+      summary: Create PDU session
+      operationId: createSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionCreateRequest'
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PduSession'
+
+  /mobile-core/sessions/{sessionId}:
+    get:
+      tags: [mobile-core]
+      summary: Get PDU session status
+      operationId: getSessionStatus
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: PDU session status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PduSession'
+        '404':
+          description: Session not found
+    delete:
+      tags: [mobile-core]
+      summary: Delete PDU session
+      operationId: deleteSession
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Session deleted
+
+  /mobile-core/upf/stats:
+    get:
+      tags: [mobile-core]
+      summary: Get UPF statistics
+      operationId: getUpfStats
+      responses:
+        '200':
+          description: UPF statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpfStats'
+
+  /mobile-core/pfcp/stats:
+    get:
+      tags: [mobile-core]
+      summary: Get PFCP session statistics
+      operationId: getPfcpStats
+      responses:
+        '200':
+          description: PFCP statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PfcpStats'
+
+  # ============================================================
+  # OLT GPON (OLT-2000)
+  # ============================================================
+  /olt-gpon/onus:
+    get:
+      tags: [olt-gpon]
+      summary: List all ONUs
+      operationId: listOnus
+      responses:
+        '200':
+          description: List of ONUs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OnuStatus'
+
+  /olt-gpon/onus/{onuId}:
+    get:
+      tags: [olt-gpon]
+      summary: Get ONU status
+      operationId: getOnuStatus
+      parameters:
+        - name: onuId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ONU status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnuStatus'
+    put:
+      tags: [olt-gpon]
+      summary: Configure ONU
+      operationId: configureOnu
+      parameters:
+        - name: onuId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnuConfig'
+      responses:
+        '200':
+          description: ONU configured
+
+  /olt-gpon/gpon/status:
+    get:
+      tags: [olt-gpon]
+      summary: Get GPON port status
+      operationId: getGponPortStatus
+      responses:
+        '200':
+          description: GPON port status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GponPortStatus'
+
+  /olt-gpon/omci/events:
+    get:
+      tags: [olt-gpon]
+      summary: Get OMCI events
+      operationId: getOmciEvents
+      parameters:
+        - name: onuId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: count
+          in: query
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: OMCI events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OmciEvent'
+
+  /olt-gpon/tr069/status:
+    get:
+      tags: [olt-gpon]
+      summary: Get TR-069 status
+      operationId: getTr069Status
+      responses:
+        '200':
+          description: TR-069 status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tr069Status'
+
+  # ============================================================
+  # Enterprise Router (ER-1000)
+  # ============================================================
+  /enterprise/sdwan/status:
+    get:
+      tags: [enterprise]
+      summary: Get SD-WAN status
+      operationId: getSdwanStatus
+      responses:
+        '200':
+          description: SD-WAN status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SdwanStatus'
+
+  /enterprise/sdwan/policies:
+    post:
+      tags: [enterprise]
+      summary: Configure SD-WAN policy
+      operationId: configureSdwanPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SdwanPolicy'
+      responses:
+        '200':
+          description: Policy configured
+
+  /enterprise/mpls/status:
+    get:
+      tags: [enterprise]
+      summary: Get MPLS status
+      operationId: getMplsStatus
+      responses:
+        '200':
+          description: MPLS status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MplsStatus'
+
+  /enterprise/ipsec/tunnels:
+    get:
+      tags: [enterprise]
+      summary: Get IPsec tunnel list
+      operationId: getIpsecTunnels
+      responses:
+        '200':
+          description: IPsec tunnel list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IpsecTunnel'
+
+  /enterprise/vrrp/status:
+    get:
+      tags: [enterprise]
+      summary: Get VRRP status
+      operationId: getVrrpStatus
+      responses:
+        '200':
+          description: VRRP status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VrrpStatus'
+
+  # ============================================================
+  # Residential Gateway (RG-500)
+  # ============================================================
+  /residential/wifi/status:
+    get:
+      tags: [residential]
+      summary: Get WiFi status
+      operationId: getWifiStatus
+      responses:
+        '200':
+          description: WiFi status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WifiStatus'
+
+  /residential/wifi/clients:
+    get:
+      tags: [residential]
+      summary: Get WiFi client list
+      operationId: getWifiClients
+      responses:
+        '200':
+          description: WiFi client list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WifiClient'
+
+  /residential/wifi/config:
+    put:
+      tags: [residential]
+      summary: Configure WiFi settings
+      operationId: configureWifi
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WifiConfig'
+      responses:
+        '200':
+          description: WiFi configured
+
+  /residential/voip/status:
+    get:
+      tags: [residential]
+      summary: Get VoIP status
+      operationId: getVoipStatus
+      responses:
+        '200':
+          description: VoIP status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoipStatus'
+
+  /residential/iptv/status:
+    get:
+      tags: [residential]
+      summary: Get IPTV status
+      operationId: getIptvStatus
+      responses:
+        '200':
+          description: IPTV status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IptvStatus'
+
+  /residential/onu/status:
+    get:
+      tags: [residential]
+      summary: Get ONU status
+      operationId: getResidentialOnuStatus
+      responses:
+        '200':
+          description: ONU status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnuStatus'
+
+  /residential/tr069/status:
+    get:
+      tags: [residential]
+      summary: Get TR-069 status
+      operationId: getResidentialTr069Status
+      responses:
+        '200':
+          description: TR-069 status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tr069Status'
+
+# ============================================================
+# Components
+# ============================================================
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    mtls:
+      type: mutualTLS
+
+  schemas:
+    # --- System ---
+    HealthResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        devices:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeviceHealth'
+
+    DeviceHealth:
+      type: object
+      properties:
+        device:
+          type: string
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        uptime_seconds:
+          type: integer
+          format: int64
+        version:
+          type: string
+
+    # --- Core Router ---
+    BgpStatus:
+      type: object
+      properties:
+        state:
+          type: string
+          enum: [idle, connect, active, established, idle]
+        peers_count:
+          type: integer
+        up_peers:
+          type: integer
+        down_peers:
+          type: integer
+
+    BgpPeer:
+      type: object
+      properties:
+        peer_ip:
+          type: string
+          format: ipv4
+        peer_as:
+          type: integer
+        state:
+          type: string
+        uptime_seconds:
+          type: integer
+          format: int64
+        prefixes_received:
+          type: integer
+        prefixes_sent:
+          type: integer
+
+    LspStatus:
+      type: object
+      properties:
+        total_lsps:
+          type: integer
+        active_lsps:
+          type: integer
+        inactive_lsps:
+          type: integer
+
+    LspConfig:
+      type: object
+      required: [lsp_id, next_hop]
+      properties:
+        lsp_id:
+          type: string
+        next_hop:
+          type: string
+        label:
+          type: integer
+        interface:
+          type: string
+
+    PortStats:
+      type: object
+      properties:
+        port_id:
+          type: string
+        rx_bytes:
+          type: integer
+          format: int64
+        tx_bytes:
+          type: integer
+          format: int64
+        rx_packets:
+          type: integer
+          format: int64
+        tx_packets:
+          type: integer
+          format: int64
+        rx_errors:
+          type: integer
+        tx_errors:
+          type: integer
+        rx_dropped:
+          type: integer
+        tx_dropped:
+          type: integer
+
+    P4TableStats:
+      type: object
+      properties:
+        table_name:
+          type: string
+        entries:
+          type: integer
+        miss_count:
+          type: integer
+        match_time_us:
+          type: number
+          format: double
+
+    # --- Mobile Core ---
+    PduSession:
+      type: object
+      properties:
+        session_id:
+          type: string
+        imsi:
+          type: string
+        pdu_type:
+          type: string
+          enum: [ipv4, ipv6, ipv4v6]
+        dnn:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive, pending]
+        uplink_bytes:
+          type: integer
+          format: int64
+        downlink_bytes:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+
+    SessionCreateRequest:
+      type: object
+      required: [imsi, dnn]
+      properties:
+        imsi:
+          type: string
+        dnn:
+          type: string
+        pdu_type:
+          type: string
+          enum: [ipv4, ipv6, ipv4v6]
+          default: ipv4
+
+    UpfStats:
+      type: object
+      properties:
+        total_sessions:
+          type: integer
+        active_sessions:
+          type: integer
+        total_bytes:
+          type: integer
+          format: int64
+        total_packets:
+          type: integer
+          format: int64
+
+    PfcpStats:
+      type: object
+      properties:
+        active_sessions:
+          type: integer
+        heartbeats_sent:
+          type: integer
+        heartbeats_received:
+          type: integer
+
+    # --- OLT GPON ---
+    OnuStatus:
+      type: object
+      properties:
+        onu_id:
+          type: string
+        status:
+          type: string
+          enum: [online, offline, provisioning]
+        power_level:
+          type: number
+          format: double
+        distance:
+          type: integer
+          format: int64
+        serial_number:
+          type: string
+        firmware_version:
+          type: string
+
+    OnuConfig:
+      type: object
+      properties:
+        profile:
+          type: string
+        max_bandwidth_up:
+          type: integer
+        max_bandwidth_down:
+          type: integer
+
+    GponPortStatus:
+      type: object
+      properties:
+        port_id:
+          type: string
+        status:
+          type: string
+          enum: [up, down]
+        onu_count:
+          type: integer
+        max_distance:
+          type: integer
+          format: int64
+
+    OmciEvent:
+      type: object
+      properties:
+        event_id:
+          type: string
+        onu_id:
+          type: string
+        event_type:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        description:
+          type: string
+
+    Tr069Status:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        url:
+          type: string
+        device_id:
+          type: string
+        last_connection:
+          type: string
+          format: date-time
+        polling_interval:
+          type: integer
+
+    # --- Enterprise ---
+    SdwanStatus:
+      type: object
+      properties:
+        tunnels_count:
+          type: integer
+        active_tunnels:
+          type: integer
+        policies_count:
+          type: integer
+
+    SdwanPolicy:
+      type: object
+      properties:
+        policy_id:
+          type: string
+        name:
+          type: string
+        priority:
+          type: integer
+        match:
+          type: object
+        action:
+          type: object
+
+    MplsStatus:
+      type: object
+      properties:
+        total_lsps:
+          type: integer
+        active_lsps:
+          type: integer
+
+    IpsecTunnel:
+      type: object
+      properties:
+        tunnel_id:
+          type: string
+        name:
+          type: string
+        peer_ip:
+          type: string
+        status:
+          type: string
+          enum: [up, down, negotiating]
+        rx_bytes:
+          type: integer
+          format: int64
+        tx_bytes:
+          type: integer
+          format: int64
+
+    VrrpStatus:
+      type: object
+      properties:
+        interface:
+          type: string
+        virtual_router_id:
+          type: integer
+        state:
+          type: string
+          enum: [master, backup, init]
+        priority:
+          type: integer
+
+    # --- Residential ---
+    WifiStatus:
+      type: object
+      properties:
+        bss:
+          type: array
+          items:
+            $ref: '#/components/schemas/WifiBss'
+        clients_count:
+          type: integer
+
+    WifiBss:
+      type: object
+      properties:
+        band:
+          type: string
+          enum: [2.4ghz, 5ghz]
+        ssid:
+          type: string
+        channel:
+          type: integer
+        bandwidth:
+          type: integer
+        security:
+          type: string
+        status:
+          type: string
+          enum: [up, down]
+
+    WifiClient:
+      type: object
+      properties:
+        mac_address:
+          type: string
+        ssid:
+          type: string
+        signal_strength:
+          type: integer
+        ip_address:
+          type: string
+        connected_at:
+          type: string
+          format: date-time
+
+    WifiConfig:
+      type: object
+      properties:
+        ssid:
+          type: string
+        password:
+          type: string
+        band:
+          type: string
+          enum: [2.4ghz, 5ghz]
+        channel:
+          type: integer
+        bandwidth:
+          type: integer
+
+    VoipStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [active, inactive]
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/VoipLine'
+
+    VoipLine:
+      type: object
+      properties:
+        line_id:
+          type: integer
+        status:
+          type: string
+        codec:
+          type: string
+        caller_id:
+          type: string
+
+    IptvStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [active, inactive]
+        total_channels:
+          type: integer
+        active_streams:
+          type: integer
+
+    # --- Error ---
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        details:
+          type: string
+
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
+  - mtls: []

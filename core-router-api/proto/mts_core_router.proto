@@ -1,0 +1,214 @@
+syntax = "proto3";
+
+package mts.core.router.v1;
+
+option cc_generic_services = true;
+
+// Fabric status
+message FabricStatus {
+    string name = 1;
+    uint32 num_slots = 2;
+    repeated SlotStatus slots = 3;
+    double total_bandwidth_gbps = 4;
+    string status = 5; // active, degraded, offline
+}
+
+message SlotStatus {
+    uint32 slot_id = 1;
+    string card_type = 2; // line-card, control-card, fabric-card
+    string status = 3; // up, down, initializing
+    double cpu_usage = 4;
+    double memory_usage = 5;
+}
+
+// Line card status
+message LineCardStatus {
+    uint32 card_id = 1;
+    string asic_type = 2; // tofino2, tomtom
+    string status = 3;
+    repeated PortStatus ports = 4;
+    uint32 active_sessions = 5;
+    uint64 packets_forwarded = 6;
+    uint64 bytes_forwarded = 7;
+    uint64 errors = 8;
+}
+
+// Port status
+message PortStatus {
+    string name = 1;
+    string type = 2; // qsfp_dd, qsfp28, sfp_plus
+    uint32 speed_mbps = 3;
+    string status = 4; // up, down, error
+    double rx_power = 5;
+    double tx_power = 6;
+    double temperature = 7;
+    uint64 rx_bytes = 8;
+    uint64 tx_bytes = 9;
+    uint64 rx_packets = 10;
+    uint64 tx_packets = 11;
+    uint64 rx_errors = 12;
+    uint64 tx_errors = 13;
+}
+
+// P4 pipeline status
+message P4PipelineStatus {
+    string pipeline_id = 1;
+    string program_name = 2;
+    string version = 3;
+    string status = 4; // compiled, loaded, running, error
+    uint64 compiled_at = 5;
+    uint64 loaded_at = 6;
+    uint32 num_tables = 7;
+    uint64 num_entries = 8;
+}
+
+// SRv6 status
+message Srv6Status {
+    string sid = 1;
+    uint32 sid_length = 2;
+    string encap_mode = 3; // end, end.x, end.dx
+    string status = 4; // active, inactive
+    uint64 packets = 5;
+    uint64 bytes = 6;
+}
+
+// MPLS LSP status
+message MplsLspStatus {
+    uint32 lsp_id = 1;
+    string name = 2;
+    string ingress_label = 3;
+    string egress_label = 4;
+    string next_hop = 5;
+    string interface = 6;
+    string status = 7; // up, down, initializing
+    uint64 rx_packets = 8;
+    uint64 tx_packets = 9;
+    uint64 rx_bytes = 10;
+    uint64 tx_bytes = 11;
+}
+
+// Device health
+message DeviceHealth {
+    string device_id = 1;
+    string model = 2;
+    string firmware = 3;
+    double cpu_usage = 4;
+    double memory_usage = 5;
+    double temperature = 6;
+    string status = 7; // healthy, degraded, critical
+    uint64 uptime_seconds = 8;
+}
+
+// Responses
+message FabricStatusResponse {
+    FabricStatus fabric = 1;
+}
+
+message LineCardStatusResponse {
+    repeated LineCardStatus cards = 1;
+}
+
+message PortStatusResponse {
+    repeated PortStatus ports = 1;
+}
+
+message P4PipelineStatusResponse {
+    P4PipelineStatus pipeline = 1;
+}
+
+message Srv6StatusResponse {
+    repeated Srv6Status srv6_entries = 1;
+}
+
+message MplsLspStatusResponse {
+    repeated MplsLspStatus lsps = 1;
+}
+
+message DeviceHealthResponse {
+    DeviceHealth health = 1;
+}
+
+message CompileP4Request {
+    string program = 1;
+    string target = 2; // tofino2
+}
+
+message CompileP4Response {
+    bool success = 1;
+    string message = 2;
+    string pipeline_id = 3;
+}
+
+message SetFabricRequest {
+    string config = 1; // JSON config
+}
+
+message SetFabricResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message AddLineCardRequest {
+    uint32 slot = 1;
+    string card_type = 2;
+    string config = 3;
+}
+
+message AddLineCardResponse {
+    bool success = 1;
+    string message = 2;
+    uint32 card_id = 3;
+}
+
+message CreateLspRequest {
+    string name = 1;
+    string ingress_label = 2;
+    string egress_label = 3;
+    string next_hop = 4;
+    string interface = 5;
+}
+
+message CreateLspResponse {
+    bool success = 1;
+    string message = 2;
+    uint32 lsp_id = 3;
+}
+
+// MTS Core Router Service
+service MtsCoreRouterService {
+    rpc GetFabricStatus(Empty) returns (FabricStatusResponse);
+    rpc GetLineCardStatus(Empty) returns (LineCardStatusResponse);
+    rpc GetPortStatus(Empty) returns (PortStatusResponse);
+    rpc GetDeviceHealth(Empty) returns (DeviceHealthResponse);
+    rpc GetP4Pipelines(Empty) returns (P4PipelineStatusResponse);
+    rpc CompileP4(CompileP4Request) returns (CompileP4Response);
+    rpc GetSrv6Status(Empty) returns (Srv6StatusResponse);
+    rpc GetMplsLspStatus(Empty) returns (MplsLspStatusResponse);
+    rpc CreateMplsLsp(CreateLspRequest) returns (CreateLspResponse);
+    rpc SetFabric(SetFabricRequest) returns (SetFabricResponse);
+    rpc AddLineCard(AddLineCardRequest) returns (AddLineCardResponse);
+    rpc SubscribeTelemetry(TelemetrySubscription) returns (stream TelemetryData);
+}
+
+message Empty {}
+
+message TelemetrySubscription {
+    repeated string paths = 1;
+    int64 sample_interval = 2;
+}
+
+message TelemetryData {
+    int64 timestamp = 1;
+    map<string, double> metrics = 2;
+    repeated PortStats ports = 3;
+}
+
+message PortStats {
+    string name = 1;
+    uint64 rx_bytes = 2;
+    uint64 tx_bytes = 3;
+    uint64 rx_packets = 4;
+    uint64 tx_packets = 5;
+    uint64 rx_errors = 6;
+    uint64 tx_errors = 7;
+}

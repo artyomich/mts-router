@@ -1,0 +1,245 @@
+syntax = "proto3";
+
+package mts.mobile.core.v1;
+
+option cc_generic_services = true;
+
+// UPF status
+message UpfStatus {
+    string upf_id = 1;
+    string status = 2; // active, inactive, error
+    uint32 active_sessions = 3;
+    uint32 max_sessions = 4;
+    uint64 rx_bytes = 5;
+    uint64 tx_bytes = 6;
+    uint64 rx_packets = 7;
+    uint64 tx_packets = 8;
+    double cpu_usage = 9;
+    double memory_usage = 10;
+    int64 last_updated = 11; // timestamp in nanoseconds
+}
+
+// PDU Session
+message PduSession {
+    string session_id = 1;
+    string ue_ip = 2;
+    string upf_ip = 3;
+    uint32 teid = 4;
+    uint32 qfi = 5;
+    uint32 five_qi = 6;
+    string pnni = 7;
+    string status = 8; // active, inactive, releasing
+    int64 created_at = 9;
+    int64 last_active = 10;
+    uint64 rx_bytes = 11;
+    uint64 tx_bytes = 12;
+}
+
+// PFCP Session
+message PfcpSession {
+    string session_id = 1;
+    string f_seid = 2;
+    string peer_ip = 3;
+    string type = 4; // upf, smf
+    string status = 5; // established, inactive
+    repeated PfcpRule rules = 6;
+    uint64 rx_bytes = 7;
+    uint64 tx_bytes = 8;
+}
+
+message PfcpRule {
+    uint32 rule_id = 1;
+    string description = 2;
+    string action = 3; // forward, drop, buffer
+    uint32 qos_index = 4;
+}
+
+// GTP Tunnel
+message GtpTunnel {
+    string tunnel_id = 1;
+    string local_ip = 2;
+    string remote_ip = 3;
+    uint32 local_teid = 4;
+    uint32 remote_teid = 5;
+    string type = 6; // gtp-u, gtp-c
+    string status = 7; // active, inactive
+    uint64 rx_bytes = 8;
+    uint64 tx_bytes = 9;
+}
+
+// 5QI Configuration (per 3GPP TS 23.501)
+message FiveQIConfig {
+    uint32 five_qi = 1;
+    string name = 2;
+    string resource_type = 3; // GBR, non-GBR, delay-critical
+    uint32 priority_level = 4;
+    uint32 packet_delay_budget_ms = 5;
+    uint32 max_data_burst_size = 6;
+    double error_rate = 7;
+}
+
+// NRF registry entry
+message NrfEntry {
+    string nf_id = 1;
+    string nf_type = 2; // UPF, SMF, AMF, PCF, UDM, AUSF, NSSF
+    string status = 3; // registered, deregistered
+    string uri = 4;
+    repeated string supported_nfs = 5;
+    uint32 priority = 6;
+    uint32 capacity = 7;
+}
+
+// Device health
+message DeviceHealth {
+    string device_id = 1;
+    string model = 2;
+    string firmware = 3;
+    double cpu_usage = 4;
+    double memory_usage = 5;
+    double temperature = 6;
+    string status = 7;
+    uint64 uptime_seconds = 8;
+}
+
+// SMF config
+message SmfConfig {
+    string smf_id = 1;
+    string status = 2; // active, inactive, error
+    uint32 max_sessions = 3;
+    uint32 current_sessions = 4;
+    string dns_primary = 5;
+    string dns_secondary = 6;
+    string pgw_ip = 7;
+    int64 last_updated = 8;
+}
+
+// Responses
+message UpfStatusResponse {
+    UpfStatus upf = 1;
+}
+
+message PduSessionResponse {
+    repeated PduSession sessions = 1;
+}
+
+message PfcpSessionResponse {
+    repeated PfcpSession sessions = 1;
+}
+
+message GtpTunnelResponse {
+    repeated GtpTunnel tunnels = 1;
+}
+
+message FiveQIConfigResponse {
+    repeated FiveQIConfig configs = 1;
+}
+
+message NrfRegistryResponse {
+    repeated NrfEntry entries = 1;
+}
+
+message DeviceHealthResponse {
+    DeviceHealth health = 1;
+}
+
+message SmfConfigResponse {
+    SmfConfig config = 1;
+}
+
+message CreatePduSessionRequest {
+    string ue_ip = 1;
+    string pnni = 2;
+    uint32 qfi = 3;
+    uint32 five_qi = 4;
+    string upf_ip = 5;
+    uint32 teid = 6;
+}
+
+message CreatePduSessionResponse {
+    bool success = 1;
+    string message = 2;
+    string session_id = 3;
+}
+
+message DeletePduSessionRequest {
+    string session_id = 1;
+}
+
+message DeletePduSessionResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message CreatePfcpSteeringRequest {
+    string session_id = 1;
+    string rule_id = 2;
+    string selector = 3;
+    string action = 4; // forward, drop
+    uint32 priority = 5;
+}
+
+message CreatePfcpSteeringResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message UpdateFiveQIRequest {
+    uint32 five_qi = 1;
+    FiveQIConfig config = 2;
+}
+
+message UpdateFiveQIResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+// MTS Mobile Core Service
+service MtsMobileCoreService {
+    rpc GetUpfStatus(Empty) returns (UpfStatusResponse);
+    rpc GetPduSessions(Empty) returns (PduSessionResponse);
+    rpc CreatePduSession(CreatePduSessionRequest) returns (CreatePduSessionResponse);
+    rpc DeletePduSession(DeletePduSessionRequest) returns (DeletePduSessionResponse);
+    rpc GetPfcpSessions(Empty) returns (PfcpSessionResponse);
+    rpc CreatePfcpSteering(CreatePfcpSteeringRequest) returns (CreatePfcpSteeringResponse);
+    rpc GetGtpTunnels(Empty) returns (GtpTunnelResponse);
+    rpc GetFiveQIConfigs(Empty) returns (FiveQIConfigResponse);
+    rpc UpdateFiveQI(UpdateFiveQIRequest) returns (UpdateFiveQIResponse);
+    rpc GetNrfRegistry(Empty) returns (NrfRegistryResponse);
+    rpc GetDeviceHealth(Empty) returns (DeviceHealthResponse);
+    rpc GetSmfConfig(Empty) returns (SmfConfigResponse);
+    rpc UpdateSmfDns(UpdateSmfDnsRequest) returns (UpdateSmfDnsResponse);
+    rpc SubscribeTelemetry(TelemetrySubscription) returns (stream TelemetryData);
+}
+
+message Empty {}
+
+message TelemetrySubscription {
+    repeated string paths = 1;
+    int64 sample_interval = 2;
+}
+
+message TelemetryData {
+    int64 timestamp = 1;
+    map<string, double> metrics = 2;
+    repeated PortStats ports = 3;
+}
+
+message PortStats {
+    string name = 1;
+    uint64 rx_bytes = 2;
+    uint64 tx_bytes = 3;
+    uint64 rx_packets = 4;
+    uint64 tx_packets = 5;
+    uint64 rx_errors = 6;
+    uint64 tx_errors = 7;
+}
+
+message UpdateSmfDnsRequest {
+    string primary_dns = 1;
+    string secondary_dns = 2;
+}
+
+message UpdateSmfDnsResponse {
+    bool success = 1;
+    string message = 2;
+}
