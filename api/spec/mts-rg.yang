@@ -1,0 +1,368 @@
+module mts-rg {
+  namespace "urn:mts:router:residential-gateway";
+  prefix "mts-rg";
+
+  import ietf-inet-types { prefix "inet"; }
+  import ietf-yang-types { prefix "yang"; }
+
+  organization "MTS Digital";
+  contact "MTS Router Team <mts-router@mts.ru>";
+  description "MTS Residential Gateway (MTS-RG-500) Models";
+
+  revision 2024-01-15 {
+    description "Initial version";
+  }
+
+  // ==================== GPON ONU ====================
+  container gpon {
+    description "GPON ONU status";
+    leaf onu-id {
+      type string;
+    }
+    leaf status {
+      type enumeration {
+        enum "online";
+        enum "offline";
+        enum "error";
+        enum "activating";
+      }
+      readonly true;
+    }
+    leaf power-level {
+      type int32;
+      units "dBm";
+      readonly true;
+    }
+    leaf distance {
+      type uint32;
+      units "meters";
+      readonly true;
+    }
+    leaf pon-port {
+      type string;
+    }
+    leaf vlan {
+      type uint16;
+    }
+    leaf rx-bytes {
+      type yang:counter64;
+      readonly true;
+    }
+    leaf tx-bytes {
+      type yang:counter64;
+      readonly true;
+    }
+  }
+
+  // ==================== WiFi ====================
+  container wifi {
+    description "WiFi configuration";
+    list bss {
+      key "band";
+      leaf band {
+        type enumeration {
+          enum "2.4ghz";
+          enum "5ghz";
+        }
+      }
+      leaf ssid {
+        type string;
+      }
+      leaf channel {
+        type uint32;
+      }
+      leaf bandwidth {
+        type uint32;
+        units "MHz";
+      }
+      leaf security {
+        type enumeration {
+          enum "none";
+          enum "wep";
+          enum "wpa";
+          enum "wpa2";
+          enum "wpa3";
+          enum "wpa-enterprise";
+          enum "wpa2-enterprise";
+          enum "wpa3-enterprise";
+        }
+        default "wpa3";
+      }
+      leaf password {
+        type string;
+        secret;
+      }
+      leaf mode {
+        type enumeration {
+          enum "ap";
+          enum "sta";
+          enum "monitor";
+        }
+        default "ap";
+      }
+      leaf enabled {
+        type boolean;
+        default "true";
+      }
+      leaf guest-enabled {
+        type boolean;
+        default "false";
+      }
+      leaf num-clients {
+        type uint32;
+        readonly true;
+      }
+      leaf rx-bytes {
+        type uint64;
+        readonly true;
+      }
+      leaf tx-bytes {
+        type uint64;
+        readonly true;
+      }
+      leaf temperature {
+        type decimal64 { fraction-digits 1; };
+        units "celsius";
+        readonly true;
+      }
+      list client {
+        key "mac";
+        leaf mac {
+          type yang:mac-address;
+        }
+        leaf ssid {
+          type string;
+        }
+        leaf band {
+          type enumeration {
+            enum "2.4ghz";
+            enum "5ghz";
+          }
+        }
+        leaf channel {
+          type uint32;
+        }
+        leaf signal {
+          type int32;
+          units "dBm";
+        }
+        leaf rx-rate {
+          type uint32;
+          units "Mbps";
+        }
+        leaf tx-rate {
+          type uint32;
+          units "Mbps";
+        }
+        leaf connected {
+          type boolean;
+        }
+      }
+    }
+  }
+
+  // ==================== VoIP ====================
+  container voip {
+    description "VoIP configuration";
+    leaf status {
+      type enumeration {
+        enum "active";
+        enum "inactive";
+        enum "error";
+      }
+      readonly true;
+    }
+    list line {
+      key "line-id";
+      leaf line-id {
+        type uint32;
+      }
+      leaf status {
+        type enumeration {
+          enum "idle";
+          enum "ringing";
+          enum "active";
+          enum "busy";
+        }
+        readonly true;
+      }
+      leaf caller-id {
+        type string;
+      }
+      leaf callee-id {
+        type string;
+      }
+      leaf duration-seconds {
+        type uint32;
+        readonly true;
+      }
+      leaf codec {
+        type enumeration {
+          enum "g711a";
+          enum "g711u";
+          enum "g729";
+          enum "opus";
+        }
+        default "g711u";
+      }
+      leaf rtp-port {
+        type uint32;
+        readonly true;
+      }
+      container sip {
+        leaf server {
+          type inet:ip-address;
+        }
+        leaf port {
+          type uint16;
+          default 5060;
+        }
+        leaf username {
+          type string;
+        }
+        leaf password {
+          type string;
+          secret;
+        }
+        leaf register-status {
+          type enumeration {
+            enum "registered";
+            enum "unregistered";
+            enum "registering";
+            enum "failed";
+          }
+          readonly true;
+        }
+      }
+    }
+  }
+
+  // ==================== IPTV ====================
+  container iptv {
+    description "IPTV configuration";
+    leaf status {
+      type enumeration {
+        enum "active";
+        enum "inactive";
+        enum "error";
+      }
+      readonly true;
+    }
+    leaf active-channels {
+      type uint32;
+      readonly true;
+    }
+    leaf total-channels {
+      type uint32;
+      readonly true;
+    }
+    leaf bandwidth-mbps {
+      type decimal64 { fraction-digits 2; };
+      readonly true;
+    }
+    list channel {
+      key "channel-id";
+      leaf channel-id {
+        type uint32;
+      }
+      leaf name {
+        type string;
+      }
+      leaf multicast-ip {
+        type inet:ipv4-address;
+      }
+      leaf multicast-port {
+        type uint32;
+      }
+      leaf status {
+        type enumeration {
+          enum "active";
+          enum "inactive";
+        }
+        readonly true;
+      }
+      leaf viewers {
+        type uint32;
+        readonly true;
+      }
+    }
+  }
+
+  // ==================== LAN ====================
+  container lan {
+    description "LAN configuration";
+    leaf subnet {
+      type inet:ipv4-prefix;
+      default "192.168.1.0/24";
+    }
+    leaf gateway {
+      type inet:ipv4-address;
+      default "192.168.1.1";
+    }
+    container dhcp {
+      leaf enabled {
+        type boolean;
+        default "true";
+      }
+      leaf pool-start {
+        type inet:ipv4-address;
+        default "192.168.1.100";
+      }
+      leaf pool-end {
+        type inet:ipv4-address;
+        default "192.168.1.200";
+      }
+      lease-time {
+        type uint32;
+        default 86400;
+        units "seconds";
+      }
+      list lease {
+        key "mac";
+        leaf mac {
+          type yang:mac-address;
+        }
+        leaf ip {
+          type inet:ipv4-address;
+        }
+        leaf hostname {
+          type string;
+        }
+        leaf expires {
+          type yang:date-time;
+        }
+      }
+    }
+  }
+
+  // ==================== Parental Control ====================
+  container parental-control {
+    leaf enabled {
+      type boolean;
+      default "false";
+    }
+    list rule {
+      key "rule-id";
+      leaf rule-id {
+        type string;
+      }
+      leaf mac {
+        type yang:mac-address;
+      }
+      leaf schedule {
+        type string;
+        description "Cron-like schedule expression";
+      }
+      list blocked-domain {
+        leaf domain {
+          type string;
+        }
+      }
+      list blocked-ip {
+        leaf ip {
+          type inet:ip-address;
+        }
+      }
+    }
+  }
+}

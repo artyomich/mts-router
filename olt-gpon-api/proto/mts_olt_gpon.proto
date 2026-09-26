@@ -1,91 +1,85 @@
 syntax = "proto3";
 
-package mts.olt.gpon.v1;
+package mts.olt2000;
 
 option cc_generic_services = true;
 
-// OLT status
+// ==================== OLT Status ====================
 message OltStatus {
-    string device_id = 1;
-    string status = 2; // active, degraded, offline
-    uint32 total_onu = 3;
-    uint32 online_onu = 4;
-    uint32 offline_onu = 5;
-    uint32 error_onu = 6;
-    double temperature = 7;
-    double voltage = 8;
-    uint64 uptime_seconds = 9;
+    string olt_id = 1;
+    string status = 2; // active, inactive, error
+    string firmware_version = 3;
+    uint32 total_onu = 4;
+    uint32 online_onu = 5;
+    uint32 pon_ports = 6;
+    uint64 rx_bytes = 7;
+    uint64 tx_bytes = 8;
 }
 
-// PON port
-message PonPortInfo {
-    string pon_id = 1;
-    string name = 2;
-    string status = 3; // up, down, error
-    uint32 num_onu = 4;
-    uint32 max_onu = 5;
-    double downstream_rate = 6;
-    double upstream_rate = 7;
-    double downstream_util = 8;
-    double upstream_util = 9;
-    double optical_power = 10;
+// ==================== PON Port ====================
+message PonPortStatus {
+    uint32 port_id = 1;
+    string status = 2; // up, down, error
+    double rx_power = 3; // dBm
+    double tx_power = 4; // dBm
+    double temperature = 5; // celsius
+    uint32 active_onu = 6;
+    uint32 max_onu = 7;
 }
 
-// ONU info
+// ==================== ONU ====================
 message OnuInfo {
     string onu_id = 1;
-    string serial = 2;
-    string mac = 3;
-    string pon_port = 4;
-    string status = 5; // online, offline, error
-    int32 power_level = 6;
-    int32 distance = 7;
-    uint32 vlan = 8;
-    string qos_profile = 9;
-    uint32 bandwidth_up = 10;
-    uint32 bandwidth_down = 11;
-    int64 last_seen = 12;
-    int64 created = 13;
-    uint64 rx_bytes = 14;
-    uint64 tx_bytes = 15;
+    uint32 pon_port = 2;
+    string status = 3; // online, offline, error, activating
+    string serial_number = 4;
+    string mac_address = 5;
+    string firmware_version = 6;
+    int32 power_level = 7; // dBm
+    uint32 distance = 8; // meters
+    uint32 vlan = 9;
+    string qos_profile = 10;
+    uint32 bandwidth_up_mbps = 11;
+    uint32 bandwidth_down_mbps = 12;
+    uint64 rx_bytes = 13;
+    uint64 tx_bytes = 14;
 }
 
-// ONU status
-message OnuStatus {
-    string onu_id = 1;
-    string status = 2;
-    int32 power_level = 3;
-    int32 distance = 4;
-    uint64 rx_bytes = 5;
-    uint64 tx_bytes = 6;
-    uint64 rx_packets = 7;
-    uint64 tx_packets = 8;
-    uint64 rx_errors = 9;
-    uint64 tx_errors = 10;
-    int64 timestamp = 11;
+// ==================== OMCI ====================
+message OmciStatus {
+    string status = 1; // active, inactive, error
+    uint32 total_entities = 2;
+    repeated OmciEntity entities = 3;
 }
 
-// OMCI status
-message OmcisStatus {
-    string device_id = 1;
-    string status = 2;
-    uint32 active_sessions = 3;
-    uint32 total_sessions = 4;
-    int64 timestamp = 5;
+message OmciEntity {
+    uint32 entity_id = 1;
+    string name = 2;
+    string type = 3; // onu, eth-port, pots-port, gpon-tn, vlan-tnp, multicast-set
+    string status = 4; // active, inactive, testing
 }
 
-// TR-069 config
-message Tr069Config {
-    string device_id = 1;
-    string url = 2;
-    string username = 3;
-    bool enabled = 4;
-    uint32 polling_interval = 5;
-    int64 last_poll = 6;
-    int64 next_poll = 7;
+// ==================== TR-069 ====================
+message Tr069Status {
+    bool enabled = 1;
+    string acs_url = 2;
+    bool polling_enabled = 3;
+    uint32 polling_interval = 4; // seconds
+    string username = 5;
+    string status = 6; // active, inactive, error
+    string last_session_id = 7;
+    int64 last_bootstrap = 8; // timestamp
 }
 
-// Device health
+// ==================== WDM ====================
+message WdmChannel {
+    uint32 channel_id = 1;
+    uint64 center_frequency = 2; // Hz
+    uint32 bandwidth = 3; // Hz
+    string status = 4; // up, down
+}
+
+// ==================== Device Health ====================
 message DeviceHealth {
     string device_id = 1;
     string model = 2;
@@ -93,58 +87,35 @@ message DeviceHealth {
     double cpu_usage = 4;
     double memory_usage = 5;
     double temperature = 6;
-    string status = 7;
-    uint64 uptime_seconds = 8;
+    string status = 7; // healthy, degraded, critical
 }
 
-// Responses
+// ==================== Service Responses ====================
 message OltStatusResponse {
-    OltStatus olt = 1;
+    OltStatus olt_status = 1;
+    repeated PonPortStatus pon_ports = 2;
 }
 
-message PonPortInfoResponse {
-    repeated PonPortInfo pon_ports = 1;
-}
-
-message OnuInfoResponse {
+message OnuListResponse {
     repeated OnuInfo onus = 1;
 }
 
-message OnuStatusResponse {
-    OnuStatus status = 1;
+message OnuResponse {
+    OnuInfo onu = 1;
 }
 
-message OmcisStatusResponse {
-    OmcisStatus omci = 1;
-}
-
-message Tr069ConfigResponse {
-    Tr069Config config = 1;
-}
-
-message DeviceHealthResponse {
-    DeviceHealth health = 1;
-}
-
-// Update ONU config
-message UpdateOnuConfigRequest {
+message SetOnuRequest {
     string onu_id = 1;
-    string pon_port = 2;
+    uint32 pon_port = 2;
     uint32 vlan = 3;
     string qos_profile = 4;
-    uint32 bandwidth_up = 5;
-    uint32 bandwidth_down = 6;
+    uint32 bandwidth_up_mbps = 5;
+    uint32 bandwidth_down_mbps = 6;
 }
 
-message UpdateOnuConfigResponse {
+message SetOnuResponse {
     bool success = 1;
     string message = 2;
-}
-
-// Reset ONU
-message ResetOnuRequest {
-    string onu_id = 1;
-    bool force = 2;
 }
 
 message ResetOnuResponse {
@@ -152,50 +123,77 @@ message ResetOnuResponse {
     string message = 2;
 }
 
-// MTS OLT GPON Service
-service MtsOltGponService {
-    rpc GetOltStatus(Empty) returns (OltStatusResponse);
-    rpc GetPonPorts(Empty) returns (PonPortInfoResponse);
-    rpc GetOnuList(OnuListRequest) returns (stream OnuInfo);
-    rpc GetOnuStatus(OnuStatusRequest) returns (OnuStatusResponse);
-    rpc UpdateOnuConfig(UpdateOnuConfigRequest) returns (UpdateOnuConfigResponse);
-    rpc ResetOnu(ResetOnuRequest) returns (ResetOnuResponse);
-    rpc GetOmcisStatus(Empty) returns (OmcisStatusResponse);
-    rpc GetTr069Config(Empty) returns (Tr069ConfigResponse);
-    rpc GetDeviceHealth(Empty) returns (DeviceHealthResponse);
-    rpc SubscribeTelemetry(TelemetrySubscription) returns (stream TelemetryData);
+message OmciStatusResponse {
+    OmciStatus omci_status = 1;
 }
 
+message Tr069ConfigRequest {
+    bool enabled = 1;
+    string acs_url = 2;
+    bool polling_enabled = 3;
+    uint32 polling_interval = 4;
+    string username = 5;
+    string password = 6;
+}
+
+message Tr069ConfigResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message WdmStatusResponse {
+    repeated WdmChannel channels = 1;
+}
+
+message DeviceHealthResponse {
+    DeviceHealth health = 1;
+}
+
+// ==================== Service Definition ====================
+service OltGponService {
+    // OLT status
+    rpc GetOltStatus(Empty) returns (OltStatusResponse);
+    
+    // ONU management
+    rpc ListOnus(Empty) returns (OnuListResponse);
+    rpc GetOnu(OnuIdRequest) returns (OnuResponse);
+    rpc SetOnu(SetOnuRequest) returns (SetOnuResponse);
+    rpc ResetOnu(OnuIdRequest) returns (ResetOnuResponse);
+    
+    // OMCI
+    rpc GetOmciStatus(Empty) returns (OmciStatusResponse);
+    
+    // TR-069
+    rpc GetTr069Config(Empty) returns (Tr069Status);
+    rpc SetTr069Config(Tr069ConfigRequest) returns (Tr069ConfigResponse);
+    
+    // WDM
+    rpc GetWdmStatus(Empty) returns (WdmStatusResponse);
+    
+    // Health
+    rpc GetHealth(Empty) returns (DeviceHealthResponse);
+    
+    // Health check (gRPC standard)
+    rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// ==================== Messages ====================
 message Empty {}
 
-message OnuListRequest {
-    string pon_port = 1;
-    string status = 2;
-    uint32 limit = 3;
-    uint32 offset = 4;
-}
-
-message OnuStatusRequest {
+message OnuIdRequest {
     string onu_id = 1;
 }
 
-message TelemetrySubscription {
-    repeated string paths = 1;
-    int64 sample_interval = 2;
+message HealthCheckRequest {
+    string service = 1;
 }
 
-message TelemetryData {
-    int64 timestamp = 1;
-    map<string, double> metrics = 2;
-    repeated PortStats ports = 3;
-}
-
-message PortStats {
-    string name = 1;
-    uint64 rx_bytes = 2;
-    uint64 tx_bytes = 3;
-    uint64 rx_packets = 4;
-    uint64 tx_packets = 5;
-    uint64 rx_errors = 6;
-    uint64 tx_errors = 7;
+message HealthCheckResponse {
+    enum ServingStatus {
+        UNKNOWN = 0;
+        SERVING = 1;
+        NOT_SERVING = 2;
+        SERVICE_UNKNOWN = 3;
+    }
+    ServingStatus status = 1;
 }

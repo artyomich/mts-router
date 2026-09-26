@@ -1,0 +1,248 @@
+module mts-olt {
+  namespace "urn:mts:router:olt-gpon";
+  prefix "mts-olt";
+
+  import ietf-inet-types { prefix "inet"; }
+  import ietf-yang-types { prefix "yang"; }
+
+  organization "MTS Digital";
+  contact "MTS Router Team <mts-router@mts.ru>";
+  description "MTS OLT GPON (MTS-OLT-2000) Models";
+
+  revision 2024-01-15 {
+    description "Initial version";
+  }
+
+  // ==================== OLT ====================
+  container olt {
+    description "OLT state and configuration";
+    leaf olt-id {
+      type string;
+    }
+    leaf status {
+      type enumeration {
+        enum "active";
+        enum "inactive";
+        enum "error";
+      }
+      readonly true;
+    }
+    leaf firmware-version {
+      type string;
+      readonly true;
+    }
+
+    // PON Ports
+    list pon-port {
+      key "port-id";
+      leaf port-id {
+        type uint32;
+      }
+      leaf status {
+        type enumeration {
+          enum "up";
+          enum "down";
+          enum "error";
+        }
+      }
+      leaf rx-power {
+        type decimal64 { fraction-digits 2; };
+        units "dBm";
+        readonly true;
+      }
+      leaf tx-power {
+        type decimal64 { fraction-digits 2; };
+        units "dBm";
+        readonly true;
+      }
+      leaf temperature {
+        type decimal64 { fraction-digits 1; };
+        units "celsius";
+        readonly true;
+      }
+      leaf max-onu {
+        type uint32;
+        default 128;
+      }
+      leaf active-onu {
+        type uint32;
+        readonly true;
+      }
+    }
+  }
+
+  // ==================== ONU ====================
+  container onu {
+    description "ONU management";
+    list onu {
+      key "onu-id";
+      leaf onu-id {
+        type string;
+      }
+      leaf pon-port {
+        type uint32;
+      }
+      leaf status {
+        type enumeration {
+          enum "online";
+          enum "offline";
+          enum "error";
+          enum "activating";
+        }
+        readonly true;
+      }
+      leaf serial-number {
+        type string;
+        readonly true;
+      }
+      leaf mac {
+        type yang:mac-address;
+        readonly true;
+      }
+      leaf firmware-version {
+        type string;
+        readonly true;
+      }
+      leaf power-level {
+        type int32;
+        units "dBm";
+        readonly true;
+      }
+      leaf distance {
+        type uint32;
+        units "meters";
+        readonly true;
+      }
+      leaf vlan {
+        type uint16;
+      }
+      leaf qos-profile {
+        type string;
+      }
+      leaf bandwidth-up-mbps {
+        type uint32;
+      }
+      leaf bandwidth-down-mbps {
+        type uint32;
+      }
+      leaf rx-bytes {
+        type yang:counter64;
+        readonly true;
+      }
+      leaf tx-bytes {
+        type yang:counter64;
+        readonly true;
+      }
+    }
+  }
+
+  // ==================== OMCI ====================
+  container omci {
+    description "OMCI (ONT Management and Control Interface)";
+    leaf status {
+      type enumeration {
+        enum "active";
+        enum "inactive";
+        enum "error";
+      }
+      readonly true;
+    }
+    list entity {
+      key "entity-id";
+      leaf entity-id {
+        type uint32;
+      }
+      leaf name {
+        type string;
+      }
+      leaf type {
+        type enumeration {
+          enum "onu";
+          enum "eth-port";
+          enum "pots-port";
+          enum="gpon-tn";
+          enum "vlan-tnp";
+          enum "multicast-set";
+        }
+      }
+      leaf status {
+        type enumeration {
+          enum "active";
+          enum "inactive";
+          enum "testing";
+        }
+        readonly true;
+      }
+    }
+  }
+
+  // ==================== TR-069 ====================
+  container tr069 {
+    description "TR-069 (CWMP) configuration";
+    leaf enabled {
+      type boolean;
+      default "false";
+    }
+    leaf acs-url {
+      type inet:uri;
+      description "ACS (Auto Configuration Server) URL";
+    }
+    leaf polling-enabled {
+      type boolean;
+      default "false";
+    }
+    leaf polling-interval {
+      type uint32;
+      units "seconds";
+      default 300;
+    }
+    leaf username {
+      type string;
+    }
+    leaf password {
+      type string;
+      secret;
+    }
+    leaf status {
+      type enumeration {
+        enum "active";
+        enum "inactive";
+        enum "error";
+      }
+      readonly true;
+    }
+    leaf last-session-id {
+      type string;
+      readonly true;
+    }
+    leaf last-bootstrap {
+      type yang:date-time;
+      readonly true;
+    }
+  }
+
+  // ==================== WDM ====================
+  container wdm {
+    description "WDM (Wavelength Division Multiplexing)";
+    list channel {
+      key "channel-id";
+      leaf channel-id {
+        type uint32;
+      }
+      leaf center-frequency {
+        type uint64;
+        units "Hz";
+      }
+      leaf bandwidth {
+        type uint32;
+        units "Hz";
+      }
+      leaf status {
+        type enumeration {
+          enum "up";
+          enum "down";
+        }
+      }
+    }
+  }
+}

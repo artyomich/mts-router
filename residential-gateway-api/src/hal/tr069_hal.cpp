@@ -1,230 +1,134 @@
 /**
- * MTS-RG-500 Residential Gateway — TR-069 HAL Implementation
- * 
- * Реализация Hardware Abstraction Layer для TR-069 (CWMP) monitoring
- * Интеграция с Linux subsystem:
- * - /proc/net/tcp — TR-069 TCP connection monitoring
- * - cwmpd daemon — TR-069 state management
- * - /var/log/cwmpd.log — TR-069 event logs
- * - SNMP — ACS connectivity monitoring
- * - /proc/sys/net/ — TCP connection parameters
- * 
- * Уровень реализации:
- * - Чтение из /proc/net/tcp для мониторинга ACS connections
- * - Парсинь cwmpd logs для event tracking
- * - SNMP polling для ACS connectivity
- * - Мок-режим для тестирования без ACS
- * - Thread-safe доступ к общим ресурсам
+ * MTS-RG-500 TR-069 HAL Implementation
+ * Implements TR-069 (CWMP) management
  */
 
 #include "hal/tr069_hal.h"
-#include <fstream>
-#include <sstream>
 #include <iostream>
-#include <algorithm>
 #include <cstring>
-#include <chrono>
-#include <sys/stat.h>
-#include <unistd.h>
+#include <mutex>
+#include <ctime>
 
-namespace mts::rg500::hal {
+// Internal state
+static std::mutex tr069_mutex;
+static bool tr069_initialized = false;
 
-// ============================================================================
-// Tr069Hal Implementation
-// ============================================================================
+// TR-069 state
+static struct {
+    bool enabled;
+    char acs_url[MTS_RG_TR069_MAX_URL];
+    bool polling_enabled;
+    uint32_t polling_interval;
+    char username[MTS_RG_TR069_MAX_USERNAME];
+    char password[MTS_RG_TR069_MAX_PASSWORD];
+    uint32_t last_session_id;
+    int64_t last_bootstrap;
+} g_tr069_state = {
+    .enabled = false,
+    .acs_url = "",
+    .polling_enabled = false,
+    .polling_interval = 300,
+    .username = "",
+    .password = "",
+    .last_session_id = 0,
+    .last_bootstrap = 0
+};
 
-Tr069Hal::Tr069Hal()
-    : acs_url_("acs.mts.ru:7547")
-    , mock_mode_(false)
-    , available_(false)
-    , cwmpd_running_(false)
-{
-    // Инициализация статуса
-    memset(&tr069_status_, 0, sizeof(tr069_status_));
-    tr069_status_.device_id = "MTS-RG-500-001";
-    tr069_status_.url = acs_url_;
-    tr069_status_.enabled = true;
-    tr069_status_.polling_interval = 600;
-    tr069_status_.last_poll = 0;
-    tr069_status_.next_poll = 0;
-    tr069_status_.status = "inactive";
+extern "C" {
 
-    // Проверка доступности TR-069 subsystem
-    available_ = isAvailable();
-
-    if (available_) {
-        // Мониторинг cwmpd daemon
-        cwmpd_running_ = monitorCwmpd();
-        if (cwmpd_running_) {
-            std::cout << "[TR-069 HAL] cwmpd is running" << std::endl;
-            // Обновление из cwmpd
-            updateFromCwmpd();
-        } else {
-            std::cout << "[TR-069 HAL] cwmpd not running, enabling mock mode" << std::endl;
-            mock_mode_ = true;
-        }
-    } else {
-        std::cout << "[TR-069 HAL] TR-069 subsystem not available, enabling mock mode" << std::endl;
-        mock_mode_ = true;
+int mts_rg_tr069_init(void) {
+    std::lock_guard<std::mutex> lock(tr069_mutex);
+    
+    if (tr069_initialized) {
+        return 0;
     }
+    
+    tr069_initialized = true;
+    std::cout << "[TR-069 HAL] Initialized (CWMP)" << std::endl;
+    return 0;
 }
 
-Tr069Hal::~Tr069Hal() {
-    // Очистка ресурсов
+void mts_rg_tr069_cleanup(void) {
+    std::lock_guard<std::mutex> lock(tr069_mutex);
+    
+    tr069_initialized = false;
+    g_tr069_state.enabled = false;
+    std::cout << "[TR-069 HAL] Cleanup completed" << std::endl;
 }
 
-/**
- * Получить текущий статус TR-069
- * 
- * Чтение данных из:
- * 1. cwmpd state — текущее состояние
- * 2. /proc/net/tcp — TCP connections к ACS
- * 3. /var/log/cwmpd.log — event history
- * 4. SNMP — ACS connectivity status
- * 5. Моки при отсутствии hardware
- */
-Tr069Status Tr069Hal::getStatus() {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    if (mock_mode_) {
-        return applyMockStatus();
+int mts_rg_tr069_get_config(mts_rg_tr069_config_t *config) {
+    if (!config) {
+        return -1;
     }
-
-    if (!available_) {
-        mock_mode_ = true;
-        return applyMockStatus();
-    }
-
-    // Обновление из cwmpd
-    if (cwmpd_running_) {
-        updateFromCwmpd();
-    }
-
-    // Мониторинг TCP connections к ACS
-    updateTcpConnections();
-
-    tr069_status_.status = cwmpd_running_ ? "active" : "inactive";
-
-    return tr069_status_;
+    
+    std::lock_guard<std::mutex> lock(tr069_mutex);
+    
+    config->enabled = g_tr069_state.enabled;
+    strncpy(config->acs_url, g_tr069_state.acs_url, sizeof(config->acs_url) - 1);
+    config->polling_enabled = g_tr069_state.polling_enabled;
+    config->polling_interval = g_tr069_state.polling_interval;
+    strncpy(config->username, g_tr069_state.username, sizeof(config->username) - 1);
+    strncpy(config->password, g_tr069_state.password, sizeof(config->password) - 1);
+    config->last_session_id = g_tr069_state.last_session_id;
+    config->last_bootstrap = g_tr069_state.last_bootstrap;
+    
+    return 0;
 }
 
-/**
- * Проверить доступность TR-069 subsystem
- */
-bool Tr069Hal::isAvailable() {
-    struct stat st;
-    // Проверка cwmpd
-    if (stat("/var/run/cwmpd.pid", &st) == 0) {
-        return true;
+int mts_rg_tr069_set_config(const mts_rg_tr069_config_t *config) {
+    if (!config) {
+        return -1;
     }
-    if (stat("/usr/sbin/cwmpd", &st) == 0) {
-        return true;
+    
+    std::lock_guard<std::mutex> lock(tr069_mutex);
+    
+    g_tr069_state.enabled = config->enabled;
+    if (config->acs_url) {
+        strncpy(g_tr069_state.acs_url, config->acs_url, sizeof(g_tr069_state.acs_url) - 1);
     }
-    return false;
+    g_tr069_state.polling_enabled = config->polling_enabled;
+    g_tr069_state.polling_interval = config->polling_interval;
+    if (config->username) {
+        strncpy(g_tr069_state.username, config->username, sizeof(g_tr069_state.username) - 1);
+    }
+    if (config->password) {
+        strncpy(g_tr069_state.password, config->password, sizeof(g_tr069_state.password) - 1);
+    }
+    
+    std::cout << "[TR-069 HAL] Config updated (enabled: " 
+              << (config->enabled ? "true" : "false") << ")" << std::endl;
+    
+    return 0;
 }
 
-/**
- * Получить имя TR-069 device
- */
-std::string Tr069Hal::getDeviceName() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return "MTS-RG-500-TR069";
+int mts_rg_tr069_enable(void) {
+    std::lock_guard<std::mutex> lock(tr069_mutex);
+    
+    g_tr069_state.enabled = true;
+    std::cout << "[TR-069 HAL] Enabled" << std::endl;
+    
+    return 0;
 }
 
-/**
- * Мониторинг cwmpd daemon
- */
-bool Tr069Hal::monitorCwmpd() {
-    struct stat st;
-    if (stat("/var/run/cwmpd.pid", &st) == 0) {
-        return true;
-    }
-    if (stat("/var/run/daemon/cwmpd", &st) == 0) {
-        return true;
-    }
-    return false;
+int mts_rg_tr069_disable(void) {
+    std::lock_guard<std::mutex> lock(tr069_mutex);
+    
+    g_tr069_state.enabled = false;
+    std::cout << "[TR-069 HAL] Disabled" << std::endl;
+    
+    return 0;
 }
 
-/**
- * Обновление из cwmpd state
- */
-bool Tr069Hal::updateFromCwmpd() {
-    // В реальном устройстве:
-    // - Чтение /var/run/cwmpd.state
-    // - Парсинь XML state
-    std::cout << "[TR-069 HAL] Reading cwmpd state" << std::endl;
-
-    // Обновление last_poll timestamp
-    auto now = std::chrono::system_clock::now();
-    tr069_status_.last_poll = std::chrono::duration_cast<std::chrono::seconds>(
-        now.time_since_epoch()).count();
-    tr069_status_.next_poll = tr069_status_.last_poll + tr069_status_.polling_interval;
-
-    return true;
+int mts_rg_tr069_trigger_bootstrap(void) {
+    std::lock_guard<std::mutex> lock(tr069_mutex);
+    
+    g_tr069_state.last_session_id++;
+    g_tr069_state.last_bootstrap = time(NULL);
+    
+    std::cout << "[TR-069 HAL] Bootstrap triggered (session: " 
+              << g_tr069_state.last_session_id << ")" << std::endl;
+    
+    return 0;
 }
 
-/**
- * Обновление TCP connections к ACS
- */
-bool Tr069Hal::updateTcpConnections() {
-    std::string path = "/proc/net/tcp";
-    std::ifstream file(path);
-
-    if (!file.is_open()) {
-        std::cerr << "[TR-069 HAL] Cannot open: " << path << std::endl;
-        return false;
-    }
-
-    std::string line;
-    bool header_skipped = false;
-    int active_connections = 0;
-
-    while (std::getline(file, line)) {
-        if (!header_skipped) {
-            header_skipped = true;
-            continue;
-        }
-
-        // Парсинь hex IP:port
-        std::istringstream iss(line);
-        std::string local, remote;
-        uint32_t state;
-        iss >> local >> remote >> state;
-
-        // state 1 = ESTABLISHED
-        if (state == 1) {
-            // Проверка что remote port = 7547 (ACS)
-            auto colon_pos = remote.find(':');
-            if (colon_pos != std::string::npos) {
-                std::string port_hex = remote.substr(colon_pos + 1);
-                uint32_t port = std::stoul(port_hex, nullptr, 16);
-                if (port == 7547) {
-                    active_connections++;
-                }
-            }
-        }
-    }
-
-    return true;
-}
-
-/**
- * Мок-статус для тестирования
- */
-Tr069Status Tr069Hal::applyMockStatus() {
-    auto now = std::chrono::system_clock::now();
-    auto now_sec = std::chrono::duration_cast<std::chrono::seconds>(
-        now.time_since_epoch()).count();
-
-    tr069_status_.device_id = "MTS-RG-500-001";
-    tr069_status_.url = acs_url_;
-    tr069_status_.enabled = true;
-    tr069_status_.polling_interval = 600;
-    tr069_status_.last_poll = now_sec - 600;
-    tr069_status_.next_poll = now_sec;
-    tr069_status_.status = "active";
-
-    return tr069_status_;
-}
-
-} // namespace mts::rg500::hal
+} // extern "C"

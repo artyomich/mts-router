@@ -1,0 +1,226 @@
+module mts-er {
+  namespace "urn:mts:router:enterprise-router";
+  prefix "mts-er";
+
+  import ietf-inet-types { prefix "inet"; }
+  import ietf-yang-types { prefix "yang"; }
+
+  organization "MTS Digital";
+  contact "MTS Router Team <mts-router@mts.ru>";
+  description "MTS Enterprise Router (MTS-ER-1000) Models";
+
+  revision 2024-01-15 {
+    description "Initial version";
+  }
+
+  // ==================== SD-WAN ====================
+  container sdwan {
+    description "SD-WAN configuration";
+    leaf enabled {
+      type boolean;
+      default "false";
+    }
+    leaf orchestration-server {
+      type inet:ipv4-address;
+    }
+    list path {
+      key "path-id";
+      leaf path-id {
+        type string;
+      }
+      leaf wan-interface {
+        type string;
+      }
+      leaf type {
+        type enumeration {
+          enum "mpls";
+          enum "ipsec";
+          enum "lte";
+          enum "5g";
+          enum "internet";
+        }
+      }
+      leaf priority {
+        type enumeration {
+          enum "critical";
+          enum "high";
+          enum "medium";
+          enum "low";
+        }
+        default "medium";
+      }
+      leaf qos-profile {
+        type enumeration {
+          enum "gold";
+          enum "silver";
+          enum="bronze";
+        }
+        default "bronze";
+      }
+      leaf failover-interface {
+        type string;
+      }
+      leaf status {
+        type enumeration {
+          enum "active";
+          enum="standby";
+          enum "down";
+        }
+        readonly true;
+      }
+      leaf latency-ms {
+        type decimal64 { fraction-digits 2; };
+        readonly true;
+      }
+      leaf jitter-ms {
+        type decimal64 { fraction-digits 2; };
+        readonly true;
+      }
+      leaf packet-loss {
+        type decimal64 { fraction-digits 4; };
+        readonly true;
+      }
+    }
+  }
+
+  // ==================== MPLS ====================
+  container mpls {
+    description "MPLS configuration";
+    leaf enabled {
+      type boolean;
+      default "false";
+    }
+    list lsp {
+      key "lsp-id";
+      leaf lsp-id {
+        type uint32;
+      }
+      leaf name {
+        type string;
+      }
+      leaf ingress-label {
+        type uint32;
+      }
+      leaf egress-label {
+        type uint32;
+      }
+      leaf next-hop {
+        type inet:ipv4-address;
+      }
+      leaf interface {
+        type string;
+      }
+      leaf status {
+        type enumeration {
+          enum "up";
+          enum "down";
+          enum "initializing";
+        }
+      }
+    }
+  }
+
+  // ==================== IPsec ====================
+  container ipsec {
+    description "IPsec VPN configuration";
+    list tunnel {
+      key "tunnel-id";
+      leaf tunnel-id {
+        type string;
+      }
+      leaf name {
+        type string;
+      }
+      leaf local-interface {
+        type string;
+      }
+      leaf remote-ip {
+        type inet:ipv4-address;
+      }
+      leaf pfs-group {
+        type enumeration {
+          enum "none";
+          enum "group2";
+          enum "group5";
+          enum "group14";
+          enum "group15";
+          enum "group16";
+          enum "group19";
+          enum "group20";
+          enum "group21";
+          enum "group24";
+          enum "group25";
+          enum "group26";
+          enum "group27";
+        }
+        default "none";
+      }
+      leaf esp-group {
+        type string;
+      }
+      leaf auth-group {
+        type string;
+      }
+      leaf psk {
+        type string;
+        secret;
+      }
+      leaf status {
+        type enumeration {
+          enum "up";
+          enum "down";
+          enum "negotiating";
+        }
+        readonly true;
+      }
+      leaf rx-bytes {
+        type yang:counter64;
+        readonly true;
+      }
+      leaf tx-bytes {
+        type yang:counter64;
+        readonly true;
+      }
+    }
+  }
+
+  // ==================== VRRP ====================
+  container vrrp {
+    list group {
+      key "vr-id";
+      leaf vr-id {
+        type uint8 {
+          range "1..255";
+        }
+      }
+      leaf interface {
+        type string;
+      }
+      leaf priority {
+        type uint8 {
+          range "1..254";
+        }
+        default 100;
+      }
+      leaf preempt {
+        type boolean;
+        default "true";
+      }
+      list virtual-ip {
+        key "ip";
+        leaf ip {
+          type inet:ipv4-address;
+        }
+      }
+      leaf state {
+        type enumeration {
+          enum "master";
+          enum "backup";
+          enum "initial";
+          enum "fault";
+        }
+        readonly true;
+      }
+    }
+  }
+}

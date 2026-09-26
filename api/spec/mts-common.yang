@@ -1,0 +1,263 @@
+module mts-common {
+  namespace "urn:mts:router:common";
+  prefix "mts-common";
+
+  import ietf-inet-types { prefix "inet"; }
+  import ietf-yang-types { prefix "yang"; }
+
+  organization "MTS Digital";
+  contact "MTS Router Team <mts-router@mts.ru>";
+  description "MTS Router Common Models - System, Users, Firmware";
+
+  revision 2024-01-15 {
+    description "Initial version";
+  }
+
+  // ==================== System ====================
+  container system {
+    leaf hostname {
+      type string {
+        length "1..64";
+      }
+      description "Device hostname";
+    }
+    leaf domain-name {
+      type string;
+      description "DNS domain name";
+    }
+    container time {
+      leaf utc-offset {
+        type string;
+        description "UTC offset in +HH:MM format";
+      }
+      leaf timezone {
+        type string;
+        description "Timezone name (e.g., Europe/Moscow)";
+      }
+      leaf ntp-enabled {
+        type boolean;
+        default "false";
+      }
+      list ntp-server {
+        key "address";
+        leaf address {
+          type inet:ip-address;
+        }
+        leaf priority {
+          type uint8;
+          default 1;
+        }
+      }
+    }
+    container logging {
+      leaf level {
+        type enumeration {
+          enum "emergency" { value 0; }
+          enum "alert" { value 1; }
+          enum "critical" { value 2; }
+          enum "error" { value 3; }
+          enum "warning" { value 4; }
+          enum "notice" { value 5; }
+          enum "info" { value 6; }
+          enum "debug" { value 7; }
+        }
+        default "info";
+      }
+      list syslog-server {
+        key "address";
+        leaf address {
+          type inet:ip-address;
+        }
+        leaf port {
+          type uint16;
+          default 514;
+        }
+      }
+    }
+  }
+
+  // ==================== Users ====================
+  container users {
+    description "User management";
+    list user {
+      key "name";
+      leaf name {
+        type string {
+          length "1..32";
+        }
+      }
+      leaf role {
+        type enumeration {
+          enum "admin";
+          enum "operator";
+          enum "viewer";
+          enum "readonly";
+        }
+        default "viewer";
+      }
+      leaf enabled {
+        type boolean;
+        default "true";
+      }
+      container auth {
+        leaf password {
+          type string;
+          secret;
+        }
+        container ssh-key {
+          leaf algorithm {
+            type enumeration {
+              enum "ssh-rsa";
+              enum "ssh-ed25519";
+              enum "ecdsa-sha2-nistp256";
+            }
+          }
+          leaf public-key {
+            type string;
+            secret;
+          }
+        }
+      }
+    }
+  }
+
+  // ==================== Firmware ====================
+  container firmware {
+    description "Firmware management";
+    leaf version {
+      type string;
+      readonly true;
+    }
+    leaf build-date {
+      type yang:date-only;
+      readonly true;
+    }
+    container update {
+      leaf status {
+        type enumeration {
+          enum "idle";
+          enum "downloading";
+          enum "verifying";
+          enum "applying";
+          enum "failed";
+          enum "success";
+        }
+        default "idle";
+      }
+      leaf url {
+        type inet:uri;
+        description "URL to download firmware image";
+      }
+      leaf auto-reboot {
+        type boolean;
+        default "true";
+        description "Reboot after successful update";
+      }
+      leaf verify-signature {
+        type boolean;
+        default "true";
+      }
+    }
+    container rollback {
+      leaf enabled {
+        type boolean;
+        default "true";
+      }
+      leaf backup-version {
+        type string;
+        readonly true;
+      }
+    }
+  }
+
+  // ==================== Health ====================
+  container health {
+    leaf status {
+      type enumeration {
+        enum "healthy";
+        enum "degraded";
+        enum "critical";
+        enum "unknown";
+      }
+      default "unknown";
+    }
+    leaf uptime-seconds {
+      type uint64;
+      readonly true;
+    }
+    container cpu {
+      leaf usage-percent {
+        type uint8;
+        readonly true;
+      }
+      load-average {
+        type string;
+        readonly true;
+      }
+    }
+    container memory {
+      leaf total-mb {
+        type uint64;
+        readonly true;
+      }
+      leaf used-mb {
+        type uint64;
+        readonly true;
+      }
+      leaf cached-mb {
+        type uint64;
+        readonly true;
+      }
+    }
+    container thermal {
+      list sensor {
+        key "name";
+        leaf name {
+          type string;
+        }
+        leaf temperature-celsius {
+          type decimal64 { fraction-digits 1; };
+          readonly true;
+        }
+        leaf threshold-critical {
+          type decimal64 { fraction-digits 1; };
+          readonly true;
+        }
+      }
+    }
+  }
+
+  // ==================== Telemetry ====================
+  container telemetry {
+    container sampling {
+      leaf interval-seconds {
+        type uint32;
+        default 10;
+      }
+      leaf enabled {
+        type boolean;
+        default "false";
+      }
+    }
+    container destinations {
+      list destination {
+        key "address";
+        leaf address {
+          type inet:ip-address;
+        }
+        leaf port {
+          type uint16;
+          default 50051;
+        }
+        leaf encoding {
+          type enumeration {
+            enum "json";
+            enum "bytes";
+            enum "protobuf";
+          }
+          default "protobuf";
+        }
+      }
+    }
+  }
+}

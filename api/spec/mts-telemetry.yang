@@ -1,0 +1,257 @@
+module mts-telemetry {
+  namespace "urn:mts:router:telemetry";
+  prefix "mts-telemetry";
+
+  import ietf-yang-types { prefix "yang"; }
+
+  organization "MTS Digital";
+  contact "MTS Router Team <mts-router@mts.ru>";
+  description "MTS Router Telemetry Models";
+
+  revision 2024-01-15 {
+    description "Initial version";
+  }
+
+  // ==================== Telemetry Subscription ====================
+  container telemetry {
+    description "Telemetry configuration and state";
+
+    container subscription {
+      description "Streaming telemetry subscriptions";
+
+      list stream {
+        key "name";
+        leaf name {
+          type string;
+        }
+        leaf encoding {
+          type enumeration {
+            enum "json";
+            enum "bytes";
+            enum "protobuf";
+          }
+          default "protobuf";
+        }
+        leaf sampling-rate {
+          type uint32;
+          units "percent";
+          default 100;
+          description "Sampling rate in percent (1-100)";
+        }
+        list origin-id {
+          key "index";
+          leaf index {
+            type uint32;
+          }
+          leaf address {
+            type string;
+          }
+        }
+        list destination-group {
+          key "index";
+          leaf index {
+            type uint32;
+          }
+          leaf address {
+            type inet:ip-address;
+          }
+          leaf port {
+            type uint16;
+            default 50051;
+          }
+          leaf encoding {
+            type enumeration {
+              enum "json";
+              enum "bytes";
+              enum "protobuf";
+            }
+            default "protobuf";
+          }
+          leaf encryption {
+            type enumeration {
+              enum "none";
+              enum "tls";
+              enum "mtls";
+            }
+            default "none";
+          }
+        }
+        list path {
+          key "index";
+          leaf index {
+            type uint32;
+          }
+          leaf source {
+            type string;
+          }
+          leaf encoding {
+            type enumeration {
+              enum "json";
+              enum "bytes";
+              enum "protobuf";
+            }
+            default "protobuf";
+          }
+        }
+        leaf refresh-interval {
+          type uint32;
+          units "seconds";
+          default 0;
+          description "0 = no refresh, >0 = refresh interval";
+        }
+        leaf state {
+          type enumeration {
+            enum "active";
+            enum "inactive";
+            enum "error";
+          }
+          readonly true;
+        }
+      }
+    }
+
+    // ==================== On-Demand Sampling ====================
+    container sampling {
+      list sensor-group {
+        key "name";
+        leaf name {
+          type string;
+        }
+        list sensor-path {
+          key "index";
+          leaf index {
+            type uint32;
+          }
+          leaf path {
+            type string;
+            description "YANG model path (e.g., /mts-routing:routing/mts-interface:interfaces/mts-interface:interface)";
+          }
+        }
+      }
+    }
+
+    // ==================== Metrics ====================
+    container metrics {
+      description "Collected metrics";
+
+      container cpu {
+        leaf usage-percent {
+          type decimal64 { fraction-digits 2; };
+          readonly true;
+        }
+        load-average-1 {
+          type decimal64 { fraction-digits 2; };
+          readonly true;
+        }
+        load-average-5 {
+          type decimal64 { fraction-digits 2; };
+          readonly true;
+        }
+        load-average-15 {
+          type decimal64 { fraction-digits 2; };
+          readonly true;
+        }
+      }
+
+      container memory {
+        leaf total-mb {
+          type uint64;
+          readonly true;
+        }
+        leaf used-mb {
+          type uint64;
+          readonly true;
+        }
+        leaf free-mb {
+          type uint64;
+          readonly true;
+        }
+        leaf cached-mb {
+          type uint64;
+          readonly true;
+        }
+        leaf buffered-mb {
+          type uint64;
+          readonly true;
+        }
+      }
+
+      container storage {
+        list filesystem {
+          key "mount-point";
+          leaf mount-point {
+            type string;
+          }
+          leaf total-bytes {
+            type uint64;
+            readonly true;
+          }
+          leaf used-bytes {
+            type uint64;
+            readonly true;
+          }
+          leaf free-bytes {
+            type uint64;
+            readonly true;
+          }
+        }
+      }
+
+      container thermal {
+        list sensor {
+          key "name";
+          leaf name {
+            type string;
+          }
+          leaf temperature-celsius {
+            type decimal64 { fraction-digits 1; };
+            readonly true;
+          }
+          leaf fan-rpm {
+            type uint32;
+            readonly true;
+          }
+        }
+      }
+
+      container power {
+        list supply {
+          key "id";
+          leaf id {
+            type string;
+          }
+          leaf status {
+            type enumeration {
+              enum "online";
+              enum "offline";
+              enum "failed";
+              enum "input-overshoot";
+              enum "input-undervoltage";
+            }
+            readonly true;
+          }
+          leaf output-watts {
+            type decimal64 { fraction-digits 2; };
+            readonly true;
+          }
+        }
+      }
+    }
+
+    // ==================== Prometheus Exporter ====================
+    container prometheus {
+      leaf enabled {
+        type boolean;
+        default "false";
+      }
+      leaf port {
+        type uint16;
+        default 9100;
+      }
+      leaf path {
+        type string;
+        default "/metrics";
+      }
+    }
+  }
+}

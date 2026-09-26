@@ -1,0 +1,248 @@
+module mts-qos {
+  namespace "urn:mts:router:qos";
+  prefix "mts-qos";
+
+  import ietf-yang-types { prefix "yang"; }
+
+  organization "MTS Digital";
+  contact "MTS Router Team <mts-router@mts.ru>";
+  description "MTS Router QoS Models";
+
+  revision 2024-01-15 {
+    description "Initial version";
+  }
+
+  // ==================== Types ====================
+  typedef sched-algorithm {
+    type enumeration {
+      enum "strict" {
+        description "Strict priority queuing";
+      }
+      enum "wrr" {
+        description "Weighted round robin";
+      }
+      enum "wfq" {
+        description "Weighted fair queuing";
+      }
+      enum "fifo" {
+        description "First in first out";
+      }
+      enum "cfq" {
+        description "Class-based fair queuing";
+      }
+    }
+  }
+
+  typedef policing-action {
+    type enumeration {
+      enum "drop";
+      enum "decrease-dscp";
+      enum "decrease-exp";
+      enum "decrease-pcp";
+    }
+  }
+
+  typedef color-blind-mode {
+    type enumeration {
+      enum "color-blind";
+      enum "color-aware";
+    }
+  }
+
+  // ==================== Class Maps ====================
+  container qos {
+    description "QoS configuration and state";
+
+    list class-map {
+      key "name";
+      leaf name {
+        type string {
+          length "1..64";
+        }
+      }
+      leaf description {
+        type string;
+      }
+      leaf match-all {
+        type boolean;
+        default "true";
+        description "Match all conditions (AND) or any (OR)";
+      }
+      list match-condition {
+        key "type";
+        leaf type {
+          type enumeration {
+            enum "acl";
+            enum "dscp";
+            enum "exp";
+            enum "vlan-pcp";
+            enum "input-interface";
+            enum "protocol";
+            enum "source-mac";
+            enum "destination-mac";
+            enum "source-ip";
+            enum "destination-ip";
+            enum "source-port";
+            enum "destination-port";
+          }
+        }
+        leaf value {
+          type string;
+        }
+      }
+    }
+
+    // ==================== Policy Maps ====================
+    list policy-map {
+      key "name";
+      leaf name {
+        type string {
+          length "1..64";
+        }
+      }
+      leaf description {
+        type string;
+      }
+
+      list class {
+        key "name";
+        leaf name {
+          type string;
+          reference "mts-qos:class-map/name";
+        }
+
+        // Marking
+        container marking {
+          leaf dscp {
+            type enumeration {
+              enum "af11" "af12" "af13";
+              enum "af21" "af22" "af23";
+              enum "af31" "af32" "af33";
+              enum "af41" "af42" "af43";
+              enum "be";
+              enum "ef";
+              enum "default";
+            }
+          }
+          leaf exp {
+            type uint8 {
+              range "0..7";
+            }
+          }
+          leaf pcp {
+            type uint8 {
+              range "0..7";
+            }
+          }
+          leaf decrement-ttl {
+            type uint8;
+          }
+        }
+
+        // Queuing
+        container queuing {
+          leaf algorithm {
+            type sched-algorithm;
+            default "fifo";
+          }
+          leaf weight {
+            type uint8 {
+              range "1..255";
+            }
+          }
+          leaf queue-limit {
+            type uint32;
+            units "packets";
+          }
+          leaf min-rate-mbps {
+            type uint32;
+            units "Mbps";
+          }
+          leaf max-rate-mbps {
+            type uint32;
+            units "Mbps";
+          }
+          leaf burst-bytes {
+            type uint32;
+            units "bytes";
+          }
+        }
+
+        // Policing
+        container policing {
+          leaf cir-bps {
+            type uint64;
+            units "bits/sec";
+          }
+          leaf cir-burst {
+            type uint32;
+            units "bytes";
+          }
+          leaf pir-bps {
+            type uint64;
+            units "bits/sec";
+          }
+          leaf pir-burst {
+            type uint32;
+            units "bytes";
+          }
+          leaf conform-action {
+            type policing-action;
+            default "drop";
+          }
+          leaf exceed-action {
+            type policing-action;
+            default "drop";
+          }
+          leaf violate-action {
+            type policing-action;
+            default "drop";
+          }
+          leaf color-blind {
+            type color-blind-mode;
+            default "color-blind";
+          }
+        }
+
+        // Statistics
+        container stats {
+          leaf matched-packets {
+            type yang:counter64;
+            readonly true;
+          }
+          matched-bytes {
+            type yang:counter64;
+            readonly true;
+          }
+          leaf dropped-packets {
+            type yang:counter64;
+            readonly true;
+          }
+          leaf dropped-bytes {
+            type yang:counter64;
+            readonly true;
+          }
+        }
+      }
+    }
+
+    // ==================== Interface Policies ====================
+    list interface-policy {
+      key "interface";
+      leaf interface {
+        type string;
+      }
+      leaf direction {
+        type enumeration {
+          enum "ingress";
+          enum "egress";
+          enum "both";
+        }
+      }
+      leaf policy {
+        type string;
+        reference "mts-qos:policy-map/name";
+      }
+    }
+  }
+}

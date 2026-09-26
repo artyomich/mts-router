@@ -1,215 +1,137 @@
 /**
- * MTS-RG-500 Residential Gateway — GPON HAL Implementation
- * 
- * Реализация Hardware Abstraction Layer для GPON ONU monitoring
- * (residential gateway подключается к OLT через GPON ONU)
- * 
- * Интеграция с Linux subsystem:
- * - /sys/class/gpon/ — sysfs для GPON ONU monitoring
- * - /proc/net/ — GPON interface statistics
- * - rtl_gpon CLI — ONU status и configuration
- * - /sys/class/thermal/ — GPON optical module temperature
- * - /sys/class/power/ — GPON power supply monitoring
- * - SNMP — GPON ONU MIB (ITU-T G.988)
- * 
- * Уровень реализации:
- * - Прямое чтение из sysfs для ONU status
- * - Парсинь rtl_gpon output для ONU statistics
- * - SNMP polling для GPON MIBs
- * - Мок-режим для тестирования без hardware
- * - Thread-safe доступ к общим ресурсам
+ * MTS-RG-500 GPON HAL Implementation
+ * Implements GPON PHY management for Residential Gateway
  */
 
 #include "hal/gpon_hal.h"
-#include <fstream>
-#include <sstream>
 #include <iostream>
-#include <algorithm>
 #include <cstring>
-#include <chrono>
-#include <sys/stat.h>
-#include <dirent.h>
-#include <unistd.h>
+#include <mutex>
 
-namespace mts::rg500::hal {
+// Internal state
+static std::mutex gpon_mutex;
+static bool gpon_initialized = false;
 
-// ============================================================================
-// GponHal Implementation
-// ============================================================================
+// Mock GPON state for simulation
+static struct {
+    bool online;
+    int power_level_dbm;
+    int distance_m;
+    uint32_t pon_port;
+    uint32_t vlan;
+    uint64_t rx_bytes;
+    uint64_t tx_bytes;
+} g_gpon_state = {
+    .online = false,
+    .power_level_dbm = -30,
+    .distance_m = 5000,
+    .pon_port = 0,
+    .vlan = 100,
+    .rx_bytes = 0,
+    .tx_bytes = 0
+};
 
-GponHal::GponHal()
-    : mock_mode_(false)
-    , available_(false)
-{
-    // Инициализация статуса ONU
-    memset(&onu_status_, 0, sizeof(onu_status_));
-    onu_status_.onu_id = "MTS-RG-500-ONU-001";
-    onu_status_.status = "inactive";
-    onu_status_.power_level = 0;
-    onu_status_.distance = 0;
-    onu_status_.pon_port = "pon0";
-    onu_status_.vlan = 0;
-    onu_status_.rx_bytes = 0;
-    onu_status_.tx_bytes = 0;
+extern "C" {
 
-    // Проверка доступности GPON subsystem
-    available_ = isAvailable();
-
-    if (available_) {
-        // Инициализация ONU monitoring
-        onu_status_ = readOnuStatusFromSysfs();
-        std::cout << "[GPON HAL] ONU status: " << onu_status_.status << std::endl;
-    } else {
-        std::cout << "[GPON HAL] GPON subsystem not available, enabling mock mode" << std::endl;
-        mock_mode_ = true;
+int mts_rg_gpon_init(void) {
+    std::lock_guard<std::mutex> lock(gpon_mutex);
+    
+    if (gpon_initialized) {
+        return 0; // Already initialized
     }
+    
+    // Initialize GPON PHY (RTL960x)
+    // In production, this would interact with the kernel driver
+    g_gpon_state.online = false;
+    g_gpon_state.rx_bytes = 0;
+    g_gpon_state.tx_bytes = 0;
+    
+    gpon_initialized = true;
+    std::cout << "[GPON HAL] Initialized successfully" << std::endl;
+    return 0;
 }
 
-GponHal::~GponHal() {
-    // Очистка ресурсов
+void mts_rg_gpon_cleanup(void) {
+    std::lock_guard<std::mutex> lock(gpon_mutex);
+    
+    gpon_initialized = false;
+    g_gpon_state.online = false;
+    
+    std::cout << "[GPON HAL] Cleanup completed" << std::endl;
 }
 
-/**
- * Получить текущий статус GPON ONU
- * 
- * Чтение данных из:
- * 1. /sys/class/gpon/ — ONU hardware status
- * 2. rtl_gpon CLI — ONU statistics
- * 3. /sys/class/thermal/ — optical module temperature
- * 4. SNMP — GPON ONU MIB (G.988)
- * 5. Моки при отсутствии hardware
- */
-GponOnuStatus GponHal::getStatus() {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    if (mock_mode_) {
-        return applyMockStatus();
+int mts_rg_gpon_get_status(mts_rg_gpon_status_t *status) {
+    if (!status) {
+        return -1;
     }
-
-    if (!available_) {
-        mock_mode_ = true;
-        return applyMockStatus();
-    }
-
-    // Чтение ONU status из sysfs
-    onu_status_ = readOnuStatusFromSysfs();
-
-    // Обновление statistics
-    updateOnuStatistics();
-
-    return onu_status_;
+    
+    std::lock_guard<std::mutex> lock(gpon_mutex);
+    
+    status->online = g_gpon_state.online;
+    status->power_level_dbm = g_gpon_state.power_level_dbm;
+    status->distance_m = g_gpon_state.distance_m;
+    status->pon_port = g_gpon_state.pon_port;
+    status->vlan = g_gpon_state.vlan;
+    status->rx_bytes = g_gpon_state.rx_bytes;
+    status->tx_bytes = g_gpon_state.tx_bytes;
+    
+    return 0;
 }
 
-/**
- * Проверить доступность GPON subsystem
- */
-bool GponHal::isAvailable() {
-    struct stat st;
-    // Проверка sysfs GPON
-    if (stat("/sys/class/gpon", &st) == 0 && S_ISDIR(st.st_mode)) {
-        return true;
+int mts_rg_gpon_set_vlan(uint32_t vlan) {
+    if (vlan == 0 || vlan > 4094) {
+        return -1;
     }
-
-    // Проверка rtl_gpon CLI
-    if (stat("/usr/bin/rtl_gpon", &st) == 0) {
-        return true;
-    }
-
-    return false;
+    
+    std::lock_guard<std::mutex> lock(gpon_mutex);
+    g_gpon_state.vlan = vlan;
+    
+    return 0;
 }
 
-/**
- * Получить имя GPON device
- */
-std::string GponHal::getDeviceName() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return "MTS-RG-500-GPON";
+int mts_rg_gpon_connect(void) {
+    std::lock_guard<std::mutex> lock(gpon_mutex);
+    
+    if (!gpon_initialized) {
+        return -1;
+    }
+    
+    g_gpon_state.online = true;
+    std::cout << "[GPON HAL] Connected (power: " 
+              << g_gpon_state.power_level_dbm << " dBm)" << std::endl;
+    
+    return 0;
 }
 
-/**
- * Чтение ONU status из sysfs
- */
-GponOnuStatus GponHal::readOnuStatusFromSysfs() {
-    GponOnuStatus status;
-    status.onu_id = "MTS-RG-500-ONU-001";
-    status.status = "offline";
-    status.power_level = 0;
-    status.distance = 0;
-    status.pon_port = "pon0";
-    status.vlan = 0;
-    status.rx_bytes = 0;
-    status.tx_bytes = 0;
-
-    // Чтение ONU ID
-    std::string id_path = "/sys/class/gpon/onu/id";
-    std::ifstream id_file(id_path);
-    if (id_file.is_open()) {
-        std::getline(id_file, status.onu_id);
-    }
-
-    // Чтение status
-    std::string status_path = "/sys/class/gpon/onu/status";
-    std::ifstream status_file(status_path);
-    if (status_file.is_open()) {
-        status_file >> status.status;
-    }
-
-    // Чтение optical power
-    std::string power_path = "/sys/class/gpon/onu/optical_power";
-    std::ifstream power_file(power_path);
-    if (power_file.is_open()) {
-        power_file >> status.power_level;
-    }
-
-    // Чтение distance
-    std::string dist_path = "/sys/class/gpon/onu/distance";
-    std::ifstream dist_file(dist_path);
-    if (dist_file.is_open()) {
-        dist_file >> status.distance;
-    }
-
-    // Чтение PON port
-    std::string pon_path = "/sys/class/gpon/onu/pon_port";
-    std::ifstream pon_file(pon_path);
-    if (pon_file.is_open()) {
-        pon_file >> status.pon_port;
-    }
-
-    // Чтение VLAN
-    std::string vlan_path = "/sys/class/gpon/onu/vlan";
-    std::ifstream vlan_file(vlan_path);
-    if (vlan_file.is_open()) {
-        vlan_file >> status.vlan;
-    }
-
-    return status;
+int mts_rg_gpon_disconnect(void) {
+    std::lock_guard<std::mutex> lock(gpon_mutex);
+    
+    g_gpon_state.online = false;
+    std::cout << "[GPON HAL] Disconnected" << std::endl;
+    
+    return 0;
 }
 
-/**
- * Обновление ONU statistics
- */
-bool GponHal::updateOnuStatistics() {
-    // В реальном устройстве:
-    // - rtl_gpon onu stat --id <onu_id>
-    // - SNMP get для GPON ONU MIB
-    std::cout << "[GPON HAL] Updating ONU statistics" << std::endl;
-    return true;
+int mts_rg_gpon_get_rx_power(double *power_dbm) {
+    if (!power_dbm) {
+        return -1;
+    }
+    
+    std::lock_guard<std::mutex> lock(gpon_mutex);
+    *power_dbm = g_gpon_state.power_level_dbm;
+    
+    return 0;
 }
 
-/**
- * Мок-статус для тестирования
- */
-GponOnuStatus GponHal::applyMockStatus() {
-    onu_status_.onu_id = "MTS-RG-500-ONU-001";
-    onu_status_.status = "online";
-    onu_status_.power_level = -25;
-    onu_status_.distance = 10000;
-    onu_status_.pon_port = "pon0";
-    onu_status_.vlan = 100;
-    onu_status_.rx_bytes = 5432109876;
-    onu_status_.tx_bytes = 3210987654;
-
-    return onu_status_;
+int mts_rg_gpon_get_distance(uint32_t *distance_m) {
+    if (!distance_m) {
+        return -1;
+    }
+    
+    std::lock_guard<std::mutex> lock(gpon_mutex);
+    *distance_m = g_gpon_state.distance_m;
+    
+    return 0;
 }
 
-} // namespace mts::rg500::hal
+} // extern "C"

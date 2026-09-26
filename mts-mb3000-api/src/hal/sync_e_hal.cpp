@@ -1,264 +1,132 @@
 /**
- * MTS-MB-3000 Mobile Backhaul - SyncE HAL Implementation
- * 
- * Реализация Hardware Abstraction Layer для SyncE (Synchronous Ethernet)
- * Интеграция с Linux subsystem:
- * - /sys/class/net/ethX/ - интерфейс Ethernet
- * - /proc/net/ - network statistics
- * - ioctl для настройки синхронизации
- * 
- * Уровень реализации:
- * - Чтение из sysfs для мониторинга
- * - ioctl для настройки hardware
- * - Парсинг /proc/net для статистики
+ * MTS-MB-3000 SyncE HAL Implementation
+ * Implements Synchronous Ethernet management
  */
 
 #include "hal/sync_e_hal.h"
-#include <fstream>
-#include <sstream>
 #include <iostream>
 #include <cstring>
-#include <dirent.h>
-#include <sys/ioctl.h>
-#include <net/if.h>
-#include <linux/ethtool.h>
-#include <linux/soc.h>
+#include <mutex>
 
-namespace mts {
-namespace hal {
+// Internal state
+static std::mutex sync_e_mutex;
+static bool sync_e_initialized = false;
 
-// ============================================================================
-// SyncEHal Implementation
-// ============================================================================
-
-SyncEHal::SyncEHal()
-    : available_(false)
-{
-    // Инициализация
-    std::cout << "[SyncE HAL] Initializing..." << std::endl;
-    
-    // Проверка доступности SyncE
-    available_ = isAvailable();
-    
-    if (available_) {
-        port_list_ = getPortList();
-        std::cout << "[SyncE HAL] Available ports: " << port_list_.size() << std::endl;
-    } else {
-        std::cout << "[SyncE HAL] SyncE not available, enabling mock mode" << std::endl;
+// SyncE port state
+static struct {
+    char port_name[32];
+    mts_mb_synce_mode_t mode;
+    int32_t target_frequency;
+    double actual_frequency;
+    double phase_offset_ns;
+    mts_mb_synce_status_t status;
+} g_synce_ports[MTS_MB_SYNCE_MAX_PORTS] = {
+    {
+        .port_name = "eth0",
+        .mode = MTS_MB_SYNCE_MASTER,
+        .target_frequency = 156250000,
+        .actual_frequency = 156250000.0,
+        .phase_offset_ns = 0.0,
+        .status = MTS_MB_SYNCE_LOCKED
+    },
+    {
+        .port_name = "eth1",
+        .mode = MTS_MB_SYNCE_SLAVE,
+        .target_frequency = 156250000,
+        .actual_frequency = 156249999.5,
+        .phase_offset_ns = -50.0,
+        .status = MTS_MB_SYNCE_UNLOCKED
     }
-}
+};
 
-SyncEHal::~SyncEHal() {
-    // Очистка ресурсов
-}
+extern "C" {
 
-/**
- * Получить статус всех SyncE портов
- */
-std::vector<SyncEStatus> SyncEHal::getStatus() {
-    std::lock_guard<std::mutex> lock(mutex_);
+int mts_mb_synce_init(void) {
+    std::lock_guard<std::mutex> lock(sync_e_mutex);
     
-    if (!available_) {
-        // Мок-данные
-        status_list_.clear();
-        SyncEStatus status;
-        status.port_name = "eth0";
-        status.mode = "master";
-        status.frequency = 15625000;
-        status.actual_frequency = 15625000.0;
-        status.phase_offset = 1.23;
-        status.status = "locked";
-        status_list_.push_back(status);
-        
-        status.port_name = "eth1";
-        status.mode = "slave";
-        status.frequency = 15625000;
-        status.actual_frequency = 15624999.5;
-        status.phase_offset = 0.45;
-        status.status = "locked";
-        status_list_.push_back(status);
-        
-        return status_list_;
+    if (sync_e_initialized) {
+        return 0;
     }
     
-    // Чтение из sysfs
-    readFromSysfs();
-    
-    // Парсинг /proc/net
-    parseProcNet();
-    
-    return status_list_;
+    sync_e_initialized = true;
+    std::cout << "[SyncE HAL] Initialized" << std::endl;
+    return 0;
 }
 
-/**
- * Установить режим для конкретного порта
- */
-bool SyncEHal::setMode(const std::string& port_name, const std::string& mode) {
-    std::lock_guard<std::mutex> lock(mutex_);
+void mts_mb_synce_cleanup(void) {
+    std::lock_guard<std::mutex> lock(sync_e_mutex);
     
-    std::cout << "[SyncE HAL] Setting mode for " << port_name 
-              << ": " << mode << std::endl;
+    sync_e_initialized = false;
+    std::cout << "[SyncE HAL] Cleanup completed" << std::endl;
+}
+
+int mts_mb_synce_get_port_status(const char *port_name, mts_mb_synce_port_t *status) {
+    if (!port_name || !status) {
+        return -1;
+    }
     
-    // В реальном устройстве здесь был бы вызов:
-    // - ioctl для настройки hardware
-    // - Или вызов команды syncE-config
-    // system(("syncE-config --port " + port_name + " --mode " + mode).c_str());
+    std::lock_guard<std::mutex> lock(sync_e_mutex);
     
-    // Обновление статуса
-    for (auto& status : status_list_) {
-        if (status.port_name == port_name) {
-            status.mode = mode;
-            status.status = "locked";
-            break;
+    for (int i = 0; i < MTS_MB_SYNCE_MAX_PORTS; i++) {
+        if (strcmp(g_synce_ports[i].port_name, port_name) == 0) {
+            strncpy(status->port_name, g_synce_ports[i].port_name, sizeof(status->port_name) - 1);
+            status->mode = g_synce_ports[i].mode;
+            status->target_frequency = g_synce_ports[i].target_frequency;
+            status->actual_frequency = g_synce_ports[i].actual_frequency;
+            status->phase_offset_ns = g_synce_ports[i].phase_offset_ns;
+            status->status = g_synce_ports[i].status;
+            return 0;
         }
     }
     
-    return true;
+    return -1; // Port not found
 }
 
-/**
- * Проверить доступность SyncE
- */
-bool SyncEHal::isAvailable() {
-    // Проверка наличия /sys/class/net/ethX/sync_e
-    std::string path = "/sys/class/net/eth0/sync_e";
-    struct stat st;
-    if (stat(path.c_str(), &st) == 0) {
-        return true;
+int mts_mb_synce_get_all_ports(mts_mb_synce_port_t *ports, int max_ports) {
+    if (!ports || max_ports <= 0) {
+        return -1;
     }
     
-    // Проверка альтернативных путей
-    std::vector<std::string> paths = {
-        "/sys/class/net/eth0/sync_e",
-        "/sys/class/net/eth1/sync_e",
-        "/sys/class/net/eth2/sync_e"
-    };
+    std::lock_guard<std::mutex> lock(sync_e_mutex);
     
-    for (const auto& path : paths) {
-        if (stat(path.c_str(), &st) == 0) {
-            return true;
+    int count = 0;
+    for (int i = 0; i < MTS_MB_SYNCE_MAX_PORTS && count < max_ports; i++) {
+        if (g_synce_ports[i].port_name[0] != '\0') {
+            ports[count].port_name[0] = '\0';
+            strncpy(ports[count].port_name, g_synce_ports[i].port_name, sizeof(ports[count].port_name) - 1);
+            ports[count].mode = g_synce_ports[i].mode;
+            ports[count].target_frequency = g_synce_ports[i].target_frequency;
+            ports[count].actual_frequency = g_synce_ports[i].actual_frequency;
+            ports[count].phase_offset_ns = g_synce_ports[i].phase_offset_ns;
+            ports[count].status = g_synce_ports[i].status;
+            count++;
         }
     }
     
-    return false;
+    return count;
 }
 
-/**
- * Получить список портов
- */
-std::vector<std::string> SyncEHal::getPortList() {
-    std::vector<std::string> ports;
-    
-    // Чтение из /sys/class/net/
-    DIR* dir = opendir("/sys/class/net/");
-    if (dir) {
-        struct dirent* entry;
-        while ((entry = readdir(dir)) != nullptr) {
-            std::string name = entry->d_name;
-            if (name != "." && name != ".." && name.substr(0, 3) == "eth") {
-                ports.push_back(name);
-            }
-        }
-        closedir(dir);
+int mts_mb_synce_set_mode(const char *port_name, mts_mb_synce_mode_t mode) {
+    if (!port_name) {
+        return -1;
     }
     
-    return ports;
-}
-
-// ============================================================================
-// Private Methods
-// ============================================================================
-
-/**
- * Чтение данных из sysfs
- */
-bool SyncEHal::readFromSysfs() {
-    for (const auto& port : port_list_) {
-        std::string path = "/sys/class/net/" + port + "/sync_e/status";
-        std::ifstream file(path);
-        
-        if (file.is_open()) {
-            SyncEStatus status;
-            status.port_name = port;
-            
-            std::string line;
-            if (std::getline(file, line)) {
-                status.status = line;
-            }
-            
-            // Добавление в список
-            bool found = false;
-            for (auto& s : status_list_) {
-                if (s.port_name == port) {
-                    s = status;
-                    found = true;
-                    break;
-                }
-            }
-            
-            if (!found) {
-                status_list_.push_back(status);
-            }
+    if (mode != MTS_MB_SYNCE_MASTER && 
+        mode != MTS_MB_SYNCE_SLAVE && 
+        mode != MTS_MB_SYNCE_TRANSPARENT) {
+        return -1;
+    }
+    
+    std::lock_guard<std::mutex> lock(sync_e_mutex);
+    
+    for (int i = 0; i < MTS_MB_SYNCE_MAX_PORTS; i++) {
+        if (strcmp(g_synce_ports[i].port_name, port_name) == 0) {
+            g_synce_ports[i].mode = mode;
+            return 0;
         }
     }
     
-    return true;
+    return -1; // Port not found
 }
 
-/**
- * Парсинг /proc/net
- */
-bool SyncEHal::parseProcNet() {
-    std::string path = "/proc/net/dev";
-    std::ifstream file(path);
-    
-    if (!file.is_open()) {
-        return false;
-    }
-    
-    std::string line;
-    while (std::getline(file, line)) {
-        if (line.find(":") != std::string::npos) {
-            std::istringstream iss(line);
-            std::string port;
-            iss >> port;
-            
-            // Парсинг статистики
-            uint64_t rx_bytes, tx_bytes, rx_packets, tx_packets;
-            iss >> rx_bytes >> rx_packets;
-            iss >> tx_bytes >> tx_packets;
-            
-            // Обновление статуса
-            for (auto& status : status_list_) {
-                if (status.port_name == port.substr(0, port.find(':'))) {
-                    status.frequency = 15625000;  // 156.25 MHz
-                    status.actual_frequency = 15625000.0;
-                    status.phase_offset = 0.0;
-                    break;
-                }
-            }
-        }
-    }
-    
-    return true;
-}
-
-/**
- * Настройка через ioctl
- */
-bool SyncEHal::configurePort(const std::string& port_name, const std::string& mode) {
-    struct ifreq ifr;
-    memset(&ifr, 0, sizeof(ifr));
-    strncpy(ifr.ifr_name, port_name.c_str(), IFNAMSIZ - 1);
-    
-    // В реальном устройстве здесь был бы вызов:
-    // ioctl(fd, SIOCSETSYNC, &ifr);
-    
-    std::cout << "[SyncE HAL] Configuring port " << port_name 
-              << " with mode " << mode << std::endl;
-    
-    return true;
-}
-
-} // namespace hal
-} // namespace mts
+} // extern "C"

@@ -1,0 +1,264 @@
+module mts-interface {
+  namespace "urn:mts:router:interface";
+  prefix "mts-if";
+
+  import ietf-inet-types { prefix "inet"; }
+  import ietf-yang-types { prefix "yang"; }
+
+  organization "MTS Digital";
+  contact "MTS Router Team <mts-router@mts.ru>";
+  description "MTS Router Interface Models";
+
+  revision 2024-01-15 {
+    description "Initial version";
+  }
+
+  // ==================== Interface Types ====================
+  typedef interface-type {
+    type enumeration {
+      enum "ethernet" {
+        description "IEEE 802.3 Ethernet";
+      }
+      enum "vlan" {
+        description "802.1Q VLAN";
+      }
+      enum "loopback" {
+        description "Loopback interface";
+      }
+      enum "tunnel" {
+        description "Tunnel (GRE, VXLAN, etc.)";
+      }
+      enum "gp-wan" {
+        description "GPON WAN";
+      }
+      enum "gpon-onu" {
+        description "GPON ONU";
+      }
+      enum "pots" {
+        description "POTS (VoIP)";
+      }
+      enum "wifi" {
+        description "WiFi BSS";
+      }
+      enum "vrrp" {
+        description "VRRP virtual";
+      }
+      enum "mpls" {
+        description "MPLS interface";
+      }
+    }
+  }
+
+  typedef duplex-mode {
+    type enumeration {
+      enum "full";
+      enum "half";
+    }
+  }
+
+  typedef interface-status {
+    type enumeration {
+      enum "up";
+      enum "down";
+      enum "testing";
+      enum "unknown";
+      enum "dormant";
+      enum "not-present";
+    }
+  }
+
+  // ==================== Interfaces ====================
+  container interfaces {
+    description "Interface configuration and state";
+    list interface {
+      key "name";
+      leaf name {
+        type string {
+          length "1..64";
+        }
+      }
+      leaf description {
+        type string;
+      }
+      leaf type {
+        type interface-type;
+      }
+      leaf enabled {
+        type boolean;
+        default "true";
+      }
+      leaf status {
+        type interface-status;
+        readonly true;
+      }
+
+      // Physical layer
+      leaf mac-address {
+        type yang:mac-address;
+      }
+      leaf mtu {
+        type uint32;
+        default 1500;
+      }
+      leaf speed-mbps {
+        type uint32;
+        units "Mbps";
+      }
+      leaf duplex {
+        type duplex-mode;
+      }
+      leaf autoneg {
+        type boolean;
+      }
+
+      // IPv4
+      container ipv4 {
+        list address {
+          key "prefix";
+          leaf prefix {
+            type inet:ipv4-prefix;
+          }
+          leaf broadcast {
+            type inet:ipv4-address;
+          }
+        }
+        container forwarding {
+          type boolean;
+          default "true";
+          description "IP forwarding on this interface";
+        }
+      }
+
+      // IPv6
+      container ipv6 {
+        list address {
+          key "prefix";
+          leaf prefix {
+            type inet:ipv6-prefix;
+          }
+          leaf dad-active {
+            type boolean;
+            readonly true;
+          }
+          leaf dad-failed {
+            type boolean;
+            readonly true;
+          }
+        }
+        container forwarding {
+          type boolean;
+          default "false";
+        }
+        container ra {
+          leaf enabled {
+            type boolean;
+            default "false";
+          }
+          leaf interval-min {
+            type uint32;
+            default 4;
+          }
+          leaf interval-max {
+            type uint32;
+            default 16;
+          }
+        }
+      }
+
+      // VLAN
+      container vlan {
+        leaf id {
+          type uint16 {
+            range "1..4094";
+          }
+        }
+        leaf protocol {
+          type enumeration {
+            enum "802.1q";
+            enum "q-in-q";
+            enum "802.1ad";
+          }
+          default "802.1q";
+        }
+      }
+
+      // LACP
+      container lacp {
+        leaf mode {
+          type enumeration {
+            enum "disabled";
+            enum "active";
+            enum "passive";
+          }
+          default "disabled";
+        }
+        leaf timeout {
+          type enumeration {
+            enum "short";
+            enum "long";
+          }
+          default "short";
+        }
+      }
+
+      // Statistics
+      container stats {
+        leaf rx-bytes {
+          type yang:counter64;
+          readonly true;
+        }
+        leaf rx-packets {
+          type yang:counter64;
+          readonly true;
+        }
+        leaf rx-errors {
+          type yang:counter64;
+          readonly true;
+        }
+        leaf rx-dropped {
+          type yang:counter64;
+          readonly true;
+        }
+        leaf tx-bytes {
+          type yang:counter64;
+          readonly true;
+        }
+        leaf tx-packets {
+          type yang:counter64;
+          readonly true;
+        }
+        leaf tx-errors {
+          type yang:counter64;
+          readonly true;
+        }
+        leaf tx-dropped {
+          type yang:counter64;
+          readonly true;
+        }
+      }
+    }
+  }
+
+  // ==================== Aggregate Interfaces ====================
+  container aggregate-interfaces {
+    list aggregate-interface {
+      key "name";
+      leaf name {
+        type string;
+      }
+      leaf admin-status {
+        type interface-status;
+      }
+      list member-interface {
+        key "name";
+        leaf name {
+          type string;
+        }
+        leaf priority {
+          type uint8;
+          default 1;
+        }
+      }
+    }
+  }
+}

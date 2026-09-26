@@ -1,0 +1,260 @@
+module mts-cr {
+  namespace "urn:mts:router:core-router";
+  prefix "mts-cr";
+
+  import ietf-inet-types { prefix "inet"; }
+  import ietf-yang-types { prefix "yang"; }
+
+  organization "MTS Digital";
+  contact "MTS Router Team <mts-router@mts.ru>";
+  description "MTS Core Router (MTS-CR-9000) Models";
+
+  revision 2024-01-15 {
+    description "Initial version";
+  }
+
+  // ==================== Fabric ====================
+  container fabric {
+    description "Switching fabric configuration";
+    leaf status {
+      type enumeration {
+        enum "active";
+        enum "degraded";
+        enum "offline";
+      }
+      readonly true;
+    }
+    leaf total-bandwidth-gbps {
+      type uint32;
+      readonly true;
+    }
+    list slot {
+      key "id";
+      leaf id {
+        type uint32;
+      }
+      leaf card-type {
+        type enumeration {
+          enum "line-card";
+          enum "control-card";
+          enum "fabric-card";
+          enum="power-supply";
+          enum "fan-tray";
+        }
+      }
+      leaf status {
+        type enumeration {
+          enum "up";
+          enum "down";
+          enum "initializing";
+          enum "fault";
+        }
+      }
+      leaf cpu-usage {
+        type decimal64 { fraction-digits 2; };
+        readonly true;
+      }
+      leaf memory-usage {
+        type decimal64 { fraction-digits 2; };
+        readonly true;
+      }
+    }
+  }
+
+  // ==================== Line Cards ====================
+  container line-cards {
+    list card {
+      key "slot-id";
+      leaf slot-id {
+        type uint32;
+      }
+      leaf asic-type {
+        type enumeration {
+          enum "tofino2";
+          enum "tomtom";
+        }
+      }
+      leaf status {
+        type enumeration {
+          enum "up";
+          enum "down";
+          enum "initializing";
+          enum "fault";
+        }
+      }
+      list port {
+        key "name";
+        leaf name {
+          type string;
+        }
+        leaf type {
+          type enumeration {
+            enum "qsfp-dd";
+            enum "qsfp28";
+            enum "sfp-plus";
+            enum "sfp28";
+          }
+        }
+        leaf speed-mbps {
+          type uint32;
+        }
+        leaf status {
+          type enumeration {
+            enum "up";
+            enum "down";
+            enum "error";
+          }
+        }
+        leaf rx-power {
+          type decimal64 { fraction-digits 2; };
+          units "dBm";
+          readonly true;
+        }
+        leaf tx-power {
+          type decimal64 { fraction-digits 2; };
+          units "dBm";
+          readonly true;
+        }
+        leaf temperature {
+          type decimal64 { fraction-digits 1; };
+          units "celsius";
+          readonly true;
+        }
+      }
+      leaf active-sessions {
+        type uint32;
+        readonly true;
+      }
+      leaf packets-forwarded {
+        type yang:counter64;
+        readonly true;
+      }
+      leaf errors {
+        type yang:counter64;
+        readonly true;
+      }
+    }
+  }
+
+  // ==================== P4 Pipeline ====================
+  container p4-pipeline {
+    description "P4 programmable pipeline";
+    list pipeline {
+      key "id";
+      leaf id {
+        type string;
+      }
+      leaf program-name {
+        type string;
+      }
+      leaf version {
+        type string;
+      }
+      leaf status {
+        type enumeration {
+          enum "compiled";
+          enum "loaded";
+          enum "running";
+          enum "error";
+        }
+      }
+      leaf compiled-at {
+        type yang:date-time;
+        readonly true;
+      }
+      leaf loaded-at {
+        type yang:date-time;
+        readonly true;
+      }
+      leaf num-tables {
+        type uint32;
+        readonly true;
+      }
+      leaf num-entries {
+        type uint64;
+        readonly true;
+      }
+    }
+  }
+
+  // ==================== SRv6 ====================
+  container srv6 {
+    description "SRv6 configuration";
+    list sid {
+      key "identifier";
+      leaf identifier {
+        type string;
+      }
+      leaf sid-length {
+        type uint32;
+        default 128;
+      }
+      leaf encap-mode {
+        type enumeration {
+          enum "end";
+          enum "end.x";
+          enum "end.dx";
+          enum "end.ds";
+          enum "end.am";
+        }
+        default "end";
+      }
+      leaf status {
+        type enumeration {
+          enum "active";
+          enum "inactive";
+        }
+        readonly true;
+      }
+      leaf packets {
+        type yang:counter64;
+        readonly true;
+      }
+      leaf bytes {
+        type yang:counter64;
+        readonly true;
+      }
+    }
+  }
+
+  // ==================== MPLS ====================
+  container mpls {
+    description "MPLS configuration";
+    list lsp {
+      key "id";
+      leaf id {
+        type uint32;
+      }
+      leaf name {
+        type string;
+      }
+      leaf ingress-label {
+        type uint32;
+      }
+      leaf egress-label {
+        type uint32;
+      }
+      leaf next-hop {
+        type inet:ipv4-address;
+      }
+      leaf interface {
+        type string;
+      }
+      leaf status {
+        type enumeration {
+          enum "up";
+          enum "down";
+          enum "initializing";
+        }
+      }
+      leaf rx-packets {
+        type yang:counter64;
+        readonly true;
+      }
+      leaf tx-packets {
+        type yang:counter64;
+        readonly true;
+      }
+    }
+  }
+}

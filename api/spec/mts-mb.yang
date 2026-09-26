@@ -1,0 +1,216 @@
+module mts-mb {
+  namespace "urn:mts:router:mobile-backhaul";
+  prefix "mts-mb";
+
+  import ietf-inet-types { prefix "inet"; }
+  import ietf-yang-types { prefix "yang"; }
+
+  organization "MTS Digital";
+  contact "MTS Router Team <mts-router@mts.ru>";
+  description "MTS Mobile Backhaul (MTS-MB-3000) Models";
+
+  revision 2024-01-15 {
+    description "Initial version";
+  }
+
+  // ==================== PTP ====================
+  container ptp {
+    description "Precision Time Protocol (1588v2)";
+    leaf device-name {
+      type string;
+      readonly true;
+    }
+    leaf mode {
+      type enumeration {
+        enum "grandmaster";
+        enum "boundary";
+        enum "ordinary";
+        enum "transparent";
+      }
+    }
+    leaf current-time {
+      type int64;
+      units "nanoseconds";
+      readonly true;
+    }
+    leaf offset-from-master {
+      type int64;
+      units "nanoseconds";
+      readonly true;
+    }
+    leaf mean-path-delay {
+      type int64;
+      units "nanoseconds";
+      readonly true;
+    }
+    leaf frequency-offset {
+      type decimal64 { fraction-digits 9; };
+      units "ppm";
+      readonly true;
+    }
+    leaf status {
+      type enumeration {
+        enum "active";
+        enum "inactive";
+        enum "fault";
+      }
+      readonly true;
+    }
+  }
+
+  // ==================== SyncE ====================
+  container sync-e {
+    description "Synchronous Ethernet";
+    list port {
+      key "name";
+      leaf name {
+        type string;
+      }
+      leaf mode {
+        type enumeration {
+          enum "master";
+          enum "slave";
+          enum "transparent";
+        }
+      }
+      leaf frequency {
+        type uint32;
+        units "Hz";
+        default 156250000;
+      }
+      leaf actual-frequency {
+        type decimal64 { fraction-digits 6; };
+        units "Hz";
+        readonly true;
+      }
+      leaf phase-offset {
+        type decimal64 { fraction-digits 9; };
+        units "ns";
+        readonly true;
+      }
+      leaf status {
+        type enumeration {
+          enum "locked";
+          enum "unlocked";
+          enum "holdover";
+        }
+        readonly true;
+      }
+    }
+  }
+
+  // ==================== MPLS-TP ====================
+  container mpls-tp {
+    description "MPLS-TP forwarding";
+    list pseudowire {
+      key "pw-id";
+      leaf pw-id {
+        type uint32;
+      }
+      leaf ingress-port {
+        type string;
+      }
+      leaf egress-port {
+        type string;
+      }
+      leaf encapsulation {
+        type enumeration {
+          enum "eth";
+          enum "hdlc";
+          enum "unstructured";
+        }
+        default "eth";
+      }
+      leaf qos-class {
+        type uint32;
+      }
+      leaf rx-bytes {
+        type yang:counter64;
+        readonly true;
+      }
+      leaf tx-bytes {
+        type yang:counter64;
+        readonly true;
+      }
+      leaf rx-packets {
+        type yang:counter64;
+        readonly true;
+      }
+      leaf tx-packets {
+        type yang:counter64;
+        readonly true;
+      }
+      leaf rx-errors {
+        type yang:counter64;
+        readonly true;
+      }
+      leaf tx-errors {
+        type yang:counter64;
+        readonly true;
+      }
+      leaf status {
+        type enumeration {
+          enum "up";
+          enum "down";
+          enum "initializing";
+        }
+        readonly true;
+      }
+    }
+  }
+
+  // ==================== Port Status ====================
+  container ports {
+    list port {
+      key "name";
+      leaf name {
+        type string;
+      }
+      leaf type {
+        type enumeration {
+          enum "sfp";
+          enum "sfp-plus";
+          enum "qsfp";
+          enum "qsfp-plus";
+        }
+      }
+      leaf speed {
+        type uint32;
+        units "Mbps";
+      }
+      leaf duplex {
+        type enumeration {
+          enum "full";
+          enum "half";
+        }
+      }
+      leaf status {
+        type enumeration {
+          enum "up";
+          enum "down";
+          enum "error";
+        }
+      }
+      leaf rx-power {
+        type decimal64 { fraction-digits 2; };
+        units "dBm";
+        readonly true;
+      }
+      leaf tx-power {
+        type decimal64 { fraction-digits 2; };
+        units "dBm";
+        readonly true;
+      }
+      leaf temperature {
+        type decimal64 { fraction-digits 1; };
+        units "celsius";
+        readonly true;
+      }
+      leaf voltage {
+        type decimal64 { fraction-digits 2; };
+        units "V";
+        readonly true;
+      }
+    }
+  }
+}

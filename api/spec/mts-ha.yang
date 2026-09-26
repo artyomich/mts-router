@@ -1,0 +1,239 @@
+module mts-ha {
+  namespace "urn:mts:router:ha";
+  prefix "mts-ha";
+
+  import ietf-yang-types { prefix "yang"; }
+
+  organization "MTS Digital";
+  contact "MTS Router Team <mts-router@mts.ru>";
+  description "MTS Router High Availability Models";
+
+  revision 2024-01-15 {
+    description "Initial version";
+  }
+
+  // ==================== HA States ====================
+  typedef ha-role {
+    type enumeration {
+      enum "active";
+      enum "standby";
+      enum="isolated";
+      enum "unknown";
+    }
+  }
+
+  typedef ha-state {
+    type enumeration {
+      enum "initializing";
+      enum "syncing";
+      enum "synchronized";
+      enum "degraded";
+      enum "failed";
+    }
+  }
+
+  // ==================== HA Configuration ====================
+  container ha {
+    description "High availability configuration and state";
+
+    leaf enabled {
+      type boolean;
+      default "false";
+    }
+    leaf role {
+      type ha-role;
+      readonly true;
+    }
+
+    // Redundancy group
+    container redundancy {
+      list group {
+        key "id";
+        leaf id {
+          type uint32;
+        }
+        leaf mode {
+          type enumeration {
+            enum "active-standby";
+            enum "active-active";
+            enum "n-plus-one";
+            enum "n-plus-n";
+          }
+          default "active-standby";
+        }
+        leaf failover-time-ms {
+          type uint32;
+          default 50;
+          units "milliseconds";
+        }
+
+        list member {
+          key "hostname";
+          leaf hostname {
+            type string;
+          }
+          leaf priority {
+            type uint8;
+            default 100;
+          }
+          leaf ip {
+            type inet:ip-address;
+          }
+          leaf state {
+            type ha-state;
+            readonly true;
+          }
+        }
+      }
+    }
+
+    // NSF / Graceful Restart
+    container graceful-restart {
+      leaf enabled {
+        type boolean;
+        default "true";
+      }
+      leaf restart-time-seconds {
+        type uint32;
+        default 300;
+      }
+      leaf helper-only {
+        type boolean;
+        default "false";
+      }
+    }
+
+    // NSR (Non-Stop Routing)
+    container nsr {
+      leaf enabled {
+        type boolean;
+        default "false";
+      }
+    }
+
+    // VRRP
+    list vrrp-group {
+      key "virtual-router-id";
+      leaf virtual-router-id {
+        type uint8 {
+          range "1..255";
+        }
+      }
+      leaf interface {
+        type string;
+      }
+      leaf priority {
+        type uint8 {
+          range "1..254";
+        }
+        default 100;
+      }
+      leaf preempt {
+        type boolean;
+        default "true";
+      }
+      leaf preempt-delay {
+        type uint32;
+        default 0;
+        units "seconds";
+      }
+      leaf advertisement-interval {
+        type uint16;
+        default 1;
+        units "seconds";
+      }
+      leaf authentication-type {
+        type enumeration {
+          enum "none";
+          enum "simple";
+          enum "ipsec-aead";
+        }
+        default "none";
+      }
+      leaf authentication-password {
+        type string;
+        secret;
+      }
+      list virtual-ip {
+        key "ip";
+        leaf ip {
+          type inet:ip-address;
+        }
+      }
+      leaf state {
+        type enumeration {
+          enum "master";
+          enum "backup";
+          enum "initial";
+          enum "fault";
+        }
+        readonly true;
+      }
+    }
+
+    // LACP
+    list lacp-aggregate {
+      key "name";
+      leaf name {
+        type string;
+      }
+      leaf mode {
+        type enumeration {
+          enum "active";
+          enum "passive";
+          enum "suspend";
+        }
+        default "active";
+      }
+      leaf min-links {
+        type uint16;
+      }
+      list member {
+        key "interface";
+        leaf interface {
+          type string;
+        }
+        leaf priority {
+          type uint8;
+          default 1;
+        }
+        leaf port-key {
+          type uint16;
+          readonly true;
+        }
+      }
+    }
+
+    // ECMP
+    container ecmp {
+      leaf max-paths {
+        type uint32;
+        default 8;
+      }
+      leaf algorithm {
+        type enumeration {
+          enum "src-dst-ip";
+          enum "src-ip";
+          enum "dst-ip";
+          enum "src-dst-port";
+          enum "hash";
+        }
+        default "src-dst-ip";
+      }
+    }
+
+    // State
+    leaf state {
+      type ha-state;
+      readonly true;
+    }
+    leaf last-failover {
+      type yang:date-time;
+      readonly true;
+    }
+    leaf failover-count {
+      type uint32;
+      readonly true;
+    }
+  }
+}

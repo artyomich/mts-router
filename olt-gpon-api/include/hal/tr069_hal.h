@@ -1,67 +1,89 @@
 /**
- * MTS-OLT-2000 OLT GPON — TR-069 HAL
- * CWMP (CPE WAN Management Protocol) agent monitoring
- * 
- * Responsibilities:
- * - Monitor TR-069 ACS connection state
- * - Read TCP connections to ACS from /proc/net/tcp
- * - Parse cwmpd logs for event tracking
- * - Update ACS URL configuration
- * - Thread-safe with mock mode for testing
+ * MTS-OLT-2000 TR-069 HAL — TR-069 (CWMP) management
  */
 
-#pragma once
-#include <string>
-#include <vector>
-#include <memory>
-#include <mutex>
-#include <atomic>
-#include <cstdint>
+#ifndef MTS_OLT2000_TR069_HAL_H
+#define MTS_OLT2000_TR069_HAL_H
 
-namespace mts::olt2000::hal {
+#include <stdint.h>
+#include <stdbool.h>
 
-struct Tr069Config {
-    std::string device_id;
-    std::string url;
-    std::string username;
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define MTS_OLT2000_TR069_MAX_URL 256
+#define MTS_OLT2000_TR069_MAX_USERNAME 64
+#define MTS_OLT2000_TR069_MAX_PASSWORD 64
+
+/* TR-069 status */
+typedef enum {
+    MTS_OLT2000_TR069_ACTIVE = 0,
+    MTS_OLT2000_TR069_INACTIVE,
+    MTS_OLT2000_TR069_ERROR
+} mts_olt2000_tr069_status_t;
+
+/* TR-069 configuration */
+typedef struct {
     bool enabled;
-    uint32_t polling_interval;
-    int64_t last_poll;
-    int64_t next_poll;
-};
+    char acs_url[MTS_OLT2000_TR069_MAX_URL];
+    bool polling_enabled;
+    uint32_t polling_interval; /* seconds */
+    char username[MTS_OLT2000_TR069_MAX_USERNAME];
+    char password[MTS_OLT2000_TR069_MAX_PASSWORD];
+    mts_olt2000_tr069_status_t status;
+    uint32_t last_session_id;
+    int64_t last_bootstrap; /* timestamp */
+    int64_t next_bootstrap; /* timestamp */
+} mts_olt2000_tr069_config_t;
 
-class ITr069Hal {
-public:
-    virtual ~ITr069Hal() = default;
-    virtual Tr069Config getConfig() = 0;
-    virtual bool isAvailable() = 0;
-    virtual std::string getDeviceName() = 0;
-};
+/* ==================== API ==================== */
 
-class Tr069Hal : public ITr069Hal {
-public:
-    Tr069Hal();
-    ~Tr069Hal() override = default;
+/**
+ * Initialize TR-069 HAL
+ * @return 0 on success, -1 on error
+ */
+int mts_olt2000_tr069_init(void);
 
-    Tr069Config getConfig() override;
-    bool isAvailable() override;
-    std::string getDeviceName() override;
+/**
+ * Cleanup TR-069 HAL
+ */
+void mts_olt2000_tr069_cleanup(void);
 
-    bool setUrl(const std::string& url);
+/**
+ * Get TR-069 configuration
+ * @param config Output buffer for TR-069 config
+ * @return 0 on success, -1 on error
+ */
+int mts_olt2000_tr069_get_config(mts_olt2000_tr069_config_t *config);
 
-    void setMockMode(bool enabled);
+/**
+ * Set TR-069 configuration
+ * @param config TR-069 config to set
+ * @return 0 on success, -1 on error
+ */
+int mts_olt2000_tr069_set_config(const mts_olt2000_tr069_config_t *config);
 
-private:
-    bool monitorCwmpd();
-    bool updateFromCwmpd();
-    bool updateTcpConnections();
-    void applyMockData();
+/**
+ * Enable TR-069
+ * @return 0 on success, -1 on error
+ */
+int mts_olt2000_tr069_enable(void);
 
-    std::string acs_url_;
-    Tr069Config tr069_config_;
-    mutable std::mutex mutex_;
-    std::atomic<bool> mock_mode_;
-    bool available_;
-};
+/**
+ * Disable TR-069
+ * @return 0 on success, -1 on error
+ */
+int mts_olt2000_tr069_disable(void);
 
-} // namespace mts::olt2000::hal
+/**
+ * Trigger ACS inform
+ * @return 0 on success, -1 on error
+ */
+int mts_olt2000_tr069_trigger_inform(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* MTS_OLT2000_TR069_HAL_H */

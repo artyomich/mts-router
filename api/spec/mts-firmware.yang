@@ -1,0 +1,232 @@
+module mts-firmware {
+  namespace "urn:mts:router:firmware";
+  prefix "mts-fw";
+
+  import ietf-yang-types { prefix "yang"; }
+
+  organization "MTS Digital";
+  contact "MTS Router Team <mts-router@mts.ru>";
+  description "MTS Router Firmware Management Models";
+
+  revision 2024-01-15 {
+    description "Initial version";
+  }
+
+  // ==================== Firmware Types ====================
+  typedef firmware-type {
+    type enumeration {
+      enum "bootloader";
+      enum="kernel";
+      enum="rootfs";
+      enum="asic-firmware";
+      enum="line-card-firmware";
+      enum="config";
+      enum="certificate";
+    }
+  }
+
+  // ==================== Firmware Management ====================
+  container firmware {
+    description "Firmware management";
+
+    // Current version info
+    container current {
+      leaf version {
+        type string;
+        readonly true;
+      }
+      leaf build-id {
+        type string;
+        readonly true;
+      }
+      leaf build-date {
+        type yang:date-only;
+        readonly true;
+      }
+      leaf hardware-model {
+        type string;
+        readonly true;
+      }
+      leaf serial-number {
+        type string;
+        readonly true;
+      }
+    }
+
+    // Backup version (for rollback)
+    container backup {
+      leaf available {
+        type boolean;
+        readonly true;
+      }
+      leaf version {
+        type string;
+        readonly true;
+      }
+      leaf build-id {
+        type string;
+        readonly true;
+      }
+    }
+
+    // Update configuration
+    container update {
+      leaf status {
+        type enumeration {
+          enum "idle";
+          enum "checking";
+          enum "available";
+          enum "downloading";
+          enum "verifying";
+          enum="applying";
+          enum "success";
+          enum "failed";
+          enum "rolled-back";
+        }
+        readonly true;
+      }
+      leaf mode {
+        type enumeration {
+          enum "immediate";
+          enum "on-reboot";
+          enum "scheduled";
+        }
+        default "on-reboot";
+      }
+      leaf schedule-time {
+        type yang:date-time;
+      }
+      leaf url {
+        type inet:uri;
+        description "Firmware download URL";
+      }
+      leaf checksum {
+        type string;
+        description "Expected checksum (SHA-256)";
+      }
+      leaf checksum-algorithm {
+        type enumeration {
+          enum "none";
+          enum "md5";
+          enum "sha1";
+          enum "sha256";
+        }
+        default "sha256";
+      }
+      leaf auto-reboot {
+        type boolean;
+        default "true";
+      }
+      leaf verify-signature {
+        type boolean;
+        default "true";
+      }
+      leaf signature {
+        type string;
+        secret;
+      }
+    }
+
+    // Available firmware images
+    list image {
+      key "name";
+      leaf name {
+        type string;
+      }
+      leaf type {
+        type firmware-type;
+      }
+      leaf version {
+        type string;
+      }
+      leaf size-bytes {
+        type uint64;
+        readonly true;
+      }
+      leaf checksum {
+        type string;
+        readonly true;
+      }
+      leaf active {
+        type boolean;
+        readonly true;
+      }
+      leaf installed-date {
+        type yang:date-only;
+        readonly true;
+      }
+    }
+
+    // ASIC firmware
+    list asic-firmware {
+      key "name";
+      leaf name {
+        type string;
+      }
+      leaf type {
+        type enumeration {
+          enum "tofino2";
+          enum "tomtom";
+          enum "rtl960x";
+          enum="custom";
+        }
+      }
+      leaf version {
+        type string;
+        readonly true;
+      }
+      leaf available-version {
+        type string;
+        readonly true;
+      }
+      leaf status {
+        type enumeration {
+          enum "ok";
+          enum "upgrade-available";
+          enum "upgrade-failed";
+          enum "downgrade-available";
+        }
+        readonly true;
+      }
+    }
+
+    // Certificate management
+    container certificates {
+      list cert {
+        key "name";
+        leaf name {
+          type string;
+        }
+        leaf type {
+          type enumeration {
+            enum "ca";
+            enum "server";
+            enum "client";
+            enum "tls";
+            enum="mtls";
+          }
+        }
+        leaf subject {
+          type string;
+          readonly true;
+        }
+        leaf issuer {
+          type string;
+          readonly true;
+        }
+        leaf valid-from {
+          type yang:date-time;
+          readonly true;
+        }
+        leaf valid-until {
+          type yang:date-time;
+          readonly true;
+        }
+        leaf fingerprint-sha256 {
+          type string;
+          readonly true;
+        }
+      }
+    }
+  }
+}

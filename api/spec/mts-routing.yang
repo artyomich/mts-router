@@ -1,0 +1,234 @@
+module mts-routing {
+  namespace "urn:mts:router:routing";
+  prefix "mts-routing";
+
+  import ietf-inet-types { prefix "inet"; }
+  import ietf-yang-types { prefix "yang"; }
+
+  organization "MTS Digital";
+  contact "MTS Router Team <mts-router@mts.ru>";
+  description "MTS Router Routing Models";
+
+  revision 2024-01-15 {
+    description "Initial version";
+  }
+
+  // ==================== Types ====================
+  typedef route-protocol {
+    type enumeration {
+      enum "direct" {
+        description "Directly connected route";
+      }
+      enum "static" {
+        description "Static route";
+      }
+      enum "ospf" {
+        description "OSPF learned route";
+      }
+      enum "isis" {
+        description "IS-IS learned route";
+      }
+      enum "bgp" {
+        description "BGP learned route";
+      }
+      enum "rip" {
+        description "RIP learned route";
+      }
+      enum "eigrp" {
+        description "EIGRP learned route";
+      }
+      enum "connected" {
+        description "Connected route";
+      }
+      enum "pim" {
+        description "PIM learned route";
+      }
+    }
+  }
+
+  typedef route-table-type {
+    type enumeration {
+      enum "unicast" {
+        description "Unicast RIB";
+      }
+      enum "multicast" {
+        description "Multicast RIB";
+      }
+      enum "forwarding" {
+        description "Forwarding Information Base";
+      }
+    }
+  }
+
+  // ==================== Routing Tables ====================
+  container routing {
+    description "Routing configuration and state";
+
+    list table {
+      key "name";
+      leaf name {
+        type string;
+        default "default";
+      }
+      leaf type {
+        type route-table-type;
+        default "unicast";
+      }
+      leaf description {
+        type string;
+      }
+
+      list route {
+        key "prefix";
+        leaf prefix {
+          type inet:ip-prefix;
+        }
+        leaf description {
+          type string;
+        }
+
+        choice next-hop {
+          case ipv4-next-hop {
+            leaf next-hop {
+              type inet:ipv4-address;
+            }
+          }
+          case ipv6-next-hop {
+            leaf next-hop {
+              type inet:ipv6-address;
+            }
+          }
+          case blackhole {
+            leaf blackhole {
+              type empty;
+            }
+          }
+          case reject {
+            leaf reject {
+              type empty;
+            }
+          }
+          case discard {
+            leaf discard {
+              type empty;
+            }
+          }
+        }
+
+        leaf interface {
+          type string;
+        }
+        leaf protocol {
+          type route-protocol;
+        }
+        leaf priority {
+          type int32;
+          description "Administrative distance/priority";
+        }
+        leaf metric {
+          type uint32;
+          description "Metric/cost";
+        }
+        leaf age-seconds {
+          type uint32;
+          readonly true;
+        }
+        leaf packets {
+          type yang:counter64;
+          readonly true;
+        }
+        leaf bytes {
+          type yang:counter64;
+          readonly true;
+        }
+
+        // BGP-specific attributes
+        container bgp-attrs {
+          leaf as-path {
+            type string;
+          }
+          leaf next-hop {
+            type inet:ipv4-address;
+          }
+          leaf origin {
+            type enumeration {
+              enum "igp";
+              enum "egp";
+              enum "incomplete";
+            }
+          }
+          leaf local-pref {
+            type uint32;
+          }
+          leaf med {
+            type uint32;
+          }
+          leaf communities {
+            type string;
+          }
+        }
+      }
+    }
+  }
+
+  // ==================== Static Routes ====================
+  container static-routes {
+    list route {
+      key "prefix";
+      leaf prefix {
+        type inet:ip-prefix;
+      }
+      choice next-hop {
+        case next-hop-ip {
+          leaf next-hop {
+            type inet:ip-address;
+          }
+        }
+        case next-hop-interface {
+          leaf output-interface {
+            type string;
+          }
+        }
+        case both {
+          leaf next-hop {
+            type inet:ip-address;
+          }
+          leaf output-interface {
+            type string;
+          }
+        }
+      }
+      leaf priority {
+        type int32;
+        default 1;
+      }
+      leaf monitor-interface {
+        type string;
+        description "Track interface state";
+      }
+      leaf track-object {
+        type string;
+        description "Track object for dynamic routing";
+      }
+    }
+  }
+
+  // ==================== ECMP ====================
+  container ecmp {
+    leaf max-paths {
+      type uint32;
+      default 8;
+      description "Maximum number of ECMP paths";
+    }
+    leaf algorithm {
+      type enumeration {
+        enum "src-dst-ip";
+        enum "src-ip";
+        enum "dst-ip";
+        enum "src-dst-port";
+        enum "hash";
+      }
+      default "src-dst-ip";
+    }
+  }
+}

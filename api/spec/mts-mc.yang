@@ -1,0 +1,266 @@
+module mts-mc {
+  namespace "urn:mts:router:mobile-core";
+  prefix "mts-mc";
+
+  import ietf-inet-types { prefix "inet"; }
+  import ietf-yang-types { prefix "yang"; }
+
+  organization "MTS Digital";
+  contact "MTS Router Team <mts-router@mts.ru>";
+  description "MTS Mobile Core (MTS-MC-5000) Models";
+
+  revision 2024-01-15 {
+    description "Initial version";
+  }
+
+  // ==================== UPF ====================
+  container upf {
+    description "UPF (User Plane Function) configuration";
+    leaf upf-id {
+      type string;
+    }
+    leaf status {
+      type enumeration {
+        enum "active";
+        enum "inactive";
+        enum "error";
+      }
+      readonly true;
+    }
+    leaf active-sessions {
+      type uint32;
+      readonly true;
+    }
+    leaf max-sessions {
+      type uint32;
+    }
+    leaf rx-bytes {
+      type yang:counter64;
+      readonly true;
+    }
+    leaf tx-bytes {
+      type yang:counter64;
+      readonly true;
+    }
+    leaf cpu-usage {
+      type decimal64 { fraction-digits 2; };
+      readonly true;
+    }
+    leaf memory-usage {
+      type decimal64 { fraction-digits 2; };
+      readonly true;
+    }
+
+    list pdu-session {
+      key "session-id";
+      leaf session-id {
+        type string;
+      }
+      leaf ue-ip {
+        type inet:ipv4-address;
+      }
+      leaf upf-ip {
+        type inet:ipv4-address;
+      }
+      leaf teid {
+        type uint32;
+      }
+      leaf qfi {
+        type uint32;
+      }
+      leaf five-q {
+        type uint32;
+      }
+      leaf pnni {
+        type string;
+      }
+      leaf status {
+        type enumeration {
+          enum "active";
+          enum "inactive";
+          enum "releasing";
+        }
+        readonly true;
+      }
+      leaf created-at {
+        type yang:date-time;
+        readonly true;
+      }
+      leaf last-active {
+        type yang:date-time;
+        readonly true;
+      }
+    }
+  }
+
+  // ==================== PFCP ====================
+  container pfcp {
+    description "PFCP (Packet Forwarding Control Protocol)";
+    leaf status {
+      type enumeration {
+        enum "active";
+        enum "inactive";
+        enum "error";
+      }
+      readonly true;
+    }
+    list session {
+      key "session-id";
+      leaf session-id {
+        type string;
+      }
+      leaf f-seid {
+        type uint64;
+      }
+      leaf peer-ip {
+        type inet:ipv4-address;
+      }
+      leaf peer-type {
+        type enumeration {
+          enum "upf";
+          enum "smf";
+        }
+      }
+      leaf status {
+        type enumeration {
+          enum "established";
+          enum "inactive";
+        }
+        readonly true;
+      }
+      list rule {
+        key "rule-id";
+        leaf rule-id {
+          type uint32;
+        }
+        leaf description {
+          type string;
+        }
+        leaf action {
+          type enumeration {
+            enum "forward";
+            enum "drop";
+            enum "buffer";
+            enum "send-to-ul";
+          }
+        }
+        leaf qos-index {
+          type uint32;
+        }
+      }
+    }
+  }
+
+  // ==================== GTP ====================
+  container gtp {
+    description "GTP (GPRS Tunnelling Protocol)";
+    list tunnel {
+      key "tunnel-id";
+      leaf tunnel-id {
+        type string;
+      }
+      leaf local-ip {
+        type inet:ipv4-address;
+      }
+      leaf remote-ip {
+        type inet:ipv4-address;
+      }
+      leaf local-teid {
+        type uint32;
+      }
+      leaf remote-teid {
+        type uint32;
+      }
+      leaf type {
+        type enumeration {
+          enum "gtp-u";
+          enum "gtp-c";
+        }
+      }
+      leaf status {
+        type enumeration {
+          enum "active";
+          enum "inactive";
+        }
+        readonly true;
+      }
+    }
+  }
+
+  // ==================== 5QI ====================
+  container five-q {
+    list qos {
+      key "five-q";
+      leaf five-q {
+        type uint32;
+      }
+      leaf name {
+        type string;
+      }
+      leaf resource-type {
+        type enumeration {
+          enum "gbr";
+          enum "non-gbr";
+          enum "delay-critical";
+        }
+      }
+      leaf priority-level {
+        type uint32;
+      }
+      leaf packet-delay-budget-ms {
+        type uint32;
+      }
+      leaf max-data-burst-size {
+        type uint32;
+        units "bytes";
+      }
+      leaf error-rate {
+        type decimal64 { fraction-digits 10; };
+      }
+    }
+  }
+
+  // ==================== NRF ====================
+  container nrf {
+    description "NRF (Network Repository Function)";
+    list nf {
+      key "nf-id";
+      leaf nf-id {
+        type string;
+      }
+      leaf nf-type {
+        type enumeration {
+          enum "upf";
+          enum "smf";
+          enum "amf";
+          enum "pcf";
+          enum "udm";
+          enum "ausf";
+          enum "nssf";
+          enum "nrf";
+        }
+      }
+      leaf status {
+        type enumeration {
+          enum "registered";
+          enum "deregistered";
+        }
+        readonly true;
+      }
+      leaf uri {
+        type inet:fqdn;
+      }
+      list supported-nf {
+        leaf type {
+          type string;
+        }
+      }
+      leaf priority {
+        type uint32;
+      }
+      leaf capacity {
+        type uint32;
+      }
+    }
+  }
+}

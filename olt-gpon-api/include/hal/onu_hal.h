@@ -1,64 +1,44 @@
 /**
- * MTS-OLT-2000 OLT GPON — ONU HAL
- * Hardware Abstraction Layer for ONU management
- * 
- * Responsibilities:
- * - Monitor ONU configuration (VLAN, QoS, bandwidth)
- * - Read ONU config from sysfs
- * - Apply bandwidth/QoS via rtl_gpon CLI and SNMP
- * - Thread-safe with mock mode for testing
+ * MTS-OLT-2000 ONU HAL — ONU management
  */
 
-#pragma once
-#include <string>
-#include <vector>
-#include <memory>
-#include <mutex>
-#include <atomic>
-#include <map>
+#ifndef MTS_OLT2000_ONU_HAL_H
+#define MTS_OLT2000_ONU_HAL_H
 
-namespace mts::olt2000::hal {
+#include <stdint.h>
+#include <stdbool.h>
+#include "gpon_hal.h"
 
-struct OnuConfig {
-    std::string onu_id;
-    std::string pon_port;
-    uint32_t vlan;
-    std::string qos_profile;
-    uint32_t bandwidth_up;
-    uint32_t bandwidth_down;
-};
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-class IOnuHal {
-public:
-    virtual ~IOnuHal() = default;
-    virtual std::vector<OnuConfig> getConfigs() = 0;
-    virtual bool isAvailable() = 0;
-    virtual std::string getDeviceName() = 0;
-};
+/* ONU management operations */
+typedef struct {
+    int (*init)(void);
+    int (*cleanup)(void);
+    int (*discover)(uint32_t pon_port, mts_olt2000_onu_t **onus, uint32_t *count);
+    int (*activate)(uint32_t pon_port, const char *serial, mts_olt2000_onu_t *onu);
+    int (*deactivate)(const char *onu_id);
+    int (*get_tlv)(const char *onu_id, uint16_t *type, void *value, uint32_t *len);
+    int (*set_tlv)(const char *onu_id, uint16_t type, const void *value, uint32_t len);
+} mts_olt2000_onu_ops_t;
 
-class OnuHal : public IOnuHal {
-public:
-    OnuHal();
-    ~OnuHal() override = default;
+/**
+ * Get ONU management operations
+ * @return Pointer to ONU operations structure
+ */
+const mts_olt2000_onu_ops_t *mts_olt2000_onu_get_ops(void);
 
-    std::vector<OnuConfig> getConfigs() override;
-    bool isAvailable() override;
-    std::string getDeviceName() override;
+/**
+ * Register ONU management operations
+ * @param ops Pointer to operations structure
+ * @return 0 on success, -1 on error
+ */
+int mts_olt2000_onu_register_ops(const mts_olt2000_onu_ops_t *ops);
 
-    bool setConfig(const OnuConfig& config);
-    bool deleteConfig(const std::string& onu_id);
+#ifdef __cplusplus
+}
+#endif
 
-    void setMockMode(bool enabled);
-
-private:
-    bool loadConfigsFromSysfs();
-    std::vector<OnuConfig> readConfigsFromSysfs();
-    std::vector<OnuConfig> applyMockConfigs();
-
-    std::map<std::string, OnuConfig> configs_;
-    mutable std::mutex mutex_;
-    std::atomic<bool> mock_mode_;
-    bool available_;
-};
-
-} // namespace mts::olt2000::hal
+#endif /* MTS_OLT2000_ONU_HAL_H */

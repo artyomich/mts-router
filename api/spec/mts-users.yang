@@ -1,0 +1,166 @@
+module mts-users {
+  namespace "urn:mts:router:users";
+  prefix "mts-users";
+
+  import ietf-yang-types { prefix "yang"; }
+
+  organization "MTS Digital";
+  contact "MTS Router Team <mts-router@mts.ru>";
+  description "MTS Router User Management Models";
+
+  revision 2024-01-15 {
+    description "Initial version";
+  }
+
+  typedef user-role {
+    type enumeration {
+      enum "superadmin";
+      enum "admin";
+      enum "operator";
+      enum "security-admin";
+      enum "viewer";
+      enum "readonly";
+    }
+  }
+
+  typedef auth-method {
+    type enumeration {
+      enum "local-password";
+      enum "ssh-key";
+      enum "tacacs-plus";
+      enum "radius";
+      enum "ldap";
+      enum "oauth2";
+    }
+  }
+
+  container users {
+    description "User management";
+
+    list user {
+      key "name";
+      leaf name {
+        type string {
+          length "1..32";
+        }
+      }
+      leaf description {
+        type string;
+      }
+      leaf role {
+        type user-role;
+        default "viewer";
+      }
+      leaf enabled {
+        type boolean;
+        default "true";
+      }
+      leaf password-last-set {
+        type yang:date-time;
+        readonly true;
+      }
+      leaf last-login {
+        type yang:date-time;
+        readonly true;
+      }
+      leaf login-attempts {
+        type uint32;
+        readonly true;
+      }
+      leaf locked {
+        type boolean;
+        readonly true;
+      }
+
+      container auth {
+        leaf method {
+          type auth-method;
+          default "local-password";
+        }
+        leaf password {
+          type string;
+          secret;
+        }
+        container ssh-key {
+          leaf algorithm {
+            type enumeration {
+              enum "ssh-rsa";
+              enum "ssh-ed25519";
+              enum "ecdsa-sha2-nistp256";
+            }
+          }
+          leaf public-key {
+            type string;
+            secret;
+          }
+        }
+        container tacacs {
+          leaf server {
+            type inet:ip-address;
+          }
+          leaf key {
+            type string;
+            secret;
+          }
+        }
+      }
+    }
+
+    // Role definitions
+    list role {
+      key "name";
+      leaf name {
+        type string;
+      }
+      list privilege {
+        key "path";
+        leaf path {
+          type string;
+        }
+        leaf access {
+          type enumeration {
+            enum "none";
+            enum "read";
+            enum "write";
+            enum "exec";
+          }
+          default "none";
+        }
+      }
+    }
+
+    // Audit log
+    container audit-log {
+      leaf enabled {
+        type boolean;
+        default "true";
+      }
+      list entry {
+        key "timestamp";
+        leaf timestamp {
+          type yang:date-time;
+          readonly true;
+        }
+        leaf user {
+          type string;
+          readonly true;
+        }
+        leaf action {
+          type string;
+          readonly true;
+        }
+        leaf resource {
+          type string;
+          readonly true;
+        }
+        leaf result {
+          type enumeration {
+            enum "success";
+            enum "failure";
+          }
+          readonly true;
+        }
+      }
+    }
+  }
+}

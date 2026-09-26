@@ -1,0 +1,474 @@
+module mts-bgp {
+  namespace "urn:mts:router:bgp";
+  prefix "mts-bgp";
+
+  import ietf-inet-types { prefix "inet"; }
+  import ietf-yang-types { prefix "yang"; }
+
+  organization "MTS Digital";
+  contact "MTS Router Team <mts-router@mts.ru>";
+  description "MTS Router BGP Models";
+
+  revision 2024-01-15 {
+    description "Initial version";
+  }
+
+  // ==================== Types ====================
+  typedef bgp-state {
+    type enumeration {
+      enum "idle";
+      enum "connect";
+      enum "active";
+      enum "opensent";
+      enum "openconfirm";
+      enum "established";
+      enum "closewait";
+      enum "lastack";
+      enum "deleted";
+    }
+  }
+
+  typedef bgp-reason {
+    type enumeration {
+      enum "peer-failed";
+      enum "peer-no-adv";
+      enum "cmderr";
+      enum "hold-timer-expired";
+      enum "mtu-error";
+      enum "switch";
+      enum "clear";
+      enum "dialup";
+      enum "negotiation-failed";
+      enum "peer-config-changed";
+      enum "pfx-list-changed";
+      enum "router-id-changed";
+      enum "user";
+      enum "other";
+    }
+  }
+
+  typedef bgp-capability {
+    type enumeration {
+      enum "route-refresh";
+      enum "4-byte-as";
+      enum "graceful-restart";
+      enum "multisession";
+      enum "4-octet-asn";
+    }
+  }
+
+  typedef bgp-path-attr {
+    type enumeration {
+      enum "origin";
+      enum "as-path";
+      enum "next-hop";
+      enum "local-pref";
+      enum "atomic-aggregate";
+      enum "aggregator";
+      enum "communities";
+      enum "extended-communities";
+      enum "large-communities";
+      enum "mp-reach-nlri";
+      enum "mp-unreach-nlri";
+      enum "pmsi";
+      enum "bgp-ls";
+      enum "srp";
+      enum "encap";
+      enum "evpn";
+    }
+  }
+
+  // ==================== BGP Global ====================
+  container bgp {
+    description "BGP configuration and state";
+
+    container global {
+      leaf as {
+        type uint32;
+        description "Local BGP Autonomous System number";
+      }
+      leaf router-id {
+        type inet:ipv4-address;
+        description "BGP Router ID";
+      }
+      leaf listen-port {
+        type uint16;
+        default 179;
+      }
+      leaf default-policy {
+        type enumeration {
+          enum "deny-all";
+          enum "permit-all";
+        }
+        default "deny-all";
+      }
+
+      container route-selection {
+        leaf always-compare-med {
+          type boolean;
+          default "false";
+        }
+        leaf ignore-as-path-len {
+          type boolean;
+          default "false";
+        }
+        leaf originality-check {
+          type boolean;
+          default "true";
+        }
+        leaf as-override {
+          type boolean;
+          default "false";
+        }
+        leaf confed-mode {
+          type boolean;
+          default "false";
+        }
+      }
+
+      container timers {
+        leaf keepalive {
+          type uint16;
+          default 60;
+          units "seconds";
+        }
+        leaf hold-time {
+          type uint16;
+          default 180;
+          units "seconds";
+        }
+      }
+
+      container graceful-restart {
+        leaf enabled {
+          type boolean;
+          default "false";
+        }
+        leaf restart-time {
+          type uint16;
+          default 120;
+          units "seconds";
+        }
+        leaf stale-routes-time {
+          type uint32;
+          default 240;
+          units "seconds";
+        }
+      }
+
+      // State
+      leaf state {
+        type bgp-state;
+        readonly true;
+      }
+      leaf reason {
+        type bgp-reason;
+        readonly true;
+      }
+      leaf messages-sent {
+        type yang:counter64;
+        readonly true;
+      }
+      leaf messages-received {
+        type yang:counter64;
+        readonly true;
+      }
+    }
+
+    // ==================== AFI-SAFI ====================
+    list afi-safi {
+      key "afi safi";
+      leaf afi {
+        type enumeration {
+          enum "ipv4" { value 1; }
+          enum "ipv6" { value 2; }
+          enum "l3vpn-ipv4" { value 25; }
+          enum "evpn" { value 26; }
+          enum "bgp-ls" { value 28; }
+          enum "sr-te" { value 29; }
+        }
+      }
+      leaf safi {
+        type enumeration {
+          enum "unicast";
+          enum "multicast";
+          enum "mpls-vpn";
+          enum "l2vpn";
+          enum "evpn";
+          enum "bgp-ls";
+          enum "sr-te";
+        }
+      }
+      leaf advertise-default {
+        type boolean;
+        default "false";
+      }
+      leaf advertise-all {
+        type boolean;
+        default "false";
+      }
+    }
+
+    // ==================== Peers ====================
+    list peer {
+      key "peer-ip";
+      leaf peer-ip {
+        type inet:ipv4-address;
+      }
+      leaf peer-as {
+        type uint32;
+      }
+      leaf description {
+        type string;
+      }
+      leaf peer-type {
+        type enumeration {
+          enum "internal";
+          enum "external";
+        }
+        default "external";
+      }
+
+      // Authentication
+      container auth {
+        leaf password {
+          type string;
+          secret;
+        }
+        leaf md5-enabled {
+          type boolean;
+          default "false";
+        }
+        leaf aop-key-id {
+          type uint8;
+        }
+      }
+
+      // Connection parameters
+      leaf local-ip {
+        type inet:ipv4-address;
+      }
+      leaf local-as {
+        type uint32;
+      }
+      leaf hold-time {
+        type uint16;
+        default 180;
+      }
+      leaf keepalive-interval {
+        type uint16;
+        default 60;
+      }
+      leaf ttl {
+        type uint8;
+      }
+      leaf ebgp-multihop {
+        type uint8;
+      }
+      leaf route-identifier {
+        type uint8;
+      }
+
+      // Graceful restart
+      container graceful-restart {
+        leaf enabled {
+          type boolean;
+          default "false";
+        }
+        leaf restart-time {
+          type uint16;
+          default 120;
+        }
+      }
+
+      // Address family
+      list afi-safi {
+        key "afi safi";
+        leaf afi {
+          type enumeration {
+            enum "ipv4" { value 1; }
+            enum "ipv6" { value 2; }
+          }
+        }
+        leaf safi {
+          type enumeration {
+            enum "unicast";
+            enum "multicast";
+            enum "mpls-vpn";
+            enum "evpn";
+          }
+        }
+        leaf receive-routes {
+          type boolean;
+          default "true";
+        }
+        leaf send-routes {
+          type boolean;
+          default "true";
+        }
+      }
+
+      // State
+      leaf state {
+        type bgp-state;
+        readonly true;
+      }
+      leaf uptime {
+        type yang:timeticks;
+        readonly true;
+      }
+      leaf messages-sent {
+        type yang:counter64;
+        readonly true;
+      }
+      leaf messages-received {
+        type yang:counter64;
+        readonly true;
+      }
+      leaf capabilites {
+        type string;
+        readonly true;
+      }
+
+      // Prefix limits
+      container prefix-limit {
+        leaf max-prefixes {
+          type uint32;
+        }
+        leaf shutdown-threshold {
+          type uint8 {
+            range "1..100";
+          }
+          default 90;
+        }
+        leaf restart-timer {
+          type uint16;
+          default 300;
+        }
+      }
+    }
+
+    // ==================== Route Maps ====================
+    list route-map {
+      key "name";
+      leaf name {
+        type string;
+      }
+      list entry {
+        key "sequence";
+        leaf sequence {
+          type uint32;
+        }
+        leaf match-condition {
+          type string;
+        }
+        leaf set-action {
+          type string;
+        }
+        leaf action {
+          type enumeration {
+            enum "permit";
+            enum "deny";
+          }
+        }
+      }
+    }
+
+    // ==================== Prefix Lists ====================
+    list prefix-list {
+      key "name";
+      leaf name {
+        type string;
+      }
+      list entry {
+        key "sequence";
+        leaf sequence {
+          type uint32;
+        }
+        leaf prefix {
+          type inet:ip-prefix;
+        }
+        leaf ge {
+          type uint32;
+        }
+        leaf le {
+          type uint32;
+        }
+        leaf action {
+          type enumeration {
+            enum "permit";
+            enum "deny";
+          }
+        }
+      }
+    }
+
+    // ==================== AS-Path Lists ====================
+    list as-path-list {
+      key "name";
+      leaf name {
+        type string;
+      }
+      list entry {
+        key "sequence";
+        leaf sequence {
+          type uint32;
+        }
+        leaf regexp {
+          type string;
+        }
+        leaf action {
+          type enumeration {
+            enum "permit";
+            enum "deny";
+          }
+        }
+      }
+    }
+
+    // ==================== Communities ====================
+    list community-list {
+      key "name";
+      leaf name {
+        type string;
+      }
+      list entry {
+        key "sequence";
+        leaf sequence {
+          type uint32;
+        }
+        leaf community {
+          type string;
+        }
+        leaf action {
+          type enumeration {
+            enum "permit";
+            enum "deny";
+          }
+        }
+      }
+    }
+
+    // ==================== BGP-LU ====================
+    container bgp-lu {
+      leaf enabled {
+        type boolean;
+        default "false";
+      }
+      leaf router-id {
+        type inet:ipv4-address;
+      }
+    }
+
+    // ==================== SR-TE ====================
+    container sr-te {
+      leaf enabled {
+        type boolean;
+        default "false";
+      }
+      leaf color {
+        type uint32;
+      }
+    }
+  }
+}
