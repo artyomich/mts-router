@@ -23,17 +23,17 @@
 
 ## Структура проекта
 
-| Каталог     | Назначение                                    |
-|-------------|-----------------------------------------------|
-| docs/       | Общая документация, спецификации, планы       |
-| core-router/| Магистральные маршрутизаторы для дата-центров |
-| mobile-core/| Маршрутизаторы ядра сотовой сети (EPC/5GC)   |
+| Каталог | Назначение |
+|---------|-----------|
+| docs/ | Общая документация, спецификации, планы |
+| core-router/ | Магистральные маршрутизаторы для дата-центров |
+| mobile-core/ | Маршрутизаторы ядра сотовой сети (EPC/5GC) |
 | mobile-backhaul/ | Маршрутизаторы агрегации базовых станций |
-| olt-gpon/   | OLT-оборудование для GPON-доступа             |
-| enterprise-router/ | Корпоративные маршрутизаторы (B2B)     |
-| residential-gateway/ | Домашние шлюзы (FTTH/B2C)          |
-| api/        | API спецификации и примеры                    |
-| scripts/    | Скрипты сборки, тестирования, деплоя          |
+| olt-gpon/ | OLT-оборудование для GPON-доступа |
+| enterprise-router/ | Корпоративные маршрутизаторы (B2B) |
+| residential-gateway/ | Домашние шлюзы (FTTH/B2C) |
+| api/ | API спецификации и примеры |
+| scripts/ | Скрипты сборки, тестирования, деплоя |
 
 ## Ключевые принципы
 
@@ -54,15 +54,59 @@
 
 Подробная документация: [`mts-mb3000-api/README.md`](mts-mb3000-api/README.md)
 
----
+## Реализованные подпроекты (API HAL + gRPC)
+
+| Подпроект | HAL-модулей | Статус |
+|-----------|-------------|--------|
+| MTS-MB-3000 (Mobile Backhaul) | 3 (PtpHal, SyncEHal, MplsTpHal) | ✅ Полная реализация |
+| MTS-MC-5000 (Mobile Core) | 4 (UpfHal, SmfHal, PfcpHal, GtpHal) | ✅ Production-ready |
+| MTS-OLT-2000 (OLT GPON) | 4 (GponHal, OnuHal, Tr069Hal, OmciHal) | ✅ Production-ready |
+| MTS-RG-500 (Residential Gateway) | 5 (WifiHal, VoipHal, IptvHal, GponHal, Tr069Hal) | ✅ Production-ready |
+| MTS-ER-1000 (Enterprise Router) | 4 (SdwanHal, IpsecHal, VrrpHal, MplsHal) | ✅ Production-ready |
+| MTS-CR-9000 (Core Router) | 1 (TofinoHal) | ✅ Создан core-router-api |
 
 ## Текущее состояние
 
-- [x] Реализованный пример HAL + gRPC + Linux Integration (MTS-MB-3000)
-- [ ] Анализ текущего оборудования МТС
-- [ ] Спецификации каждого типа маршрутизаторов
-- [ ] Выбор чипов для каждого сегмента
-- [ ] Выбор базовой ОС Linux
-- [ ] Проектирование аппаратной платформы
-- [ ] Разработка драйверов
-- [ ] Написание ПО и API
+- [x] Анализ текущего оборудования МТС (docs/architecture-overview.md §1.1-1.5)
+- [x] Спецификации каждого типа маршрутизаторов (6 spec-файлов)
+- [x] Выбор чипов для каждого сегмента (docs/chipset-analysis.md, 8 чипов)
+- [x] Выбор базовой ОС Linux (docs/linux-os-selection.md, 6 ОС)
+- [x] Проектирование аппаратной платформы (6x device-tree, 6x board-trace, 6x firmware/driver-spec, 6x yocto/openwrt/buildroot layer)
+- [x] Разработка драйверов (6x firmware/driver-spec.md — Tofino 2, ThunderX3, S32G3, RTL960x, MT7981, TomTom)
+- [x] Написание ПО и API (6 API проектов: HAL + gRPC + proto + CMake + tests + Dockerfile)
+
+## Что осталось сделать
+
+### Для embedded Linux agents
+- [ ] Полная сборка Yocto/Buildroot/OpenWrt образов
+- [ ] Тестирование boot sequence
+- [ ] Тестирование networking stack
+- [ ] Тестирование DPDK integration
+- [ ] Настройка CI/CD для сборки
+
+### Для firmware agents
+- [ ] Написание всех драйверов (реализация, не спецификация)
+- [ ] Тестирование драйверов
+- [ ] Оптимизация производительности
+- [ ] Security audit
+
+### Для API agents
+- [ ] Реализация REST API gateway
+- [ ] Реализация gRPC telemetry
+- [ ] Реализация gRPC config
+- [ ] Написание client SDK (Python, Go, Java)
+- [ ] OpenAPI/Swagger документация
+
+### Для QA agents
+- [ ] Integration testing
+- [ ] Protocol testing (BGP, MPLS, SRv6, GTP-U, PFCP)
+- [ ] HA testing
+- [ ] Performance testing
+- [ ] Сертификация (ITU-T, 3GPP, IEEE)
+
+### Для трассировщиков плат (hardware agents)
+- [ ] Детальная трассировка каждой платы (схемы, сигналы, импеданс)
+- [ ] Проектирование корпусов и охлаждения
+- [ ] Выбор компонентов (конденсаторы, резисторы, индуктивности)
+- [ ] Thermal analysis
+- [ ] EMC/EMI analysis

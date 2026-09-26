@@ -1,0 +1,118 @@
+@startuml C1_Overall_System_Architecture
+' C1: Overall System Architecture - MTS-RG-500 Residential Gateway gRPC API Backend
+' Level 1: External actors and subsystems
+
+title MTS-RG-500 Residential Gateway - Overall System Architecture
+
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+skinparam rectangle {
+  BackgroundColor white
+  BorderColor #333333
+  ArrowColor #2c3e50
+}
+
+' External clients
+rectangle "Network Management System (NMS)" as NMS {
+  rectangle "OSS/BSS" as OSS
+  rectangle "Monitoring System" as Monitoring
+}
+
+' MTS-RG-500 Device
+rectangle "MTS-RG-500 Device" as Device {
+  component "gRPC Server\n(port:50054)" as GRPCServer {
+    component "MtsResidentialServiceImpl" as ServiceImpl
+  }
+  
+  component "Hardware Abstraction Layer" as HAL {
+    rectangle "WifiHal" as WifiHal
+    rectangle "VoipHal" as VoipHal
+    rectangle "IptvHal" as IptvHal
+    rectangle "GponHal" as GponHal
+    rectangle "Tr069Hal" as Tr069Hal
+  }
+  
+  component "Linux Kernel" as LinuxKernel {
+    rectangle "802.11 Driver" as WifiDrv
+    rectangle "Asterisk" as Asterisk
+    rectangle "ALSA" as Alsadb
+    rectangle "IGMP Proxy" as IgmpProxy
+    rectangle "GPON Driver" as GponDrv
+    rectangle "cwmpd" as Cwmpd
+    rectangle "Network Stack" as NetStack
+  }
+  
+  component "Hardware" as HW {
+    rectangle "MT7981 SoC" as MT7981
+    rectangle "RTL960x GPON" as RtL960
+    rectangle "WiFi 6\n(802.11ax)" as Wifi6
+    rectangle "4x GE\nPorts" as GEPorts
+    rectangle "VoIP\nPHY" as VoIP
+  }
+}
+
+' External protocols
+rectangle "External Protocols" as Protocols {
+  rectangle "SNMP" as SNMP
+  rectangle "TR-069" as TR069
+  rectangle "IPTV" as IPTV
+  rectangle "Telemetry" as Telemetry
+}
+
+' Connected devices
+rectangle "Connected Devices" as Devices {
+  rectangle "WiFi Clients\n(20 mock)" as WifiClients
+  rectangle "VoIP Phones" as VoIPPhones
+  rectangle "IPTV Set-top Boxes" as IPTVSTB
+}
+
+' Relationships from NMS
+NMS --> GRPCServer : gRPC/protobuf
+OSS --> GRPCServer : config/monitor
+Monitoring --> Telemetry : streaming
+
+' Internal relationships
+ServiceImpl --> WifiHal : uses
+ServiceImpl --> VoipHal : uses
+ServiceImpl --> IptvHal : uses
+ServiceImpl --> GponHal : uses
+ServiceImpl --> Tr069Hal : uses
+
+WifiHal --> WifiDrv : sysfs/ieee80211
+VoipHal --> Asterisk : AMI/Audio
+IptvHal --> IgmpProxy : IGMP
+GponHal --> GponDrv : sysfs/rtl_gpon
+Tr069Hal --> Cwmpd : TCP monitoring
+
+WifiDrv --> MT7981 : WiFi 6 frames
+Asterisk --> VoIP : RTP/RTCP
+IgmpProxy --> NetStack : multicast
+GponDrv --> RtL960 : GPON frames
+Cwmpd --> MT7981 : ACS connections
+
+MT7981 --> Wifi6 : WiFi 6
+MT7981 --> GEPorts : 4x GE
+RtL960 --> Devices : GPON
+
+' Protocol interfaces
+GRPCServer --> SNMP : export
+GRPCServer --> TR069 : ACS
+GRPCServer --> IPTV : export
+Telemetry --> Monitoring : push
+
+legend right
+  |*C1 Diagram: Overall System Architecture*|
+  |*Shows external systems and*|
+  |*high-level MTS-RG-500 components*|
+  ||
+  |*Key boundaries:*|
+  |*1. External management systems*|
+  |*2. gRPC API server*|
+  |*3. HAL abstraction layer*|
+  |*4. Linux kernel subsystems*|
+  |*5. MT7981 + RTL960x hardware*|
+  |*6. Connected device layer*|
+  |*7. External protocol interfaces*|
+endlegend
+
+@enduml

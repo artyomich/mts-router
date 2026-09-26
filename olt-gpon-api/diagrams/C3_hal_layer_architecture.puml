@@ -1,0 +1,163 @@
+@startuml C3_HAL_Layer_Architecture
+' C3: HAL (Hardware Abstraction Layer) Architecture
+' Shows four HAL modules with their interfaces, data structures, and Linux subsystem integration
+
+title MTS-OLT-2000 - HAL Layer Architecture
+
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+skinparam rectangle {
+  BackgroundColor #f8f9fa
+  BorderColor #333333
+}
+
+package "mts::hal namespace" as HalNs {
+  
+  component "GponHal" as GponHal {
+    rectangle "getStatus()" as GponGet
+    rectangle "setConfig()" as GponSet
+    rectangle "getPortList()" as GponPort
+    rectangle "isAvailable()" as GponAvail
+  }
+  
+  component "OnuHal" as OnuHal {
+    rectangle "getList()" as OnuList
+    rectangle "getStatus()" as OnuGet
+    rectangle "setConfig()" as OnuSet
+    rectangle "restart()" as OnuRestart
+    rectangle "isAvailable()" as OnuAvail
+  }
+  
+  component "OmciHal" as OmciHal {
+    rectangle "getEntities()" as OmciEnt
+    rectangle "setEntity()" as OmciSet
+    rectangle "isAvailable()" as OmciAvail
+  }
+  
+  component "Tr069Hal" as Tr069Hal {
+    rectangle "getStatus()" as Tr069Get
+    rectangle "getACSInfo()" as Tr069ACS
+    rectangle "isAvailable()" as Tr069Avail
+  }
+  
+}
+
+' Data structures
+rectangle "GponStatus struct" as GponStruct {
+  [port_id]
+  [onu_count]
+  [max_onu]
+  [uplink_rate]
+  [downlink_rate]
+  [tx_power]
+  [rx_power]
+  [temperature]
+  [status]
+}
+
+rectangle "OnuInfo struct" as OnuStruct {
+  [onu_id]
+  [mac_address]
+  [serial_number]
+  [firmware_version]
+  [uptime]
+  [rx_power]
+  [tx_power]
+  [bandwidth_up]
+  [bandwidth_down]
+  [status]
+}
+
+rectangle "OmciEntity struct" as OmciStruct {
+  [entity_id]
+  [mct]
+  [vid]
+  [operational_state]
+  [managed_state]
+  [admin_state]
+}
+
+rectangle "Tr069Status struct" as Tr069Struct {
+  [acs_count]
+  [acs_active]
+  [acs_address]
+  [acs_port]
+  [connection_requests]
+  [last_login]
+  [status]
+}
+
+' Linux subsystems
+rectangle "Linux sysfs" as Sysfs {
+  [/sys/class/thermal/]
+  [/sys/class/power/]
+  [/sys/class/gpon/]
+}
+
+rectangle "Linux procfs" as Procfs {
+  [/proc/net/omci]
+  [/proc/net/dev]
+  [/proc/net/tcp]
+}
+
+rectangle "Linux utilities" as Utils {
+  [rtl_gpon CLI]
+  [ioctl]
+}
+
+rectangle "Daemon" as Daemon {
+  [cwmpd]
+}
+
+' Relationships for GponHal
+GponHal --> GponStruct : returns
+GponHal --> Sysfs : readFromSysfs()
+GponHal --> Utils : rtl_gpon CLI
+GponHal --> Daemon : parseGponLogs()
+
+' Relationships for OnuHal
+OnuHal --> OnuStruct : returns
+OnuHal --> Sysfs : readFromSysfs()
+OnuHal --> Utils : rtl_gpon CLI
+OnuHal --> Daemon : parseOnuConfig()
+
+' Relationships for OmciHal
+OmciHal --> OmciStruct : returns
+OmciHal --> Procfs : parseOmciProc()
+OmciHal --> Daemon : parseOmciDaemon()
+
+' Relationships for Tr069Hal
+Tr069Hal --> Tr069Struct : returns
+Tr069Hal --> Procfs : parseTcpConnections()
+Tr069Hal --> Daemon : parseCwmpdLogs()
+
+legend right
+  |*C3 Diagram: HAL Layer Architecture*|
+  |*Four independent HAL modules:*|
+  ||
+  |*1. GponHal (GPON Line Interface)*|
+  |*- Manages GPON port state*|
+  |*- Reads from /sys/class/gpon/*|
+  |*- Uses rtl_gpon CLI for config*|
+  |*- Monitors up to 800 ONU per port*|
+  ||
+  |*2. OnuHal (ONU Management)*|
+  |*- Manages ONU lifecycle*|
+  |*- Reads sysfs for ONU config*|
+  |*- SNMP bandwidth/QoS monitoring*|
+  |*- Supports restart/configure*|
+  ||
+  |*3. OmciHal (OMCI Protocol)*|
+  |*- Manages OMCI entities*|
+  |*- Reads from /proc/net/omci*|
+  |*- Parses OMCI daemon logs*|
+  |*- Supports entity CRUD*|
+  ||
+  |*4. Tr069Hal (TR-069/ACS)*|
+  |*- Monitors TR-069 connections*|
+  |*- Parses /proc/net/tcp for ACS*|
+  |*- Reads cwmpd daemon state*|
+  |*- Tracks connection requests*|
+endlegend
+
+@enduml

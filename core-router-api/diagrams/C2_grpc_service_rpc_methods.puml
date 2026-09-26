@@ -1,0 +1,246 @@
+@startuml C2_gRPC_Service_RPC_Methods
+' C2: gRPC Service RPC Methods - MTS-CR-9000 Core Router
+' Vertical layout to avoid arrow overlaps
+
+title MTS-CR-9000 - gRPC Service RPC Methods (Vertical)
+
+skinparam backgroundColor white
+skinparam component {
+  BackgroundColor #ecf0f1
+  BorderColor #2c3e50
+  FontColor #2c3e50
+}
+skinparam arrowColor #34495e
+skinparam ArrowFontSize 10
+
+' === TOP: External Client ===
+package "External Clients" <<Client>> {
+  [NMS/OSS\nClient] as Client
+  [SDN\nController] as SDN
+}
+
+' === MIDDLE: gRPC Service Layer ===
+package "gRPC Service Layer" <<Service>> {
+  
+  package "BGP RPCs" {
+    [GetBgpStatus] as GetBgp
+    [GetBgpPeers] as GetBgpP
+    [SetBgpConfig] as SetBgp
+    [AddBgpPeer] as AddBgpP
+    [DeleteBgpPeer] as DelBgpP
+  }
+  
+  package "SRv6 RPCs" {
+    [GetSrv6Status] as GetSrv6
+    [GetSrv6Segments] as GetSrv6S
+    [AddSrv6Segment] as AddSrv6S
+    [DeleteSrv6Segment] as DelSrv6S
+  }
+  
+  package "MPLS RPCs" {
+    [GetMplsStatus] as GetMpls
+    [GetMplsLsp] as GetMplsL
+    [CreateMplsLsp] as CreateMpls
+    [DeleteMplsLsp] as DeleteMpls
+  }
+  
+  package "P4 Runtime RPCs" {
+    [GetP4Status] as GetP4
+    [GetP4Pipeline] as GetP4P
+    [SetP4Pipeline] as SetP4P
+    [GetP4Tables] as GetP4T
+    [SetP4Table] as SetP4T
+  }
+  
+  package "Port RPCs" {
+    [GetPortStatus] as GetPort
+    [SetPortConfig] as SetPort
+  }
+  
+  package "Streaming RPC" {
+    [SubscribeTelemetry] as SubTel
+  }
+}
+
+' === LOWER MIDDLE: HAL Layer ===
+package "HAL Layer" <<HAL>> {
+  
+  package "TofinoHal" as TofinoHal {
+    [getStatus()] as TofinoGet
+    [getPipelineStatus()] as TofinoPipe
+    [setPipeline()] as TofinoSet
+    [getTableList()] as TofinoTbl
+    [setTable()] as TofinoTblSet
+  }
+  
+  package "FabricHal" as FabricHal {
+    [getStatus()] as FabricGet
+    [setConfig()] as FabricSet
+  }
+  
+  package "LineCardHal" as LineCardHal {
+    [getStatus()] as LcGet
+    [getPortList()] as LcPort
+    [setConfig()] as LcSet
+  }
+  
+  package "PortHal" as PortHal {
+    [getStatus()] as PortGet
+    [setConfig()] as PortSet
+  }
+}
+
+' === BOTTOM: Protobuf Responses ===
+package "Protobuf Responses" <<Proto>> {
+  [BgpStatus] as BgpResp
+  [BgpPeerInfo] as BgpPeerResp
+  [Srv6Status] as Srv6Resp
+  [Srv6SegmentInfo] as Srv6SegResp
+  [MplsStatus] as MplsResp
+  [MplsLspInfo] as MplsLspResp
+  [P4Status] as P4Resp
+  [P4PipelineInfo] as P4PipeResp
+  [PortStatus] as PortResp
+  [TelemetryData] as TelResp
+}
+
+' === Client to gRPC Service (downward) ===
+Client --> GetBgp : Empty()
+Client --> GetBgpP : Empty()
+Client --> SetBgp : BgpConfig
+Client --> AddBgpP : AddBgpPeerReq
+Client --> DelBgpP : DelBgpPeerReq
+
+Client --> GetSrv6 : Empty()
+Client --> GetSrv6S : Empty()
+Client --> AddSrv6S : AddSrv6SegReq
+Client --> DelSrv6S : DelSrv6SegReq
+
+Client --> GetMpls : Empty()
+Client --> GetMplsL : Empty()
+Client --> CreateMpls : CreateMplsLspReq
+Client --> DeleteMpls : DeleteMplsLspReq
+
+Client --> GetP4 : Empty()
+Client --> GetP4P : Empty()
+Client --> SetP4P : SetP4PipelineReq
+Client --> GetP4T : Empty()
+Client --> SetP4T : SetP4TableReq
+
+Client --> GetPort : Empty()
+Client --> SetPort : PortConfig
+
+Client --> SubTel : TelemetrySub
+
+SDN --> SetP4P : P4PipelineConfig
+SDN --> SetP4T : P4TableEntry
+
+' === gRPC Service to HAL (downward) ===
+GetBgp ..> TofinoGet : BgpStatus
+GetBgpP ..> TofinoGet : BgpPeerInfo[]
+SetBgp ..> TofinoSet : configure
+AddBgpP ..> TofinoSet : add peer
+DelBgpP ..> TofinoSet : del peer
+
+GetSrv6 ..> TofinoGet : Srv6Status
+GetSrv6S ..> TofinoGet : Srv6SegmentInfo[]
+AddSrv6S ..> TofinoSet : add segment
+DelSrv6S ..> TofinoSet : del segment
+
+GetMpls ..> TofinoGet : MplsStatus
+GetMplsL ..> TofinoGet : MplsLspInfo[]
+CreateMpls ..> TofinoSet : create LSP
+DeleteMpls ..> TofinoSet : delete LSP
+
+GetP4 ..> TofinoGet : P4Status
+GetP4P ..> TofinoPipe : P4PipelineInfo
+SetP4P ..> TofinoSet : set pipeline
+GetP4T ..> TofinoTbl : P4TableInfo[]
+SetP4T ..> TofinoTblSet : set table
+
+GetPort ..> PortGet : PortStatus
+SetPort ..> PortSet : configure
+
+SubTel ..> TofinoGet : stream
+SubTel ..> FabricGet : stream
+SubTel ..> LcGet : stream
+SubTel ..> PortGet : stream
+
+' === HAL to Responses (downward) ===
+TofinoGet --> BgpResp
+TofinoGet --> Srv6Resp
+TofinoGet --> MplsResp
+TofinoGet --> P4Resp
+TofinoGet --> TelResp
+TofinoPipe --> P4PipeResp
+TofinoSet --> P4Resp
+TofinoTbl --> P4PipeResp
+TofinoTblSet --> P4Resp
+FabricGet --> BgpResp
+LcGet --> PortResp
+LcPort --> PortResp
+LcSet --> PortResp
+PortGet --> PortResp
+PortSet --> PortResp
+GetBgp --> BgpResp
+GetBgpP --> BgpPeerResp
+SetBgp --> BgpResp
+AddBgpP --> BgpPeerResp
+DelBgpP --> BgpPeerResp
+GetSrv6 --> Srv6Resp
+GetSrv6S --> Srv6SegResp
+AddSrv6S --> Srv6SegResp
+DelSrv6S --> Srv6SegResp
+GetMpls --> MplsResp
+GetMplsL --> MplsLspResp
+CreateMpls --> MplsLspResp
+DeleteMpls --> MplsLspResp
+GetP4 --> P4Resp
+GetP4P --> P4PipeResp
+SetP4P --> P4Resp
+GetP4T --> P4PipeResp
+SetP4T --> P4Resp
+GetPort --> PortResp
+SetPort --> PortResp
+
+legend right
+  *C2: gRPC Service RPC Methods (Vertical)*
+  ||
+  *BGP RPC (5):*
+  1. GetBgpStatus -> TofinoHal
+  2. GetBgpPeers -> TofinoHal
+  3. SetBgpConfig -> TofinoHal
+  4. AddBgpPeer -> TofinoHal
+  5. DeleteBgpPeer -> TofinoHal
+  ||
+  *SRv6 RPC (4):*
+  1. GetSrv6Status -> TofinoHal
+  2. GetSrv6Segments -> TofinoHal
+  3. AddSrv6Segment -> TofinoHal
+  4. DeleteSrv6Segment -> TofinoHal
+  ||
+  *MPLS RPC (4):*
+  1. GetMplsStatus -> TofinoHal
+  2. GetMplsLsp -> TofinoHal
+  3. CreateMplsLsp -> TofinoHal
+  4. DeleteMplsLsp -> TofinoHal
+  ||
+  *P4 Runtime RPC (5):*
+  1. GetP4Status -> TofinoHal
+  2. GetP4Pipeline -> TofinoHal
+  3. SetP4Pipeline -> TofinoHal
+  4. GetP4Tables -> TofinoHal
+  5. SetP4Table -> TofinoHal
+  ||
+  *Port RPC (2):*
+  1. GetPortStatus -> PortHal
+  2. SetPortConfig -> PortHal
+  ||
+  *Streaming RPC (1):*
+  1. SubscribeTelemetry (all HAL)
+  ||
+  *HAL modules:*
+  TofinoHal, FabricHal, LineCardHal, PortHal
+endlegend
+
+@enduml

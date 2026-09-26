@@ -1,0 +1,107 @@
+@startuml C1_Overall_System_Architecture
+' C1: Overall System Architecture - MTS-OLT-2000 OLT GPON gRPC API Backend
+' Level 1: External actors and subsystems
+
+title MTS-OLT-2000 OLT GPON - Overall System Architecture
+
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+skinparam rectangle {
+  BackgroundColor white
+  BorderColor #333333
+  ArrowColor #2c3e50
+}
+
+' External clients
+rectangle "Network Management System (NMS)" as NMS {
+  rectangle "OSS/BSS" as OSS
+  rectangle "Monitoring System" as Monitoring
+}
+
+' MTS-OLT-2000 Device
+rectangle "MTS-OLT-2000 Device" as Device {
+  component "gRPC Server\n(port:50053)" as GRPCServer {
+    component "MtsOltGponServiceImpl" as ServiceImpl
+  }
+  
+  component "Hardware Abstraction Layer" as HAL {
+    rectangle "GponHal" as GponHal
+    rectangle "OnuHal" as OnuHal
+    rectangle "Tr069Hal" as Tr069Hal
+    rectangle "OmciHal" as OmciHal
+  }
+  
+  component "Linux Kernel" as LinuxKernel {
+    rectangle "GPON Driver" as GponDrv
+    rectangle "OMCI Subsystem" as OmciSub
+    rectangle "cwmpd" as Cwmpd
+    rectangle "Network Stack" as NetStack
+  }
+  
+  component "Hardware" as HW {
+    rectangle "Tofino 2 ASIC" as Tofino2
+    rectangle "AMD EPYC CPU" as EpYC
+    rectangle "RTL960x GPON" as RtL960
+    rectangle "10G SFP+ Ports" as Ports10G
+  }
+}
+
+' External protocols
+rectangle "External Protocols" as Protocols {
+  rectangle "SNMP" as SNMP
+  rectangle "TR-069" as TR069
+  rectangle "OMCI" as OMCI
+  rectangle "Telemetry" as Telemetry
+}
+
+' ONU/ONT devices
+rectangle "ONU/ONT Devices" as ONUDevices {
+  rectangle "GPON ONT x192" as GponOnt
+  rectangle "EPON ONT x192" as EponOnt
+}
+
+' Relationships from NMS
+NMS --> GRPCServer : gRPC/protobuf
+OSS --> GRPCServer : config/monitor
+Monitoring --> Telemetry : streaming
+
+' Internal relationships
+ServiceImpl --> GponHal : uses
+ServiceImpl --> OnuHal : uses
+ServiceImpl --> Tr069Hal : uses
+ServiceImpl --> OmciHal : uses
+
+GponHal --> GponDrv : sysfs/ioctl
+OnuHal --> GponDrv : sysfs/config
+Tr069Hal --> Cwmpd : TCP monitoring
+OmciHal --> OmciSub : /proc/net/omci
+
+GponDrv --> Tofino2 : forwarding
+OmciSub --> RtL960 : OMCI entities
+Cwmpd --> EpYC : ACS connections
+
+Tofino2 --> Ports10G : 16x 10G uplink
+RtL960 --> ONUDevices : GPON/EPON
+
+' Protocol interfaces
+GRPCServer --> SNMP : export
+GRPCServer --> TR069 : ACS
+GRPCServer --> OMCI : export
+Telemetry --> Monitoring : push
+
+legend right
+  |*C1 Diagram: Overall System Architecture*|
+  |*Shows external systems and*|
+  |*high-level MTS-OLT-2000 components*|
+  ||
+  |*Key boundaries:*|
+  |*1. External management systems*|
+  |*2. gRPC API server*|
+  |*3. HAL abstraction layer*|
+  |*4. Linux kernel subsystems*|
+  |*5. Tofino 2 + RTL960x hardware*|
+  |*6. ONU/ONT device layer*|
+  |*7. External protocol interfaces*|
+endlegend
+
+@enduml

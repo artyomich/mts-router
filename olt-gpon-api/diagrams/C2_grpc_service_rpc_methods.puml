@@ -1,0 +1,178 @@
+@startuml C2_gRPC_Service_RPC_Methods
+' C2: gRPC Service RPC Methods - MTS-OLT-2000 OLT GPON
+' Vertical layout to avoid arrow overlaps
+
+title MTS-OLT-2000 - gRPC Service RPC Methods (Vertical)
+
+skinparam backgroundColor white
+skinparam component {
+  BackgroundColor #ecf0f1
+  BorderColor #2c3e50
+  FontColor #2c3e50
+}
+skinparam arrowColor #34495e
+skinparam ArrowFontSize 10
+
+' === TOP: External Client ===
+package "External Clients" <<Client>> {
+  [NMS/OSS\nClient] as Client
+}
+
+' === MIDDLE: gRPC Service Layer ===
+package "gRPC Service Layer" <<Service>> {
+  
+  package "GPON RPCs" {
+    [GetGponStatus] as GetGpon
+    [SetGponConfig] as SetGpon
+    [GetGponPorts] as GetGponP
+  }
+  
+  package "ONU RPCs" {
+    [GetOnuList] as GetOnu
+    [GetOnuStatus] as GetOnuS
+    [SetOnuConfig] as SetOnu
+    [RestartOnu] as RestartOnu
+  }
+  
+  package "OMCI RPCs" {
+    [GetOmciEntities] as GetOmci
+    [SetOmciEntity] as SetOmci
+  }
+  
+  package "TR-069 RPCs" {
+    [GetTr069Status] as GetTr069
+    [GetACSInfo] as GetACS
+  }
+  
+  package "Streaming RPC" {
+    [SubscribeTelemetry] as SubTel
+  }
+}
+
+' === LOWER MIDDLE: HAL Layer ===
+package "HAL Layer" <<HAL>> {
+  
+  package "GponHal" as GponHal {
+    [getStatus()] as GponGet
+    [setConfig()] as GponSet
+    [getPortList()] as GponPort
+  }
+  
+  package "OnuHal" as OnuHal {
+    [getList()] as OnuList
+    [getStatus()] as OnuGet
+    [setConfig()] as OnuSet
+    [restart()] as OnuRestart
+  }
+  
+  package "OmciHal" as OmciHal {
+    [getEntities()] as OmciEnt
+    [setEntity()] as OmciSet
+  }
+  
+  package "Tr069Hal" as Tr069Hal {
+    [getStatus()] as Tr069Get
+    [getACSInfo()] as Tr069ACS
+  }
+}
+
+' === BOTTOM: Protobuf Responses ===
+package "Protobuf Responses" <<Proto>> {
+  [GponStatus] as GponResp
+  [OnuInfo] as OnuResp
+  [OmciEntity] as OmciResp
+  [Tr069Status] as Tr069Resp
+  [TelemetryData] as TelResp
+}
+
+' === Client to gRPC Service (downward) ===
+Client --> GetGpon : Empty()
+Client --> SetGpon : GponConfig
+Client --> GetGponP : Empty()
+
+Client --> GetOnu : Empty()
+Client --> GetOnuS : OnuStatusReq
+Client --> SetOnu : OnuConfig
+Client --> RestartOnu : OnuRestartReq
+
+Client --> GetOmci : Empty()
+Client --> SetOmci : OmciEntity
+
+Client --> GetTr069 : Empty()
+Client --> GetACS : Empty()
+
+Client --> SubTel : TelemetrySub
+
+' === gRPC Service to HAL (downward) ===
+GetGpon ..> GponGet : GponStatus
+SetGpon ..> GponSet : configure
+GetGponP ..> GponPort : GponPortInfo[]
+
+GetOnu ..> OnuList : OnuInfo[]
+GetOnuS ..> OnuGet : OnuStatus
+SetOnu ..> OnuSet : configure
+RestartOnu ..> OnuRestart : restart
+
+GetOmci ..> OmciEnt : OmciEntity[]
+SetOmci ..> OmciSet : configure
+
+GetTr069 ..> Tr069Get : Tr069Status
+GetACS ..> Tr069ACS : ACSInfo[]
+
+SubTel ..> GponGet : stream
+SubTel ..> OnuGet : stream
+SubTel ..> OmciEnt : stream
+SubTel ..> Tr069Get : stream
+
+' === HAL to Responses (downward) ===
+GponGet --> GponResp
+GponPort --> GponResp
+OnuList --> OnuResp
+OnuGet --> OnuResp
+OnuSet --> OnuResp
+OnuRestart --> OnuResp
+OmciEnt --> OmciResp
+OmciSet --> OmciResp
+Tr069Get --> Tr069Resp
+Tr069ACS --> Tr069Resp
+GetGpon --> GponResp
+SetGpon --> GponResp
+GetOnu --> OnuResp
+GetOnuS --> OnuResp
+SetOnu --> OnuResp
+RestartOnu --> OnuResp
+GetOmci --> OmciResp
+SetOmci --> OmciResp
+GetTr069 --> Tr069Resp
+GetACS --> Tr069Resp
+
+legend right
+  *C2: gRPC Service RPC Methods (Vertical)*
+  ||
+  *GPON RPC (3):*
+  1. GetGponStatus -> GponHal
+  2. SetGponConfig -> GponHal
+  3. GetGponPorts -> GponHal
+  ||
+  *ONU RPC (4):*
+  1. GetOnuList -> OnuHal
+  2. GetOnuStatus -> OnuHal
+  3. SetOnuConfig -> OnuHal
+  4. RestartOnu -> OnuHal
+  ||
+  *OMCI RPC (2):*
+  1. GetOmciEntities -> OmciHal
+  2. SetOmciEntity -> OmciHal
+  ||
+  *TR-069 RPC (2):*
+  1. GetTr069Status -> Tr069Hal
+  2. GetACSInfo -> Tr069Hal
+  ||
+  *Streaming RPC (1):*
+  1. SubscribeTelemetry (all HAL)
+  ||
+  *HAL modules:*
+  GponHal, OnuHal, OmciHal, Tr069Hal
+endlegend
+
+@enduml

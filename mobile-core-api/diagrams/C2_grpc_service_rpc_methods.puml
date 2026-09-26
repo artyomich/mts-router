@@ -1,0 +1,200 @@
+@startuml C2_gRPC_Service_RPC_Methods
+' C2: gRPC Service RPC Methods - MTS-MC-5000 Mobile Core
+' Vertical layout to avoid arrow overlaps
+
+title MTS-MC-5000 - gRPC Service RPC Methods (Vertical)
+
+skinparam backgroundColor white
+skinparam component {
+  BackgroundColor #ecf0f1
+  BorderColor #2c3e50
+  FontColor #2c3e50
+}
+skinparam arrowColor #34495e
+skinparam ArrowFontSize 10
+
+' === TOP: External Client ===
+package "External Clients" <<Client>> {
+  [NMS/OSS\nClient] as Client
+}
+
+' === MIDDLE: gRPC Service Layer ===
+package "gRPC Service Layer" <<Service>> {
+  
+  package "UPF RPCs" {
+    [GetUpfStatus] as GetUpf
+    [SetUpfConfig] as SetUpf
+    [GetUpfSessions] as GetSess
+    [CreateUpfSession] as CreateSess
+    [DeleteUpfSession] as DeleteSess
+  }
+  
+  package "SMF RPCs" {
+    [GetSmfStatus] as GetSmf
+    [SetSmfConfig] as SetSmf
+    [GetSmfSessions] as GetSmfSess
+    [CreateSmfSession] as CreateSmfSess
+  }
+  
+  package "GTP RPCs" {
+    [GetGtpStatus] as GetGtp
+    [GetGtpTunnels] as GetGtpTun
+    [CreateGtpTunnel] as CreateGtpTun
+    [DeleteGtpTunnel] as DeleteGtpTun
+  }
+  
+  package "PFCP RPCs" {
+    [GetPfcpStatus] as GetPfcp
+    [SetPfcpRules] as SetPfcp
+    [GetPfcpRules] as GetPfcpR
+  }
+  
+  package "Streaming RPC" {
+    [SubscribeTelemetry] as SubTel
+  }
+}
+
+' === LOWER MIDDLE: HAL Layer ===
+package "HAL Layer" <<HAL>> {
+  
+  package "UpfHal" as UpfHal {
+    [getStatus()] as UpfGet
+    [setConfig()] as UpfSet
+    [getSessionList()] as UpfSess
+  }
+  
+  package "SmfHal" as SmfHal {
+    [getStatus()] as SmfGet
+    [setConfig()] as SmfSet
+    [getSessionList()] as SmfSess
+  }
+  
+  package "GtpHal" as GtpHal {
+    [getStatus()] as GtpGet
+    [getTunnelList()] as GtpTun
+    [createTunnel()] as GtpCr
+    [deleteTunnel()] as GtpDel
+  }
+  
+  package "PfcpHal" as PfcpHal {
+    [getStatus()] as PfcpGet
+    [setRules()] as PfcpSet
+    [getRules()] as PfcpGr
+  }
+}
+
+' === BOTTOM: Protobuf Responses ===
+package "Protobuf Responses" <<Proto>> {
+  [UpfStatus] as UpfResp
+  [SmfStatus] as SmfResp
+  [GtpTunnelStatus] as GtpResp
+  [PfcpRuleStatus] as PfcpResp
+  [SessionInfo] as SessResp
+  [TelemetryData] as TelResp
+}
+
+' === Client to gRPC Service (downward) ===
+Client --> GetUpf : Empty()
+Client --> SetUpf : UpfConfig
+Client --> GetSess : Empty()
+Client --> CreateSess : CreateSessionReq
+Client --> DeleteSess : DeleteSessionReq
+
+Client --> GetSmf : Empty()
+Client --> SetSmf : SmfConfig
+Client --> GetSmfSess : Empty()
+Client --> CreateSmfSess : CreateSmfSessReq
+
+Client --> GetGtp : Empty()
+Client --> GetGtpTun : Empty()
+Client --> CreateGtpTun : CreateGtpTunReq
+Client --> DeleteGtpTun : DeleteGtpTunReq
+
+Client --> GetPfcp : Empty()
+Client --> SetPfcp : PfcpRuleSet
+Client --> GetPfcpR : Empty()
+
+Client --> SubTel : TelemetrySub
+
+' === gRPC Service to HAL (downward) ===
+GetUpf ..> UpfGet : UpfStatus
+SetUpf ..> UpfSet : configure
+GetSess ..> UpfSess : SessionInfo[]
+CreateSess ..> UpfSess : create
+DeleteSess ..> UpfSess : delete
+
+GetSmf ..> SmfGet : SmfStatus
+SetSmf ..> SmfSet : configure
+GetSmfSess ..> SmfSess : SessionInfo[]
+CreateSmfSess ..> SmfSess : create
+
+GetGtp ..> GtpGet : GtpTunnelStatus[]
+GetGtpTun ..> GtpTun : GtpTunnelStatus[]
+CreateGtpTun ..> GtpCr : create
+DeleteGtpTun ..> GtpDel : delete
+
+GetPfcp ..> PfcpGet : PfcpRuleStatus[]
+SetPfcp ..> PfcpSet : configure
+GetPfcpR ..> PfcpGr : PfcpRuleStatus[]
+
+SubTel ..> UpfGet : stream
+SubTel ..> SmfGet : stream
+SubTel ..> GtpGet : stream
+SubTel ..> PfcpGet : stream
+
+' === HAL to Responses (downward) ===
+UpfGet --> UpfResp
+UpfSess --> SessResp
+SmfGet --> SmfResp
+SmfSess --> SessResp
+GtpGet --> GtpResp
+GtpTun --> GtpResp
+GtpCr --> GtpResp
+GtpDel --> GtpResp
+PfcpGet --> PfcpResp
+PfcpSet --> PfcpResp
+PfcpGr --> PfcpResp
+GetUpf --> UpfResp
+GetSmf --> SmfResp
+SetUpf --> UpfResp
+SetSmf --> SmfResp
+CreateSess --> SessResp
+DeleteSess --> SessResp
+CreateGtpTun --> GtpResp
+DeleteGtpTun --> GtpResp
+
+legend right
+  *C2: gRPC Service RPC Methods (Vertical)*
+  ||
+  *UPF RPC (5):*
+  1. GetUpfStatus -> UpfHal
+  2. SetUpfConfig -> UpfHal
+  3. GetUpfSessions -> UpfHal
+  4. CreateUpfSession -> UpfHal
+  5. DeleteUpfSession -> UpfHal
+  ||
+  *SMF RPC (4):*
+  1. GetSmfStatus -> SmfHal
+  2. SetSmfConfig -> SmfHal
+  3. GetSmfSessions -> SmfHal
+  4. CreateSmfSession -> SmfHal
+  ||
+  *GTP RPC (4):*
+  1. GetGtpStatus -> GtpHal
+  2. GetGtpTunnels -> GtpHal
+  3. CreateGtpTunnel -> GtpHal
+  4. DeleteGtpTunnel -> GtpHal
+  ||
+  *PFCP RPC (3):*
+  1. GetPfcpStatus -> PfcpHal
+  2. SetPfcpRules -> PfcpHal
+  3. GetPfcpRules -> PfcpHal
+  ||
+  *Streaming RPC (1):*
+  1. SubscribeTelemetry (all HAL)
+  ||
+  *HAL modules:*
+  UpfHal, SmfHal, GtpHal, PfcpHal
+endlegend
+
+@enduml

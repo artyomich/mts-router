@@ -1,0 +1,201 @@
+@startuml C3_HAL_Layer_Architecture
+' C3: HAL (Hardware Abstraction Layer) Architecture
+' Shows four HAL modules with their interfaces, data structures, and Linux subsystem integration
+
+title MTS-CR-9000 - HAL Layer Architecture
+
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+skinparam rectangle {
+  BackgroundColor #f8f9fa
+  BorderColor #333333
+}
+
+package "mts::hal namespace" as HalNs {
+  
+  component "TofinoHal" as TofinoHal {
+    rectangle "getStatus()" as TofinoGet
+    rectangle "getPipelineStatus()" as TofinoPipe
+    rectangle "setPipeline()" as TofinoSet
+    rectangle "getTableList()" as TofinoTbl
+    rectangle "setTable()" as TofinoTblSet
+    rectangle "isAvailable()" as TofinoAvail
+  }
+  
+  component "FabricHal" as FabricHal {
+    rectangle "getStatus()" as FabricGet
+    rectangle "setConfig()" as FabricSet
+    rectangle "isAvailable()" as FabricAvail
+  }
+  
+  component "LineCardHal" as LineCardHal {
+    rectangle "getStatus()" as LcGet
+    rectangle "getPortList()" as LcPort
+    rectangle "setConfig()" as LcSet
+    rectangle "isAvailable()" as LcAvail
+  }
+  
+  component "PortHal" as PortHal {
+    rectangle "getStatus()" as PortGet
+    rectangle "setConfig()" as PortSet
+    rectangle "isAvailable()" as PortAvail
+  }
+  
+}
+
+' Data structures
+rectangle "TofinoStatus struct" as TofinoStruct {
+  [pipeline_utilization]
+  [table_utilization]
+  [packet_buffer_used]
+  [packet_buffer_max]
+  [forwarding_entries]
+  [pipeline_clock]
+  [thermal_zone]
+  [status]
+}
+
+rectangle "BgpPeerInfo struct" as BgpPeerStruct {
+  [peer_address]
+  [peer_asn]
+  [state]
+  [uptime]
+  [prefixes_received]
+  [prefixes_sent]
+  [bytes_in]
+  [bytes_out]
+  [sessions]
+}
+
+rectangle "Srv6SegmentInfo struct" as Srv6Struct {
+  [sid_index]
+  [sid_value]
+  [action]
+  [next_hop]
+  [status]
+}
+
+rectangle "MplsLspInfo struct" as MplsLspStruct {
+  [lsp_id]
+  [label]
+  [next_hop]
+  [interface]
+  [bytes]
+  [packets]
+  [status]
+}
+
+rectangle "P4PipelineInfo struct" as P4PipeStruct {
+  [pipeline_id]
+  [program_name]
+  [table_count]
+  [counter_count]
+  [register_count]
+  [status]
+}
+
+rectangle "FabricStatus struct" as FabricStruct {
+  [fabric_id]
+  [fabric_utilization]
+  [fabric_temperature]
+  [fabric_status]
+}
+
+rectangle "LineCardStatus struct" as LcStruct {
+  [card_id]
+  [port_count]
+  [active_ports]
+  [temperature]
+  [power_usage]
+  [status]
+}
+
+rectangle "PortStatus struct" as PortStruct {
+  [port_id]
+  [port_name]
+  [speed]
+  [duplex]
+  [admin_state]
+  [oper_state]
+  [rx_bytes]
+  [tx_bytes]
+  [rx_errors]
+  [tx_errors]
+  [rx_packets]
+  [tx_packets]
+}
+
+' Linux subsystems
+rectangle "Linux sysfs" as Sysfs {
+  [/sys/class/thermal/]
+  [/sys/class/net/]
+}
+
+rectangle "Linux procfs" as Procfs {
+  [/proc/net/dev]
+  [/proc/net/tcp]
+  [/proc/net/mpls]
+}
+
+rectangle "Linux utilities" as Utils {
+  [bfrt_cli]
+  [P4 Runtime]
+  [iproute2]
+]
+
+' Relationships for TofinoHal
+TofinoHal --> TofinoStruct : returns
+TofinoHal --> BgpPeerStruct : returns
+TofinoHal --> Srv6Struct : returns
+TofinoHal --> MplsLspStruct : returns
+TofinoHal --> P4PipeStruct : returns
+TofinoHal --> Sysfs : readFromSysfs()
+TofinoHal --> Procfs : parseProcNet()
+TofinoHal --> Utils : bfrt_cli/P4Runtime
+
+' Relationships for FabricHal
+FabricHal --> FabricStruct : returns
+FabricHal --> Sysfs : readFromSysfs()
+FabricHal --> Utils : bfrt_cli
+
+' Relationships for LineCardHal
+LineCardHal --> LcStruct : returns
+LineCardHal --> Sysfs : readFromSysfs()
+LineCardHal --> Utils : bfrt_cli
+
+' Relationships for PortHal
+PortHal --> PortStruct : returns
+PortHal --> Sysfs : readFromSysfs()
+PortHal --> Procfs : parseProcNet()
+PortHal --> Utils : iproute2
+
+legend right
+  |*C3 Diagram: HAL Layer Architecture*|
+  |*Four independent HAL modules:*|
+  ||
+  |*1. TofinoHal (Intel Tofino 2 ASIC)*|
+  |*- Manages Tofino 2 pipeline state*|
+  |*- Reads bfrt_cli output for tables*|
+  |*- Supports P4 Runtime API*|
+  |*- Monitors pipeline utilization*|
+  |*- Tracks 64x 400G port stats*|
+  ||
+  |*2. FabricHal (Fabric Interconnect)*|
+  |*- Manages fabric topology*|
+  |*- Monitors fabric utilization*|
+  |*- Uses bfrt_cli for config*|
+  ||
+  |*3. LineCardHal (Line Card Management)*|
+  |*- Manages line card state*|
+  |*- Monitors port count/active*|
+  |*- Tracks temperature/power*|
+  |*- Uses bfrt_cli for config*|
+  ||
+  |*4. PortHal (Port Management)*|
+  |*- Manages port state*|
+  |*- Reads /sys/class/net/ethX/*|
+  |*- Uses iproute2 for config*|
+  |*- Tracks per-port counters*|
+endlegend
+
+@enduml

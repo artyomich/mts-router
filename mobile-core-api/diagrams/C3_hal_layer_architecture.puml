@@ -1,0 +1,159 @@
+@startuml C3_HAL_Layer_Architecture
+' C3: HAL (Hardware Abstraction Layer) Architecture
+' Shows four HAL modules with their interfaces, data structures, and Linux subsystem integration
+
+title MTS-MC-5000 - HAL Layer Architecture
+
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+skinparam rectangle {
+  BackgroundColor #f8f9fa
+  BorderColor #333333
+}
+
+package "mts::hal namespace" as HalNs {
+  
+  component "UpfHal" as UpfHal {
+    rectangle "getStatus()" as UpfGet
+    rectangle "setConfig()" as UpfSet
+    rectangle "getSessionList()" as UpfSess
+    rectangle "isAvailable()" as UpfAvail
+  }
+  
+  component "SmfHal" as SmfHal {
+    rectangle "getStatus()" as SmfGet
+    rectangle "setConfig()" as SmfSet
+    rectangle "getSessionList()" as SmfSess
+    rectangle "isAvailable()" as SmfAvail
+  }
+  
+  component "GtpHal" as GtpHal {
+    rectangle "getStatus()" as GtpGet
+    rectangle "getTunnelList()" as GtpTun
+    rectangle "createTunnel()" as GtpCr
+    rectangle "deleteTunnel()" as GtpDel
+    rectangle "isAvailable()" as GtpAvail
+  }
+  
+  component "PfcpHal" as PfcpHal {
+    rectangle "getStatus()" as PfcpGet
+    rectangle "setRules()" as PfcpSet
+    rectangle "getRules()" as PfcpGr
+    rectangle "isAvailable()" as PfcpAvail
+  }
+  
+}
+
+' Data structures
+rectangle "UpfStatus struct" as UpfStruct {
+  [session_count]
+  [uplink_bytes]
+  [downlink_bytes]
+  [uplink_packets]
+  [downlink_packets]
+  [conntrack_entries]
+  [nft_rules_count]
+  [status]
+}
+
+rectangle "SmfStatus struct" as SmfStruct {
+  [session_count]
+  [dns_entries]
+  [pgw_address]
+  [amf_address]
+  [status]
+}
+
+rectangle "GtpTunnelStatus struct" as GtpStruct {
+  [teid_local]
+  [teid_remote]
+  [peer_address]
+  [session_id]
+  [qos_class]
+  [uplink_bytes]
+  [downlink_bytes]
+  [status]
+}
+
+rectangle "PfcpRuleStatus struct" as PfcpStruct {
+  [rule_id]
+  [far_id]
+  [qer_id]
+  [uplink_bytes]
+  [downlink_bytes]
+  [steering_action]
+  [status]
+}
+
+' Linux subsystems
+rectangle "Linux sysfs" as Sysfs {
+  [/sys/class/net/]
+  [/sys/class/thermal/]
+}
+
+rectangle "Linux procfs" as Procfs {
+  [/proc/net/nf_conntrack]
+  [/proc/net/dev]
+  [/proc/net/tcp]
+}
+
+rectangle "Linux utilities" as Utils {
+  [iproute2]
+  [nft]
+  [iptables]
+  [ioctl]
+}
+
+' Relationships for UpfHal
+UpfHal --> UpfStruct : returns
+UpfHal --> Sysfs : readFromSysfs()
+UpfHal --> Procfs : parseConntrack()
+UpfHal --> Utils : nft/ip
+
+' Relationships for SmfHal
+SmfHal --> SmfStruct : returns
+SmfHal --> Sysfs : readFromSysfs()
+SmfHal --> Procfs : parseProcNet()
+SmfHal --> Utils : iptables
+
+' Relationships for GtpHal
+GtpHal --> GtpStruct : returns
+GtpHal --> Sysfs : readFromSysfs()
+GtpHal --> Procfs : parseGtpStats()
+GtpHal --> Utils : ioctl
+
+' Relationships for PfcpHal
+PfcpHal --> PfcpStruct : returns
+PfcpHal --> Procfs : parsePfcpStats()
+PfcpHal --> Utils : nft/iproute2
+
+legend right
+  |*C3 Diagram: HAL Layer Architecture*|
+  |*Four independent HAL modules:*|
+  ||
+  |*1. UpfHal (User Plane Function)*|
+  |*- Manages UPF session state*|
+  |*- Reads conntrack from /proc/net/nf_conntrack*|
+  |*- Manages nftables rules*|
+  |*- Tracks session counters*|
+  ||
+  |*2. SmfHal (Session Management Function)*|
+  |*- Manages SMF session state*|
+  |*- Reads DNS/PGW config from sysfs*|
+  |*- Manages iptables rules*|
+  |*- Supports session lifecycle*|
+  ||
+  |*3. GtpHal (GTP-U Tunnel Manager)*|
+  |*- Manages GTP-U tunnels*|
+  |*- Reads stats from /proc/net/*|
+  |*- Uses ioctl for tunnel config*|
+  |*- Supports TEID mapping*|
+  ||
+  |*4. PfcpHal (PFCP Session Handler)*|
+  |*- Manages PFCP rules*|
+  |*- Reads stats from /proc/net/*|
+  |*- Uses nft/iproute2 for steering*|
+  |*- Supports FAR/QER rules*|
+endlegend
+
+@enduml

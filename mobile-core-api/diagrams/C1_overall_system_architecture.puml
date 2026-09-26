@@ -1,0 +1,124 @@
+@startuml C1_Overall_System_Architecture
+' C1: Overall System Architecture - MTS-MC-5000 Mobile Core gRPC API Backend
+' Level 1: External actors and subsystems
+
+title MTS-MC-5000 Mobile Core - Overall System Architecture
+
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+skinparam rectangle {
+  BackgroundColor white
+  BorderColor #333333
+  ArrowColor #2c3e50
+}
+
+' External clients
+rectangle "Network Management System (NMS)" as NMS {
+  rectangle "OSS/BSS" as OSS
+  rectangle "Monitoring System" as Monitoring
+}
+
+' MTS-MC-5000 Device
+rectangle "MTS-MC-5000 Device" as Device {
+  component "gRPC Server\n(port:50051)" as GRPCServer {
+    component "MtsMobileCoreServiceImpl" as ServiceImpl
+  }
+  
+  component "Service Layer" as Service {
+    rectangle "UPF Session Manager" as UpfSess
+    rectangle "SMF Session Controller" as SmfCtrl
+    rectangle "PFCP Handler" as Pfcph
+    rectangle "GTP Tunnel Manager" as GtpTun
+  }
+  
+  component "Hardware Abstraction Layer" as HAL {
+    rectangle "UpfHal" as UpfHal
+    rectangle "SmfHal" as SmfHal
+    rectangle "GtpHal" as GtpHal
+    rectangle "PfcpHal" as PfcpHal
+  }
+  
+  component "Linux Kernel" as LinuxKernel {
+    rectangle "conntrack" as Conntrack
+    rectangle "nftables" as Nftables
+    rectangle "IPTables" as Iptables
+    rectangle "Network Stack" as NetStack
+  }
+  
+  component "Hardware" as HW {
+    rectangle "ThunderX3 SoC" as ThunderX3
+    rectangle "100G SFP28 Ports" as Ports100G
+    rectangle "25G SFP28 Ports" as Ports25G
+  }
+}
+
+' External protocols
+rectangle "External Protocols" as Protocols {
+  rectangle "SNMP" as SNMP
+  rectangle "NETCONF/YANG" as NETCONF
+  rectangle "Telemetry" as Telemetry
+}
+
+' External systems
+rectangle "5G Core Network" as Core5G {
+  rectangle "AMF" as Amf
+  rectangle "UDM" as Udm
+  rectangle "UPF peers" as UpfPeers
+}
+
+' Relationships from NMS
+NMS --> GRPCServer : gRPC/protobuf
+OSS --> GRPCServer : config/monitor
+Monitoring --> Telemetry : streaming
+
+' Internal relationships
+ServiceImpl --> UpfSess : uses
+ServiceImpl --> SmfCtrl : uses
+ServiceImpl --> Pfcph : uses
+ServiceImpl --> GtpTun : uses
+
+UpfSess --> UpfHal : read/write
+SmfCtrl --> SmfHal : read/write
+GtpTun --> GtpHal : read/write
+Pfcph --> PfcpHal : read/write
+
+UpfHal --> Conntrack : /proc/net/nf_conntrack
+UpfHal --> Nftables : nft rules
+SmfHal --> Iptables : iptables rules
+GtpHal --> NetStack : GTP-U sockets
+PfcpHal --> Nftables : steering rules
+
+Conntrack --> ThunderX3 : kernel networking
+Nftables --> ThunderX3 : kernel networking
+Iptables --> ThunderX3 : kernel networking
+
+ThunderX3 --> Ports100G : 32x 100G uplink
+ThunderX3 --> Ports25G : 64x 25G access
+
+' Protocol interfaces
+GRPCServer --> SNMP : export
+GRPCServer --> NETCONF : export
+Telemetry --> Monitoring : push
+
+' 5G Core interactions
+Amf --> GtpTun : N2 signaling
+UpfPeers --> GtpTun : GTP-U tunnels
+Udm --> SmfCtrl : session auth
+
+legend right
+  |*C1 Diagram: Overall System Architecture*|
+  |*Shows external systems and*|
+  |*high-level MTS-MC-5000 components*|
+  ||
+  |*Key boundaries:*|
+  |*1. External management systems*|
+  |*2. 5G Core Network peers*|
+  |*3. gRPC API server*|
+  |*4. Service Layer (UPF/SMF/GTP/PFCP)*|
+  |*5. HAL abstraction layer*|
+  |*6. Linux kernel subsystems*|
+  |*7. ThunderX3 hardware platform*|
+  |*8. External protocol interfaces*|
+endlegend
+
+@enduml

@@ -1,0 +1,212 @@
+@startuml C2_gRPC_Service_RPC_Methods
+' C2: gRPC Service RPC Methods - MTS-ER-1000 Enterprise Router
+' Vertical layout to avoid arrow overlaps
+
+title MTS-ER-1000 - gRPC Service RPC Methods (Vertical)
+
+skinparam backgroundColor white
+skinparam component {
+  BackgroundColor #ecf0f1
+  BorderColor #2c3e50
+  FontColor #2c3e50
+}
+skinparam arrowColor #34495e
+skinparam ArrowFontSize 10
+
+' === TOP: External Client ===
+package "External Clients" <<Client>> {
+  [NMS/OSS\nClient] as Client
+}
+
+' === MIDDLE: gRPC Service Layer ===
+package "gRPC Service Layer" <<Service>> {
+  
+  package "SD-WAN RPCs" {
+    [GetSdwanStatus] as GetSdwan
+    [SetSdwanConfig] as SetSdwan
+    [GetWanPaths] as GetWanP
+    [SetPathPriority] as SetPathP
+  }
+  
+  package "IPsec RPCs" {
+    [GetIpsecStatus] as GetIpsec
+    [GetIpsecTunnels] as GetIpsecT
+    [CreateIpsecTunnel] as CreateIpsec
+    [DeleteIpsecTunnel] as DeleteIpsec
+  }
+  
+  package "VRRP RPCs" {
+    [GetVrrpStatus] as GetVrrp
+    [GetVrrpInstances] as GetVrrpI
+    [SetVrrpPriority] as SetVrrpP
+  }
+  
+  package "MPLS RPCs" {
+    [GetMplsStatus] as GetMpls
+    [GetMplsLsp] as GetMplsL
+    [CreateMplsLsp] as CreateMpls
+    [DeleteMplsLsp] as DeleteMpls
+  }
+  
+  package "Streaming RPC" {
+    [SubscribeTelemetry] as SubTel
+  }
+}
+
+' === LOWER MIDDLE: HAL Layer ===
+package "HAL Layer" <<HAL>> {
+  
+  package "SdwanHal" as SdwanHal {
+    [getStatus()] as SdwanGet
+    [setConfig()] as SdwanSet
+    [getWanPathList()] as SdwanPath
+    [setPathPriority()] as SdwanPri
+  }
+  
+  package "IpsecHal" as IpsecHal {
+    [getStatus()] as IpsecGet
+    [getTunnelList()] as IpsecTun
+    [createTunnel()] as IpsecCr
+    [deleteTunnel()] as IpsecDel
+  }
+  
+  package "VrrpHal" as VrrpHal {
+    [getStatus()] as VrrpGet
+    [getInstanceList()] as VrrpInst
+    [setPriority()] as VrrpPri
+  }
+  
+  package "MplsHal" as MplsHal {
+    [getStatus()] as MplsGet
+    [getLspList()] as MplsLsp
+    [createLsp()] as MplsCr
+    [deleteLsp()] as MplsDel
+  }
+}
+
+' === BOTTOM: Protobuf Responses ===
+package "Protobuf Responses" <<Proto>> {
+  [SdwanStatus] as SdwanResp
+  [WanPathInfo] as WanPathResp
+  [IpsecStatus] as IpsecResp
+  [IpsecTunnelInfo] as IpsecTunResp
+  [VrrpStatus] as VrrpResp
+  [VrrpInstanceInfo] as VrrpInstResp
+  [MplsStatus] as MplsResp
+  [MplsLspInfo] as MplsLspResp
+  [TelemetryData] as TelResp
+}
+
+' === Client to gRPC Service (downward) ===
+Client --> GetSdwan : Empty()
+Client --> SetSdwan : SdwanConfig
+Client --> GetWanP : Empty()
+Client --> SetPathP : PathPriorityReq
+
+Client --> GetIpsec : Empty()
+Client --> GetIpsecT : Empty()
+Client --> CreateIpsec : CreateIpsecTunReq
+Client --> DeleteIpsec : DeleteIpsecTunReq
+
+Client --> GetVrrp : Empty()
+Client --> GetVrrpI : Empty()
+Client --> SetVrrpP : VrrpPriorityReq
+
+Client --> GetMpls : Empty()
+Client --> GetMplsL : Empty()
+Client --> CreateMpls : CreateMplsLspReq
+Client --> DeleteMpls : DeleteMplsLspReq
+
+Client --> SubTel : TelemetrySub
+
+' === gRPC Service to HAL (downward) ===
+GetSdwan ..> SdwanGet : SdwanStatus
+SetSdwan ..> SdwanSet : configure
+GetWanP ..> SdwanPath : WanPathInfo[]
+SetPathP ..> SdwanPri : set priority
+
+GetIpsec ..> IpsecGet : IpsecStatus
+GetIpsecT ..> IpsecTun : IpsecTunnelInfo[]
+CreateIpsec ..> IpsecCr : create
+DeleteIpsec ..> IpsecDel : delete
+
+GetVrrp ..> VrrpGet : VrrpStatus
+GetVrrpI ..> VrrpInst : VrrpInstanceInfo[]
+SetVrrpP ..> VrrpPri : set priority
+
+GetMpls ..> MplsGet : MplsStatus
+GetMplsL ..> MplsLsp : MplsLspInfo[]
+CreateMpls ..> MplsCr : create
+DeleteMpls ..> MplsDel : delete
+
+SubTel ..> SdwanGet : stream
+SubTel ..> IpsecGet : stream
+SubTel ..> VrrpGet : stream
+SubTel ..> MplsGet : stream
+
+' === HAL to Responses (downward) ===
+SdwanGet --> SdwanResp
+SdwanSet --> SdwanResp
+SdwanPath --> WanPathResp
+SdwanPri --> SdwanResp
+IpsecGet --> IpsecResp
+IpsecTun --> IpsecTunResp
+IpsecCr --> IpsecTunResp
+IpsecDel --> IpsecTunResp
+VrrpGet --> VrrpResp
+VrrpInst --> VrrpInstResp
+VrrpPri --> VrrpResp
+MplsGet --> MplsResp
+MplsLsp --> MplsLspResp
+MplsCr --> MplsLspResp
+MplsDel --> MplsLspResp
+GetSdwan --> SdwanResp
+SetSdwan --> SdwanResp
+GetWanP --> WanPathResp
+SetPathP --> SdwanResp
+GetIpsec --> IpsecResp
+GetIpsecT --> IpsecTunResp
+CreateIpsec --> IpsecTunResp
+DeleteIpsec --> IpsecTunResp
+GetVrrp --> VrrpResp
+GetVrrpI --> VrrpInstResp
+SetVrrpP --> VrrpResp
+GetMpls --> MplsResp
+GetMplsL --> MplsLspResp
+CreateMpls --> MplsLspResp
+DeleteMpls --> MplsLspResp
+
+legend right
+  *C2: gRPC Service RPC Methods (Vertical)*
+  ||
+  *SD-WAN RPC (4):*
+  1. GetSdwanStatus -> SdwanHal
+  2. SetSdwanConfig -> SdwanHal
+  3. GetWanPaths -> SdwanHal
+  4. SetPathPriority -> SdwanHal
+  ||
+  *IPsec RPC (4):*
+  1. GetIpsecStatus -> IpsecHal
+  2. GetIpsecTunnels -> IpsecHal
+  3. CreateIpsecTunnel -> IpsecHal
+  4. DeleteIpsecTunnel -> IpsecHal
+  ||
+  *VRRP RPC (3):*
+  1. GetVrrpStatus -> VrrpHal
+  2. GetVrrpInstances -> VrrpHal
+  3. SetVrrpPriority -> VrrpHal
+  ||
+  *MPLS RPC (4):*
+  1. GetMplsStatus -> MplsHal
+  2. GetMplsLsp -> MplsHal
+  3. CreateMplsLsp -> MplsHal
+  4. DeleteMplsLsp -> MplsHal
+  ||
+  *Streaming RPC (1):*
+  1. SubscribeTelemetry (all HAL)
+  ||
+  *HAL modules:*
+  SdwanHal, IpsecHal, VrrpHal, MplsHal
+endlegend
+
+@enduml

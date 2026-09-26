@@ -1,0 +1,119 @@
+@startuml C1_Overall_System_Architecture
+' C1: Overall System Architecture - MTS-ER-1000 Enterprise Router gRPC API Backend
+' Level 1: External actors and subsystems
+
+title MTS-ER-1000 Enterprise Router - Overall System Architecture
+
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+skinparam rectangle {
+  BackgroundColor white
+  BorderColor #333333
+  ArrowColor #2c3e50
+}
+
+' External clients
+rectangle "Network Management System (NMS)" as NMS {
+  rectangle "OSS/BSS" as OSS
+  rectangle "Monitoring System" as Monitoring
+}
+
+' MTS-ER-1000 Device
+rectangle "MTS-ER-1000 Device" as Device {
+  component "gRPC Server\n(port:50055)" as GRPCServer {
+    component "MtsEnterpriseServiceImpl" as ServiceImpl
+  }
+  
+  component "Hardware Abstraction Layer" as HAL {
+    rectangle "SdwanHal" as SdwanHal
+    rectangle "IpsecHal" as IpsecHal
+    rectangle "VrrpHal" as VrrpHal
+    rectangle "MplsHal" as MplsHal
+  }
+  
+  component "Linux Kernel" as LinuxKernel {
+    rectangle "BFD Monitor" as BfdMon
+    rectangle "keepalived" as Keepalived
+    rectangle "strongSwan" as StrongSwan
+    rectangle "FRRouting" as FRRouting
+    rectangle "Network Stack" as NetStack
+  }
+  
+  component "Hardware" as HW {
+    rectangle "NXP S32G SoC" as S32G
+    rectangle "Broadcom TomTom" as TomTom
+    rectangle "4x 10G SFP+" as Ports10G
+    rectangle "8x GE RJ45" as PortsGE
+    rectangle "WAN\n(USB/Serial)" as Wan
+  }
+}
+
+' External protocols
+rectangle "External Protocols" as Protocols {
+  rectangle "SNMP" as SNMP
+  rectangle "NETCONF/YANG" as NETCONF
+  rectangle "BGP/OSPF" as BgpOspf
+  rectangle "Telemetry" as Telemetry
+}
+
+' WAN networks
+rectangle "WAN Networks" as WAN {
+  rectangle "Internet 1" as Internet1
+  rectangle "Internet 2" as Internet2
+  rectangle "MPLS WAN" as MplsWan
+  rectangle "LTE Backup" as LteBackup
+}
+
+' Relationships from NMS
+NMS --> GRPCServer : gRPC/protobuf
+OSS --> GRPCServer : config/monitor
+Monitoring --> Telemetry : streaming
+
+' Internal relationships
+ServiceImpl --> SdwanHal : uses
+ServiceImpl --> IpsecHal : uses
+ServiceImpl --> VrrpHal : uses
+ServiceImpl --> MplsHal : uses
+
+SdwanHal --> BfdMon : BFD monitoring
+SdwanHal --> Keepalived : VRRP state
+IpsecHal --> StrongSwan : IPsec SA monitoring
+VrrpHal --> Keepalived : VRRP state
+MplsHal --> FRRouting : MPLS monitoring
+
+BfdMon --> S32G : path health
+Keepalived --> TomTom : VRRP forwarding
+StrongSwan --> S32G : IPsec tunnels
+FRRouting --> TomTom : MPLS forwarding
+TomTom --> Ports10G : 4x 10G uplink
+TomTom --> PortsGE : 8x GE access
+S32G --> Wan : WAN interfaces
+
+' WAN connections
+Internet1 --> Wan : PPPoE/DSL
+Internet2 --> Wan : PPPoE/DSL
+MplsWan --> Ports10G : MPLS
+LteBackup --> Wan : LTE
+
+' Protocol interfaces
+GRPCServer --> SNMP : export
+GRPCServer --> NETCONF : export
+GRPCServer --> BgpOspf : BGP/OSPF
+Telemetry --> Monitoring : push
+
+legend right
+  |*C1 Diagram: Overall System Architecture*|
+  |*Shows external systems and*|
+  |*high-level MTS-ER-1000 components*|
+  ||
+  |*Key boundaries:*|
+  |*1. External management systems*|
+  |*2. WAN networks*|
+  |*3. gRPC API server*|
+  |*4. HAL abstraction layer*|
+  |*5. Linux kernel subsystems*|
+  |*6. NXP S32G + Broadcom hardware*|
+  |*7. External protocol interfaces*|
+endlegend
+
+@enduml

@@ -1,0 +1,133 @@
+@startuml C1_Overall_System_Architecture
+' C1: Overall System Architecture - MTS-CR-9000 Core Router gRPC API Backend
+' Level 1: External actors and subsystems
+
+title MTS-CR-9000 Core Router - Overall System Architecture
+
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+skinparam rectangle {
+  BackgroundColor white
+  BorderColor #333333
+  ArrowColor #2c3e50
+}
+
+' External clients
+rectangle "Network Management System (NMS)" as NMS {
+  rectangle "OSS/BSS" as OSS
+  rectangle "Monitoring System" as Monitoring
+  rectangle "SDN Controller" as SDN
+}
+
+' MTS-CR-9000 Device
+rectangle "MTS-CR-9000 Device" as Device {
+  component "gRPC Server\n(port:50056)" as GRPCServer {
+    component "MtsCoreRouterServiceImpl" as ServiceImpl
+  }
+  
+  component "Service Layer" as Service {
+    rectangle "BGP Monitor" as BgpMon
+    rectangle "SRv6 Manager" as Srv6Mgr
+    rectangle "MPLS LSP Manager" as MplsLsp
+    rectangle "P4 Runtime Manager" as P4Mgr
+  }
+  
+  component "Hardware Abstraction Layer" as HAL {
+    rectangle "TofinoHal" as TofinoHal
+    rectangle "FabricHal" as FabricHal
+    rectangle "LineCardHal" as LineCardHal
+    rectangle "PortHal" as PortHal
+  }
+  
+  component "Linux Kernel" as LinuxKernel {
+    rectangle "bfrt_cli" as BfrtCli
+    rectangle "P4 Runtime" as P4Runtime
+    rectangle "FRRouting" as FRRouting
+    rectangle "Network Stack" as NetStack
+  }
+  
+  component "Hardware" as HW {
+    rectangle "Intel Tofino 2" as Tofino2
+    rectangle "AMD EPYC 7003" as EpYC
+    rectangle "64x 400G SFP-DD" as Ports400G
+    rectangle "128x 100G OSFP" as Ports100G
+    rectangle "NVMe SSD" as Nvme
+    rectangle "DDR5 ECC" as Ddr5
+  }
+}
+
+' External protocols
+rectangle "External Protocols" as Protocols {
+  rectangle "BGP/4/6" as Bgp
+  rectangle "NETCONF/YANG" as NETCONF
+  rectangle "P4Runtime" as P4Rt
+  rectangle "Telemetry" as Telemetry
+}
+
+' Connected networks
+rectangle "External Networks" as ExtNet {
+  rectangle "BGP Peers" as BgpPeers
+  rectangle "Transit Providers" as Transit
+  rectangle "Data Center Spine" as DcSpine
+}
+
+' Relationships from NMS
+NMS --> GRPCServer : gRPC/protobuf
+OSS --> GRPCServer : config/monitor
+Monitoring --> Telemetry : streaming
+SDN --> P4Runtime : P4Runtime
+
+' Internal relationships
+ServiceImpl --> BgpMon : uses
+ServiceImpl --> Srv6Mgr : uses
+ServiceImpl --> MplsLsp : uses
+ServiceImpl --> P4Mgr : uses
+
+BgpMon --> TofinoHal : BGP state
+Srv6Mgr --> TofinoHal : SRv6 rules
+MplsLsp --> TofinoHal : MPLS labels
+P4Mgr --> P4Runtime : P4Runtime API
+
+TofinoHal --> BfrtCli : bfrt CLI
+TofinoHal --> P4Runtime : P4Runtime
+FabricHal --> Tofino2 : fabric config
+LineCardHal --> Tofino2 : line card config
+PortHal --> Tofino2 : port config
+
+BfrtCli --> Tofino2 : P4 pipeline config
+P4Runtime --> Tofino2 : P4 pipeline config
+
+Tofino2 --> Ports400G : 64x 400G uplink
+Tofino2 --> Ports100G : 128x 100G access
+EpYC --> Nvme : control plane
+EpYC --> Ddr5 : control plane
+
+' External network connections
+BgpPeers --> Tofino2 : BGP sessions
+Transit --> Tofino2 : transit
+DcSpine --> Ports400G : spine-leaf
+
+' Protocol interfaces
+GRPCServer --> Bgp : BGP export
+GRPCServer --> NETCONF : export
+GRPCServer --> P4Rt : export
+Telemetry --> Monitoring : push
+
+legend right
+  |*C1 Diagram: Overall System Architecture*|
+  |*Shows external systems and*|
+  |*high-level MTS-CR-9000 components*|
+  ||
+  |*Key boundaries:*|
+  |*1. External management systems*|
+  |*2. External networks (BGP peers)*|
+  |*3. SDN Controller*|
+  |*4. gRPC API server*|
+  |*5. Service Layer (BGP/SRv6/MPLS/P4)*|
+  |*6. HAL abstraction layer*|
+  |*7. Linux kernel subsystems*|
+  |*8. Intel Tofino 2 hardware platform*|
+  |*9. External protocol interfaces*|
+endlegend
+
+@enduml

@@ -1,0 +1,226 @@
+@startuml C3_HAL_Layer_Architecture
+' C3: HAL (Hardware Abstraction Layer) Architecture
+' Shows five HAL modules with their interfaces, data structures, and Linux subsystem integration
+
+title MTS-RG-500 - HAL Layer Architecture
+
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+skinparam rectangle {
+  BackgroundColor #f8f9fa
+  BorderColor #333333
+}
+
+package "mts::hal namespace" as HalNs {
+  
+  component "WifiHal" as WifiHal {
+    rectangle "getStatus()" as WifiGet
+    rectangle "setConfig()" as WifiSet
+    rectangle "getClientList()" as WifiClient
+    rectangle "setChannel()" as WifiCh
+    rectangle "isAvailable()" as WifiAvail
+  }
+  
+  component "VoipHal" as VoipHal {
+    rectangle "getStatus()" as VoipGet
+    rectangle "getCallList()" as VoipCall
+    rectangle "createCall()" as VoipCr
+    rectangle "deleteCall()" as VoipDel
+    rectangle "isAvailable()" as VoipAvail
+  }
+  
+  component "IptvHal" as IptvHal {
+    rectangle "getStatus()" as IptvGet
+    rectangle "getChannelList()" as IptvChan
+    rectangle "addChannel()" as IptvAdd
+    rectangle "removeChannel()" as IptvRm
+    rectangle "isAvailable()" as IptvAvail
+  }
+  
+  component "GponHal" as GponHal {
+    rectangle "getStatus()" as GponGet
+    rectangle "getOnuList()" as GponOnu
+    rectangle "isAvailable()" as GponAvail
+  }
+  
+  component "Tr069Hal" as Tr069Hal {
+    rectangle "getStatus()" as Tr069Get
+    rectangle "getACSInfo()" as Tr069ACS
+    rectangle "isAvailable()" as Tr069Avail
+  }
+  
+}
+
+' Data structures
+rectangle "WifiStatus struct" as WifiStruct {
+  [interface_name]
+  [ssid]
+  [channel]
+  [frequency]
+  [mode]
+  [tx_power]
+  [signal_avg]
+  [client_count]
+  [status]
+}
+
+rectangle "WifiClientInfo struct" as WifiClientStruct {
+  [mac_address]
+  [signal_strength]
+  [rx_bytes]
+  [tx_bytes]
+  [rx_packets]
+  [tx_packets]
+  [signal_avg]
+  [uptime]
+  [connected_time]
+}
+
+rectangle "VoipStatus struct" as VoipStruct {
+  [asterisk_status]
+  [active_calls]
+  [max_calls]
+  [codec]
+  [audio_quality]
+  [status]
+}
+
+rectangle "VoipCallInfo struct" as VoipCallStruct {
+  [call_id]
+  [caller]
+  [callee]
+  [duration]
+  [codec]
+  [rtp_stream]
+  [mos_score]
+  [jitter]
+  [status]
+}
+
+rectangle "IptvStatus struct" as IptvStruct {
+  [channels_count]
+  [igmp_groups]
+  [multicast_rate]
+  [set_top_boxes]
+  [status]
+}
+
+rectangle "IptvChannelInfo struct" as IptvChanStruct {
+  [channel_id]
+  [name]
+  [multicast_address]
+  [multicast_port]
+  [video_codec]
+  [audio_codec]
+  [bitrate]
+  [status]
+}
+
+rectangle "GponStatus struct" as GponStruct {
+  [onu_count]
+  [max_onu]
+  [uplink_rate]
+  [downlink_rate]
+  [rx_power]
+  [status]
+}
+
+rectangle "Tr069Status struct" as Tr069Struct {
+  [acs_count]
+  [acs_active]
+  [acs_address]
+  [acs_port]
+  [connection_requests]
+  [status]
+}
+
+' Linux subsystems
+rectangle "Linux sysfs" as Sysfs {
+  [/sys/class/ieee80211/]
+  [/sys/class/thermal/]
+  [/sys/class/power/]
+}
+
+rectangle "Linux procfs" as Procfs {
+  [/proc/net/dev]
+  [/proc/net/tcp]
+  [/proc/net/igmp]
+}
+
+rectangle "Linux utilities" as Utils {
+  [hostapd CLI]
+  [iw CLI]
+  [Asterisk AMI]
+  [ALSA]
+  [iproute2]
+]
+
+rectangle "Daemon" as Daemon {
+  [Asterisk]
+  [cwmpd]
+  [igmpproxy]
+}
+
+' Relationships for WifiHal
+WifiHal --> WifiStruct : returns
+WifiHal --> Sysfs : readFromSysfs()
+WifiHal --> Daemon : parseHostapdLogs()
+WifiHal --> Utils : hostapd/iw CLI
+
+' Relationships for VoipHal
+VoipHal --> VoipStruct : returns
+VoipHal --> Daemon : parseAsteriskLogs()
+VoipHal --> Utils : Asterisk AMI
+VoipHal --> Utils : ALSA
+
+' Relationships for IptvHal
+IptvHal --> IptvStruct : returns
+IptvHal --> Procfs : parseIgmpproc()
+IptvHal --> Daemon : parseIgmpproxyLogs()
+IptvHal --> Utils : iproute2
+
+' Relationships for GponHal
+GponHal --> GponStruct : returns
+GponHal --> Sysfs : readFromSysfs()
+GponHal --> Utils : rtl_gpon CLI
+
+' Relationships for Tr069Hal
+Tr069Hal --> Tr069Struct : returns
+Tr069Hal --> Procfs : parseTcpConnections()
+Tr069Hal --> Daemon : parseCwmpdLogs()
+
+legend right
+  |*C3 Diagram: HAL Layer Architecture*|
+  |*Five independent HAL modules:*|
+  ||
+  |*1. WifiHal (WiFi 6 Management)*|
+  |*- Manages WiFi 6 AP state*|
+  |*- Reads from /sys/class/ieee80211/*|
+  |*- Parses hostapd daemon logs*|
+  |*- Supports 20 mock WiFi clients*|
+  ||
+  |*2. VoipHal (VoIP/Telephony)*|
+  |*- Manages VoIP calls via Asterisk*|
+  |*- Reads audio quality from ALSA*|
+  |*- Uses Asterisk AMI for call mgmt*|
+  |*- Supports RTP monitoring*|
+  ||
+  |*3. IptvHal (IPTV Management)*|
+  |*- Manages IPTV channels and multicast*|
+  |*- Reads IGMP from /proc/net/igmp*|
+  |*- Monitors ip mroute tables*|
+  |*- Supports 12 mock IPTV channels*|
+  ||
+  |*4. GponHal (GPON ONU)*|
+  |*- Manages GPON ONU state*|
+  |*- Reads from /sys/class/gpon/*|
+  |*- Uses rtl_gpon CLI for config*|
+  ||
+  |*5. Tr069Hal (TR-069/ACS)*|
+  |*- Monitors TR-069 connections*|
+  |*- Parses /proc/net/tcp for ACS*|
+  |*- Reads cwmpd daemon state*|
+  |*- Tracks connection requests*|
+endlegend
+
+@enduml

@@ -1,0 +1,230 @@
+@startuml C2_gRPC_Service_RPC_Methods
+' C2: gRPC Service RPC Methods - MTS-RG-500 Residential Gateway
+' Vertical layout to avoid arrow overlaps
+
+title MTS-RG-500 - gRPC Service RPC Methods (Vertical)
+
+skinparam backgroundColor white
+skinparam component {
+  BackgroundColor #ecf0f1
+  BorderColor #2c3e50
+  FontColor #2c3e50
+}
+skinparam arrowColor #34495e
+skinparam ArrowFontSize 10
+
+' === TOP: External Client ===
+package "External Clients" <<Client>> {
+  [NMS/OSS\nClient] as Client
+}
+
+' === MIDDLE: gRPC Service Layer ===
+package "gRPC Service Layer" <<Service>> {
+  
+  package "WiFi RPCs" {
+    [GetWifiStatus] as GetWifi
+    [SetWifiConfig] as SetWifi
+    [GetWifiClients] as GetWifiC
+    [SetWifiChannel] as SetWifiCh
+  }
+  
+  package "VoIP RPCs" {
+    [GetVoipStatus] as GetVoip
+    [GetVoipCalls] as GetVoipC
+    [CreateVoipCall] as CreateVoip
+    [DeleteVoipCall] as DeleteVoip
+  }
+  
+  package "IPTV RPCs" {
+    [GetIptvStatus] as GetIptv
+    [GetIptvChannels] as GetIptvCh
+    [AddIptvChannel] as AddIptvCh
+    [RemoveIptvChannel] as RemoveIptvCh
+  }
+  
+  package "GPON RPCs" {
+    [GetGponStatus] as GetGpon
+    [GetGponOnu] as GetGponO
+  }
+  
+  package "TR-069 RPCs" {
+    [GetTr069Status] as GetTr069
+    [GetACSInfo] as GetACS
+  }
+  
+  package "Streaming RPC" {
+    [SubscribeTelemetry] as SubTel
+  }
+}
+
+' === LOWER MIDDLE: HAL Layer ===
+package "HAL Layer" <<HAL>> {
+  
+  package "WifiHal" as WifiHal {
+    [getStatus()] as WifiGet
+    [setConfig()] as WifiSet
+    [getClientList()] as WifiClient
+    [setChannel()] as WifiCh
+  }
+  
+  package "VoipHal" as VoipHal {
+    [getStatus()] as VoipGet
+    [getCallList()] as VoipCall
+    [createCall()] as VoipCr
+    [deleteCall()] as VoipDel
+  }
+  
+  package "IptvHal" as IptvHal {
+    [getStatus()] as IptvGet
+    [getChannelList()] as IptvChan
+    [addChannel()] as IptvAdd
+    [removeChannel()] as IptvRm
+  }
+  
+  package "GponHal" as GponHal {
+    [getStatus()] as GponGet
+    [getOnuList()] as GponOnu
+  }
+  
+  package "Tr069Hal" as Tr069Hal {
+    [getStatus()] as Tr069Get
+    [getACSInfo()] as Tr069ACS
+  }
+}
+
+' === BOTTOM: Protobuf Responses ===
+package "Protobuf Responses" <<Proto>> {
+  [WifiStatus] as WifiResp
+  [WifiClientInfo] as WifiClientResp
+  [VoipStatus] as VoipResp
+  [VoipCallInfo] as VoipCallResp
+  [IptvStatus] as IptvResp
+  [IptvChannelInfo] as IptvChanResp
+  [GponStatus] as GponResp
+  [Tr069Status] as Tr069Resp
+  [TelemetryData] as TelResp
+}
+
+' === Client to gRPC Service (downward) ===
+Client --> GetWifi : Empty()
+Client --> SetWifi : WifiConfig
+Client --> GetWifiC : Empty()
+Client --> SetWifiCh : WifiChannelReq
+
+Client --> GetVoip : Empty()
+Client --> GetVoipC : Empty()
+Client --> CreateVoip : CreateVoipCallReq
+Client --> DeleteVoip : DeleteVoipCallReq
+
+Client --> GetIptv : Empty()
+Client --> GetIptvCh : Empty()
+Client --> AddIptvCh : AddIptvChannelReq
+Client --> RemoveIptvCh : RemoveIptvChannelReq
+
+Client --> GetGpon : Empty()
+Client --> GetGponO : Empty()
+
+Client --> GetTr069 : Empty()
+Client --> GetACS : Empty()
+
+Client --> SubTel : TelemetrySub
+
+' === gRPC Service to HAL (downward) ===
+GetWifi ..> WifiGet : WifiStatus
+SetWifi ..> WifiSet : configure
+GetWifiC ..> WifiClient : WifiClientInfo[]
+SetWifiCh ..> WifiCh : set channel
+
+GetVoip ..> VoipGet : VoipStatus
+GetVoipC ..> VoipCall : VoipCallInfo[]
+CreateVoip ..> VoipCr : create
+DeleteVoip ..> VoipDel : delete
+
+GetIptv ..> IptvGet : IptvStatus
+GetIptvCh ..> IptvChan : IptvChannelInfo[]
+AddIptvCh ..> IptvAdd : add
+RemoveIptvCh ..> IptvRm : remove
+
+GetGpon ..> GponGet : GponStatus
+GetGponO ..> GponOnu : OnuInfo[]
+
+GetTr069 ..> Tr069Get : Tr069Status
+GetACS ..> Tr069ACS : ACSInfo[]
+
+SubTel ..> WifiGet : stream
+SubTel ..> VoipGet : stream
+SubTel ..> IptvGet : stream
+SubTel ..> GponGet : stream
+SubTel ..> Tr069Get : stream
+
+' === HAL to Responses (downward) ===
+WifiGet --> WifiResp
+WifiSet --> WifiResp
+WifiClient --> WifiClientResp
+WifiCh --> WifiResp
+VoipGet --> VoipResp
+VoipCall --> VoipCallResp
+VoipCr --> VoipCallResp
+VoipDel --> VoipCallResp
+IptvGet --> IptvResp
+IptvChan --> IptvChanResp
+IptvAdd --> IptvChanResp
+IptvRm --> IptvChanResp
+GponGet --> GponResp
+GponOnu --> GponResp
+Tr069Get --> Tr069Resp
+Tr069ACS --> Tr069Resp
+GetWifi --> WifiResp
+SetWifi --> WifiResp
+GetWifiC --> WifiClientResp
+SetWifiCh --> WifiResp
+GetVoip --> VoipResp
+GetVoipC --> VoipCallResp
+CreateVoip --> VoipCallResp
+DeleteVoip --> VoipCallResp
+GetIptv --> IptvResp
+GetIptvCh --> IptvChanResp
+AddIptvCh --> IptvChanResp
+RemoveIptvCh --> IptvChanResp
+GetGpon --> GponResp
+GetGponO --> GponResp
+GetTr069 --> Tr069Resp
+GetACS --> Tr069Resp
+
+legend right
+  *C2: gRPC Service RPC Methods (Vertical)*
+  ||
+  *WiFi RPC (4):*
+  1. GetWifiStatus -> WifiHal
+  2. SetWifiConfig -> WifiHal
+  3. GetWifiClients -> WifiHal
+  4. SetWifiChannel -> WifiHal
+  ||
+  *VoIP RPC (4):*
+  1. GetVoipStatus -> VoipHal
+  2. GetVoipCalls -> VoipHal
+  3. CreateVoipCall -> VoipHal
+  4. DeleteVoipCall -> VoipHal
+  ||
+  *IPTV RPC (4):*
+  1. GetIptvStatus -> IptvHal
+  2. GetIptvChannels -> IptvHal
+  3. AddIptvChannel -> IptvHal
+  4. RemoveIptvChannel -> IptvHal
+  ||
+  *GPON RPC (2):*
+  1. GetGponStatus -> GponHal
+  2. GetGponOnu -> GponHal
+  ||
+  *TR-069 RPC (2):*
+  1. GetTr069Status -> Tr069Hal
+  2. GetACSInfo -> Tr069Hal
+  ||
+  *Streaming RPC (1):*
+  1. SubscribeTelemetry (all HAL)
+  ||
+  *HAL modules:*
+  WifiHal, VoipHal, IptvHal, GponHal, Tr069Hal
+endlegend
+
+@enduml

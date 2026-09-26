@@ -1,0 +1,190 @@
+@startuml C4_Linux_Integration_Data_Flow
+' C4: Linux Integration & Data Flow
+' Vertically compact layered architecture with internal data paths
+
+title MTS-CR-9000 - Linux Integration & Data Flow (Compact)
+
+skinparam backgroundColor white
+skinparam rectangle {
+  BackgroundColor #f8f9fa
+  BorderColor #333333
+  FontColor #333333
+}
+
+' === LAYER 1: External Clients ===
+package "External Clients" <<Client>> {
+  [NMS/OSS] as NMS
+  [Monitoring\nSystem] as Mon
+  [SDN\nController] as SDN
+}
+
+' === LAYER 2: gRPC Service ===
+package "gRPC Service" <<Service>> {
+  rectangle "MtsCoreRouterServiceImpl" as ServiceImpl {
+    [GetBgpStatus] as GetBgp
+    [GetSrv6Status] as GetSrv6
+    [GetMplsStatus] as GetMpls
+    [GetP4Status] as GetP4
+    [GetPortStatus] as GetPort
+    [SubscribeTelemetry] as SubTel
+  }
+}
+
+' === LAYER 3: Service Layer ===
+package "Service Layer (C++)" <<Service>> {
+  [BGP Monitor] as BgpMon
+  [SRv6 Manager] as Srv6Mgr
+  [MPLS LSP Manager] as MplsLsp
+  [P4 Runtime Manager] as P4Mgr
+}
+
+' === LAYER 4: HAL Layer ===
+package "HAL Layer (C++)" <<HAL>> {
+  
+  package "TofinoHal" as TofinoHal {
+    [readFromSysfs] as TofinoRead
+    [parseBfrtOutput] as TofinoParse
+    [configurePipeline] as TofinoCfg
+  }
+  
+  package "FabricHal" as FabricHal {
+    [readFromSysfs] as FabricRead
+    [parseFabricState] as FabricParse
+    [configureFabric] as FabricCfg
+  }
+  
+  package "LineCardHal" as LineCardHal {
+    [readFromSysfs] as LcRead
+    [parseCardState] as LcParse
+    [configureCard] as LcCfg
+  }
+  
+  package "PortHal" as PortHal {
+    [readFromSysfs] as PortRead
+    [parseProcNet] as PortParse
+    [configurePort] as PortCfg
+  }
+}
+
+' === LAYER 5: Linux Filesystem ===
+package "Linux Filesystem" <<FS>> {
+  
+  package "sysfs" as Sysfs {
+    [/sys/class/thermal/] as TempSysfs
+    [/sys/class/net/ethX/] as NetSysfs
+  }
+  
+  package "procfs" as Procfs {
+    [/proc/net/dev] as DevProc
+    [/proc/net/tcp] as TcpProc
+    [/proc/net/mpls] as MplsProc
+  }
+}
+
+' === LAYER 6: Linux Kernel ===
+package "Linux Kernel 6.x" <<Kernel>> {
+  [bfrt_cli\ninterface] as BfrtCli
+  [P4 Runtime\ninterface] as P4Runtime
+  [FRRouting\nDaemon] as FRRouting
+  [Network\nSubsystem] as NetSub
+}
+
+' === LAYER 7: Hardware ===
+package "Intel Tofino 2 + AMD EPYC Hardware" <<HW>> {
+  [Intel Tofino 2\nASIC] as Tofino2
+  [AMD EPYC 7003\nCPU] as EpYC
+  [64x 400G\nSFP-DD] as Ports400G
+  [128x 100G\nOSFP] as Ports100G
+  [NVMe SSD] as Nvme
+  [DDR5 ECC] as Ddr5
+}
+
+' === DATA FLOW: Client to Service ===
+NMS --> GetBgp : BgpStatus
+NMS --> GetSrv6 : Srv6Status
+NMS --> GetMpls : MplsStatus
+NMS --> GetP4 : P4Status
+NMS --> GetPort : PortStatus
+Mon --> SubTel : TelemetryData[]
+SDN --> SetP4Pipeline : P4PipelineConfig
+
+' === DATA FLOW: Service to Service Layer ===
+GetBgp ..> BgpMon : read/write
+GetSrv6 ..> Srv6Mgr : read/write
+GetMpls ..> MplsLsp : read/write
+GetP4 ..> P4Mgr : read/write
+GetPort ..> BgpMon : read/write
+SubTel ..> BgpMon : stream
+SubTel ..> Srv6Mgr : stream
+SubTel ..> MplsLsp : stream
+SubTel ..> P4Mgr : stream
+
+' === DATA FLOW: Service Layer to HAL ===
+BgpMon --> TofinoRead : BgpPeerInfo[]
+BgpMon --> TofinoParse : bfrt output
+BgpMon --> TofinoCfg : BGP config
+
+Srv6Mgr --> TofinoRead : Srv6SegmentInfo[]
+Srv6Mgr --> TofinoParse : bfrt output
+Srv6Mgr --> TofinoCfg : SRv6 config
+
+MplsLsp --> TofinoRead : MplsLspInfo[]
+MplsLsp --> TofinoParse : bfrt output
+MplsLsp --> TofinoCfg : MPLS config
+
+P4Mgr --> TofinoRead : P4PipelineInfo
+P4Mgr --> TofinoParse : bfrt output
+P4Mgr --> TofinoCfg : P4 pipeline
+
+' === DATA FLOW: HAL to Filesystem ===
+TofinoRead --> TempSysfs : read()
+TofinoParse --> DevProc : read()
+FabricRead --> TempSysfs : read()
+FabricParse --> DevProc : read()
+LcRead --> TempSysfs : read()
+LcParse --> DevProc : read()
+PortRead --> NetSysfs : read()
+PortParse --> DevProc : read()
+
+' === DATA FLOW: Filesystem to Kernel ===
+TempSysfs --> BfrtCli : kernel interface
+DevProc --> BfrtCli : kernel interface
+DevProc --> P4Runtime : kernel interface
+NetSysfs --> FRRouting : kernel interface
+DevProc --> FRRouting : kernel interface
+MplsProc --> FRRouting : kernel interface
+
+' === DATA FLOW: Kernel to Hardware ===
+BfrtCli --> Tofino2 : P4 pipeline config
+P4Runtime --> Tofino2 : P4 pipeline config
+FRRouting --> Ports400G : BGP forwarding
+FRRouting --> Ports100G : packets
+
+' === Hardware to Kernel ===
+Tofino2 ..> BfrtCli : bfrt events
+Tofino2 ..> P4Runtime : P4 events
+Ports400G ..> FRRouting : packets
+Ports100G ..> FRRouting : packets
+
+legend right
+  |*C4: Linux Integration & Data Flow (Compact)*|
+  ||
+  |*7-Layer Architecture (top to bottom):*|
+  |1. External Clients (NMS/OSS, Monitoring, SDN)|
+  |2. gRPC Service (MtsCoreRouterServiceImpl)|
+  |3. Service Layer (BGP/SRv6/MPLS/P4 managers)|
+  |4. HAL Layer (TofinoHal, FabricHal, LineCardHal, PortHal)|
+  |5. Linux Filesystem (sysfs, procfs)|
+  |6. Linux Kernel (bfrt_cli, P4 Runtime, FRRouting)|
+  |7. Intel Tofino 2 + AMD EPYC Hardware|
+  ||
+  |*Data Flow (downward):*|
+  |Hardware -> Kernel -> sysfs/procfs -> HAL|
+  |-> Service -> gRPC -> External Clients|
+  ||
+  |*Control Flow (upward):*|
+  |Client -> gRPC -> Service -> HAL -> bfrt_cli|
+  |-> Kernel -> Hardware|
+endlegend
+
+@enduml

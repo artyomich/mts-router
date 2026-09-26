@@ -1,0 +1,197 @@
+@startuml C4_Linux_Integration_Data_Flow
+' C4: Linux Integration & Data Flow
+' Vertically compact layered architecture with internal data paths
+
+title MTS-MC-5000 - Linux Integration & Data Flow (Compact)
+
+skinparam backgroundColor white
+skinparam rectangle {
+  BackgroundColor #f8f9fa
+  BorderColor #333333
+  FontColor #333333
+}
+
+' === LAYER 1: External Clients ===
+package "External Clients" <<Client>> {
+  [NMS/OSS] as NMS
+  [Monitoring\nSystem] as Mon
+}
+
+' === LAYER 2: gRPC Service ===
+package "gRPC Service" <<Service>> {
+  rectangle "MtsMobileCoreServiceImpl" as ServiceImpl {
+    [GetUpfStatus] as GetUpf
+    [GetSmfStatus] as GetSmf
+    [GetGtpStatus] as GetGtp
+    [GetPfcpStatus] as GetPfcp
+    [SubscribeTelemetry] as SubTel
+  }
+}
+
+' === LAYER 3: Service Layer ===
+package "Service Layer (C++)" <<Service>> {
+  [UPF Session Manager] as UpfMgr
+  [SMF Session Controller] as SmfCtrl
+  [GTP Tunnel Manager] as GtpMgr
+  [PFCP Handler] as PfcpMgr
+}
+
+' === LAYER 4: HAL Layer ===
+package "HAL Layer (C++)" <<HAL>> {
+  
+  package "UpfHal" as UpfHal {
+    [readFromSysfs] as UpfRead
+    [parseConntrack] as UpfParse
+    [manageNftables] as UpfNft
+  }
+  
+  package "SmfHal" as SmfHal {
+    [readFromSysfs] as SmfRead
+    [parseProcNet] as SmfParse
+    [manageIptables] as SmfIpt
+  }
+  
+  package "GtpHal" as GtpHal {
+    [readFromSysfs] as GtpRead
+    [parseProcNet] as GtpParse
+    [configureTunnel] as GtpCfg
+  }
+  
+  package "PfcpHal" as PfcpHal {
+    [readFromSysfs] as PfcpRead
+    [parseProcNet] as PfcpParse
+    [configureSteering] as PfcpStr
+  }
+}
+
+' === LAYER 5: Linux Filesystem ===
+package "Linux Filesystem" <<FS>> {
+  
+  package "sysfs" as Sysfs {
+    [/sys/class/net/ethX/] as NetSysfs
+    [/sys/class/thermal/] as TempSysfs
+  }
+  
+  package "procfs" as Procfs {
+    [/proc/net/nf_conntrack] as ConntrackProc
+    [/proc/net/dev] as DevProc
+    [/proc/net/tcp] as TcpProc
+  }
+}
+
+' === LAYER 6: Linux Kernel ===
+package "Linux Kernel 6.x" <<Kernel>> {
+  [conntrack\nsubsystem] as Conntrack
+  [nftables\nsubsystem] as Nftables
+  [IPTables\nsubsystem] as Iptables
+  [GTP-U\nsubsystem] as GtpSub
+  [Network\nSubsystem] as NetSub
+}
+
+' === LAYER 7: Hardware ===
+package "ThunderX3 SoC Hardware" <<HW>> {
+  [100G MAC\n(SFP28)] as MAC100G
+  [25G MAC\n(SFP28)] as MAC25G
+  [PCIe 5.0\nController] as Pcie
+}
+
+' === DATA FLOW: Client to Service ===
+NMS --> GetUpf : UpfStatus
+NMS --> GetSmf : SmfStatus
+NMS --> GetGtp : GtpTunnelStatus[]
+NMS --> GetPfcp : PfcpRuleStatus[]
+Mon --> SubTel : TelemetryData[]
+
+' === DATA FLOW: Service to Service Layer ===
+GetUpf ..> UpfMgr : read/write
+GetSmf ..> SmfCtrl : read/write
+GetGtp ..> GtpMgr : read/write
+GetPfcp ..> PfcpMgr : read/write
+SubTel ..> UpfMgr : stream
+SubTel ..> SmfCtrl : stream
+SubTel ..> GtpMgr : stream
+SubTel ..> PfcpMgr : stream
+
+' === DATA FLOW: Service Layer to HAL ===
+UpfMgr --> UpfRead : UpfStatus
+UpfMgr --> UpfParse : conntrack entries
+UpfMgr --> UpfNft : nft rules
+
+SmfCtrl --> SmfRead : SmfStatus
+SmfCtrl --> SmfParse : proc net data
+SmfCtrl --> SmfIpt : iptables rules
+
+GtpMgr --> GtpRead : GtpTunnelStatus[]
+GtpMgr --> GtpParse : tunnel stats
+GtpMgr --> GtpCfg : tunnel config
+
+PfcpMgr --> PfcpRead : PfcpRuleStatus[]
+PfcpMgr --> PfcpParse : pfcp stats
+PfcpMgr --> PfcpStr : steering rules
+
+' === DATA FLOW: HAL to Filesystem ===
+UpfRead --> NetSysfs : read()
+UpfParse --> ConntrackProc : read()
+UpfNft --> NetSysfs : write()
+
+SmfRead --> NetSysfs : read()
+SmfParse --> DevProc : read()
+SmfIpt --> NetSysfs : write()
+
+GtpRead --> NetSysfs : read()
+GtpParse --> DevProc : read()
+GtpCfg --> NetSysfs : write()
+
+PfcpRead --> NetSysfs : read()
+PfcpParse --> DevProc : read()
+PfcpStr --> NetSysfs : write()
+
+' === DATA FLOW: Filesystem to Kernel ===
+NetSysfs --> Conntrack : kernel interface
+ConntrackProc --> Conntrack : kernel interface
+NetSysfs --> Nftables : kernel interface
+ConntrackProc --> Nftables : kernel interface
+NetSysfs --> Iptables : kernel interface
+DevProc --> GtpSub : kernel interface
+NetSysfs --> GtpSub : kernel interface
+DevProc --> NetSub : kernel interface
+NetSysfs --> NetSub : kernel interface
+
+' === DATA FLOW: Kernel to Hardware ===
+Conntrack --> Pcie : packets
+Nftables --> Pcie : packets
+Iptables --> Pcie : packets
+GtpSub --> MAC100G : GTP-U packets
+NetSub --> MAC25G : packets
+
+' === Hardware to Kernel ===
+MAC100G ..> Pcie : packets
+MAC25G ..> Pcie : packets
+Pcie ..> Conntrack : packets
+Pcie ..> Nftables : packets
+Pcie ..> Iptables : packets
+Pcie ..> GtpSub : packets
+Pcie ..> NetSub : packets
+
+legend right
+  |*C4: Linux Integration & Data Flow (Compact)*|
+  ||
+  |*7-Layer Architecture (top to bottom):*|
+  |1. External Clients (NMS/OSS, Monitoring)|
+  |2. gRPC Service (MtsMobileCoreServiceImpl)|
+  |3. Service Layer (UPF/SMF/GTP/PFCP managers)|
+  |4. HAL Layer (UpfHal, SmfHal, GtpHal, PfcpHal)|
+  |5. Linux Filesystem (sysfs, procfs)|
+  |6. Linux Kernel (conntrack, nftables, GTP-U)|
+  |7. ThunderX3 Hardware (MAC, PCIe)|
+  ||
+  |*Data Flow (downward):*|
+  |Hardware -> Kernel -> sysfs/procfs -> HAL|
+  |-> Service -> gRPC -> External Clients|
+  ||
+  |*Control Flow (upward):*|
+  |Client -> gRPC -> Service -> HAL -> ioctl/nft|
+  |-> kernel -> Hardware|
+endlegend
+
+@enduml

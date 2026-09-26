@@ -1,0 +1,200 @@
+@startuml C3_HAL_Layer_Architecture
+' C3: HAL (Hardware Abstraction Layer) Architecture
+' Shows four HAL modules with their interfaces, data structures, and Linux subsystem integration
+
+title MTS-ER-1000 - HAL Layer Architecture
+
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+skinparam rectangle {
+  BackgroundColor #f8f9fa
+  BorderColor #333333
+}
+
+package "mts::hal namespace" as HalNs {
+  
+  component "SdwanHal" as SdwanHal {
+    rectangle "getStatus()" as SdwanGet
+    rectangle "setConfig()" as SdwanSet
+    rectangle "getWanPathList()" as SdwanPath
+    rectangle "setPathPriority()" as SdwanPri
+    rectangle "isAvailable()" as SdwanAvail
+  }
+  
+  component "IpsecHal" as IpsecHal {
+    rectangle "getStatus()" as IpsecGet
+    rectangle "getTunnelList()" as IpsecTun
+    rectangle "createTunnel()" as IpsecCr
+    rectangle "deleteTunnel()" as IpsecDel
+    rectangle "isAvailable()" as IpsecAvail
+  }
+  
+  component "VrrpHal" as VrrpHal {
+    rectangle "getStatus()" as VrrpGet
+    rectangle "getInstanceList()" as VrrpInst
+    rectangle "setPriority()" as VrrpPri
+    rectangle "isAvailable()" as VrrpAvail
+  }
+  
+  component "MplsHal" as MplsHal {
+    rectangle "getStatus()" as MplsGet
+    rectangle "getLspList()" as MplsLsp
+    rectangle "createLsp()" as MplsCr
+    rectangle "deleteLsp()" as MplsDel
+    rectangle "isAvailable()" as MplsAvail
+  }
+  
+}
+
+' Data structures
+rectangle "SdwanStatus struct" as SdwanStruct {
+  [active_wan_paths]
+  [selected_path]
+  [bfd_sessions]
+  [path_health_score]
+  [failover_count]
+  [status]
+}
+
+rectangle "WanPathInfo struct" as WanPathStruct {
+  [path_id]
+  [interface_name]
+  [ip_address]
+  [latency_ms]
+  [packet_loss_pct]
+  [bandwidth_up]
+  [bandwidth_down]
+  [priority]
+  [status]
+}
+
+rectangle "IpsecStatus struct" as IpsecStruct {
+  [tunnel_count]
+  [active_tunnels]
+  [encryption_algo]
+  [key_exchange]
+  [status]
+}
+
+rectangle "IpsecTunnelInfo struct" as IpsecTunStruct {
+  [tunnel_id]
+  [local_ip]
+  [remote_ip]
+  [status]
+  [bytes_in]
+  [bytes_out]
+  [packets_in]
+  [packets_out]
+  [uptime]
+  [encryption]
+  [auth_algo]
+}
+
+rectangle "VrrpStatus struct" as VrrpStruct {
+  [instance_count]
+  [master_instances]
+  [backup_instances]
+  [status]
+}
+
+rectangle "VrrpInstanceInfo struct" as VrrpInstStruct {
+  [instance_id]
+  [virtual_ip]
+  [priority]
+  [state]
+  [master_ip]
+  [advert_interval]
+  [status]
+}
+
+rectangle "MplsStatus struct" as MplsStruct {
+  [lsp_count]
+  [active_lsp]
+  [mpls_forwarding]
+  [status]
+}
+
+rectangle "MplsLspInfo struct" as MplsLspStruct {
+  [lsp_id]
+  [label]
+  [next_hop]
+  [interface]
+  [bytes]
+  [packets]
+  [status]
+}
+
+' Linux subsystems
+rectangle "Linux sysfs" as Sysfs {
+  [/sys/class/thermal/]
+  [/sys/class/net/]
+}
+
+rectangle "Linux procfs" as Procfs {
+  [/proc/net/xfrm_state]
+  [/proc/net/xfrm_policy]
+  [/proc/net/mpls]
+  [/proc/net/dev]
+}
+
+rectangle "Linux utilities" as Utils {
+  [BFD monitor]
+  [keepalived]
+  [strongSwan]
+  [FRRouting]
+  [iproute2]
+  [iproute2 mpls]
+]
+
+' Relationships for SdwanHal
+SdwanHal --> SdwanStruct : returns
+SdwanHal --> Sysfs : readFromSysfs()
+SdwanHal --> Procfs : parseBfdState()
+SdwanHal --> Utils : BFD monitor
+
+' Relationships for IpsecHal
+IpsecHal --> IpsecStruct : returns
+IpsecHal --> Procfs : parseXfrmState()
+IpsecHal --> Procfs : parseXfrmPolicy()
+IpsecHal --> Utils : strongSwan
+
+' Relationships for VrrpHal
+VrrpHal --> VrrpStruct : returns
+VrrpHal --> Procfs : parseVrrpState()
+VrrpHal --> Utils : keepalived
+
+' Relationships for MplsHal
+MplsHal --> MplsStruct : returns
+MplsHal --> Procfs : parseMplsState()
+MplsHal --> Utils : FRRouting
+
+legend right
+  |*C3 Diagram: HAL Layer Architecture*|
+  |*Four independent HAL modules:*|
+  ||
+  |*1. SdwanHal (SD-WAN Path Management)*|
+  |*- Manages multipath routing*|
+  |*- Monitors BFD sessions per path*|
+  |*- Reads path health from /proc/net/*|
+  |*- Supports path priority/failover*|
+  ||
+  |*2. IpsecHal (IPsec Tunnel Management)*|
+  |*- Manages IPsec SA state*|
+  |*- Reads /proc/net/xfrm_state*|
+  |*- Monitors /proc/net/xfrm_policy*|
+  |*- Tracks strongSwan daemon*|
+  ||
+  |*3. VrrpHal (VRRP Monitoring)*|
+  |*- Manages VRRP instance state*|
+  |*- Reads keepalived state*|
+  |*- Tracks master/backup instances*|
+  |*- Supports priority management*|
+  ||
+  |*4. MplsHal (MPLS LSP Management)*|
+  |*- Manages MPLS LSP state*|
+  |*- Reads /proc/net/mpls*|
+  |*- Monitors FRRouting MPLS*|
+  |*- Supports label management*|
+endlegend
+
+@enduml

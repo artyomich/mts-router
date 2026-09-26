@@ -1,0 +1,162 @@
+@startuml C4_Linux_Integration_Data_Flow
+' C4: Linux Integration & Data Flow
+' Vertically compact layered architecture with internal data paths
+
+title MTS-OLT-2000 - Linux Integration & Data Flow (Compact)
+
+skinparam backgroundColor white
+skinparam rectangle {
+  BackgroundColor #f8f9fa
+  BorderColor #333333
+  FontColor #333333
+}
+
+' === LAYER 1: External Clients ===
+package "External Clients" <<Client>> {
+  [NMS/OSS] as NMS
+  [Monitoring\nSystem] as Mon
+}
+
+' === LAYER 2: gRPC Service ===
+package "gRPC Service" <<Service>> {
+  rectangle "MtsOltGponServiceImpl" as ServiceImpl {
+    [GetGponStatus] as GetGpon
+    [GetOnuList] as GetOnu
+    [GetOmciEntities] as GetOmci
+    [GetTr069Status] as GetTr069
+    [SubscribeTelemetry] as SubTel
+  }
+}
+
+' === LAYER 3: HAL Layer ===
+package "HAL Layer (C++)" <<HAL>> {
+  
+  package "GponHal" as GponHal {
+    [readFromSysfs] as GponRead
+    [parseGponLogs] as GponParse
+    [configureGpon] as GponCfg
+  }
+  
+  package "OnuHal" as OnuHal {
+    [readFromSysfs] as OnuRead
+    [parseOnuConfig] as OnuParse
+    [configureOnu] as OnuCfg
+  }
+  
+  package "OmciHal" as OmciHal {
+    [readFromSysfs] as OmciRead
+    [parseOmciProc] as OmciParse
+    [configureEntity] as OmciCfg
+  }
+  
+  package "Tr069Hal" as Tr069Hal {
+    [readFromSysfs] as Tr069Read
+    [parseTcpConnections] as Tr069Parse
+    [parseCwmpdLogs] as Tr069Log
+  }
+}
+
+' === LAYER 4: Linux Filesystem ===
+package "Linux Filesystem" <<FS>> {
+  
+  package "sysfs" as Sysfs {
+    [/sys/class/thermal/] as TempSysfs
+    [/sys/class/power/] as PowerSysfs
+    [/sys/class/gpon/] as GponSysfs
+  }
+  
+  package "procfs" as Procfs {
+    [/proc/net/omci] as OmciProc
+    [/proc/net/dev] as DevProc
+    [/proc/net/tcp] as TcpProc
+  }
+}
+
+' === LAYER 5: Linux Kernel ===
+package "Linux Kernel 6.x" <<Kernel>> {
+  [GPON\nDriver] as GponDrv
+  [OMCI\nSubsystem] as OmciSub
+  [cwmpd\nDaemon] as Cwmpd
+  [Network\nSubsystem] as NetSub
+}
+
+' === LAYER 6: Hardware ===
+package "Tofino 2 + RTL960x Hardware" <<HW>> {
+  [Tofino 2\nASIC] as Tofino2
+  [RTL960x\nGPON PHY] as RtL960
+  [10G MAC\n(SFP+)] as MAC10G
+  [AMD EPYC\nCPU] as EpYC
+}
+
+' === DATA FLOW: Client to Service ===
+NMS --> GetGpon : GponStatus
+NMS --> GetOnu : OnuInfo[]
+NMS --> GetOmci : OmciEntity[]
+NMS --> GetTr069 : Tr069Status
+Mon --> SubTel : TelemetryData[]
+
+' === DATA FLOW: Service to HAL ===
+GetGpon ..> GponRead : GponStatus
+GetOnu ..> OnuRead : OnuInfo[]
+GetOmci ..> OmciRead : OmciEntity[]
+GetTr069 ..> Tr069Read : Tr069Status
+SubTel ..> GponRead : stream
+SubTel ..> OnuRead : stream
+SubTel ..> OmciRead : stream
+SubTel ..> Tr069Read : stream
+
+' === DATA FLOW: HAL to Filesystem ===
+GponRead --> GponSysfs : read()
+GponParse --> GponDrv : tail -f
+OnuRead --> GponSysfs : read()
+OnuParse --> GponDrv : parse
+OmciRead --> GponSysfs : read()
+OmciParse --> OmciProc : read()
+Tr069Read --> TcpProc : read()
+Tr069Parse --> TcpProc : read()
+Tr069Log --> Cwmpd : tail -f
+
+' === DATA FLOW: Filesystem to Kernel ===
+GponSysfs --> GponDrv : kernel interface
+GponDrv --> GponDrv : kernel interface
+GponSysfs --> OmciSub : kernel interface
+OmciProc --> OmciSub : kernel interface
+TcpProc --> Cwmpd : kernel interface
+Cwmpd --> Cwmpd : daemon
+DevProc --> NetSub : kernel interface
+
+' === DATA FLOW: Kernel to Hardware ===
+GponDrv --> Tofino2 : forwarding
+GponDrv --> RtL960 : GPON frames
+OmciSub --> RtL960 : OMCI entities
+Cwmpd --> EpYC : ACS connections
+NetSub --> MAC10G : packets
+
+' === Hardware to Kernel ===
+Tofino2 ..> GponDrv : frames
+RtL960 ..> GponDrv : GPON frames
+RtL960 ..> OmciSub : OMCI events
+EpYC ..> Cwmpd : connections
+MAC10G ..> NetSub : packets
+
+legend right
+  |*C4: Linux Integration & Data Flow (Compact)*|
+  ||
+  |*6-Layer Architecture (top to bottom):*|
+  |1. External Clients (NMS/OSS, Monitoring)|
+  |2. gRPC Service (MtsOltGponServiceImpl)|
+  |3. HAL Layer (GponHal, OnuHal, OmciHal, Tr069Hal)|
+  |4. Linux Filesystem (sysfs, procfs)|
+  |5. Linux Kernel (GPON Driver, OMCI, cwmpd)|
+  |6. Tofino 2 + RTL960x Hardware|
+  ||
+  |*Data Flow (downward):*|
+  |Hardware -> Kernel -> sysfs/procfs -> HAL|
+  |-> gRPC -> External Clients|
+  ||
+  |*Control Flow (upward):*|
+  |Client -> gRPC -> HAL -> ioctl/rtl_gpon|
+  |-> Kernel -> Hardware|
+endlegend
+
+@enduml

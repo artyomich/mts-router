@@ -1,0 +1,166 @@
+@startuml C4_Linux_Integration_Data_Flow
+' C4: Linux Integration & Data Flow
+' Vertically compact layered architecture with internal data paths
+
+title MTS-ER-1000 - Linux Integration & Data Flow (Compact)
+
+skinparam backgroundColor white
+skinparam rectangle {
+  BackgroundColor #f8f9fa
+  BorderColor #333333
+  FontColor #333333
+}
+
+' === LAYER 1: External Clients ===
+package "External Clients" <<Client>> {
+  [NMS/OSS] as NMS
+  [Monitoring\nSystem] as Mon
+}
+
+' === LAYER 2: gRPC Service ===
+package "gRPC Service" <<Service>> {
+  rectangle "MtsEnterpriseServiceImpl" as ServiceImpl {
+    [GetSdwanStatus] as GetSdwan
+    [GetIpsecStatus] as GetIpsec
+    [GetVrrpStatus] as GetVrrp
+    [GetMplsStatus] as GetMpls
+    [SubscribeTelemetry] as SubTel
+  }
+}
+
+' === LAYER 3: HAL Layer ===
+package "HAL Layer (C++)" <<HAL>> {
+  
+  package "SdwanHal" as SdwanHal {
+    [readFromSysfs] as SdwanRead
+    [parseBfdState] as SdwanParse
+    [configurePath] as SdwanCfg
+  }
+  
+  package "IpsecHal" as IpsecHal {
+    [readFromSysfs] as IpsecRead
+    [parseXfrmState] as IpsecParse
+    [configureTunnel] as IpsecCfg
+  }
+  
+  package "VrrpHal" as VrrpHal {
+    [readFromSysfs] as VrrpRead
+    [parseVrrpState] as VrrpParse
+    [configureVrrp] as VrrpCfg
+  }
+  
+  package "MplsHal" as MplsHal {
+    [readFromSysfs] as MplsRead
+    [parseMplsState] as MplsParse
+    [configureLsp] as MplsCfg
+  }
+}
+
+' === LAYER 4: Linux Filesystem ===
+package "Linux Filesystem" <<FS>> {
+  
+  package "sysfs" as Sysfs {
+    [/sys/class/thermal/] as TempSysfs
+    [/sys/class/net/ethX/] as NetSysfs
+  }
+  
+  package "procfs" as Procfs {
+    [/proc/net/xfrm_state] as XfrmState
+    [/proc/net/xfrm_policy] as XfrmPolicy
+    [/proc/net/mpls] as MplsProc
+    [/proc/net/dev] as DevProc
+  }
+}
+
+' === LAYER 5: Linux Kernel ===
+package "Linux Kernel 6.x" <<Kernel>> {
+  [BFD\nMonitor] as BfdMon
+  [keepalived\nDaemon] as Keepalived
+  [strongSwan\nDaemon] as StrongSwan
+  [FRRouting\nDaemon] as FRRouting
+  [MPLS\nSubsystem] as Mplssub
+  [Network\nSubsystem] as NetSub
+}
+
+' === LAYER 6: Hardware ===
+package "NXP S32G + Broadcom Hardware" <<HW>> {
+  [NXP S32G\nSoC] as S32G
+  [Broadcom\nTomTom] as TomTom
+  [4x 10G SFP+] as Ports10G
+  [8x GE RJ45] as PortsGE
+  [WAN\nInterfaces] as Wan
+}
+
+' === DATA FLOW: Client to Service ===
+NMS --> GetSdwan : SdwanStatus
+NMS --> GetIpsec : IpsecStatus
+NMS --> GetVrrp : VrrpStatus
+NMS --> GetMpls : MplsStatus
+Mon --> SubTel : TelemetryData[]
+
+' === DATA FLOW: Service to HAL ===
+GetSdwan ..> SdwanRead : SdwanStatus
+GetIpsec ..> IpsecRead : IpsecStatus
+GetVrrp ..> VrrpRead : VrrpStatus
+GetMpls ..> MplsRead : MplsStatus
+SubTel ..> SdwanRead : stream
+SubTel ..> IpsecRead : stream
+SubTel ..> VrrpRead : stream
+SubTel ..> MplsRead : stream
+
+' === DATA FLOW: HAL to Filesystem ===
+SdwanRead --> TempSysfs : read()
+SdwanParse --> DevProc : read()
+IpsecRead --> XfrmState : read()
+IpsecParse --> XfrmPolicy : read()
+VrrpRead --> TempSysfs : read()
+VrrpParse --> DevProc : read()
+MplsRead --> MplsProc : read()
+MplsParse --> DevProc : read()
+
+' === DATA FLOW: Filesystem to Kernel ===
+TempSysfs --> BfdMon : kernel interface
+DevProc --> BfdMon : kernel interface
+XfrmState --> StrongSwan : kernel interface
+XfrmPolicy --> StrongSwan : kernel interface
+DevProc --> Keepalived : kernel interface
+MplsProc --> Mplssub : kernel interface
+DevProc --> NetSub : kernel interface
+
+' === DATA FLOW: Kernel to Hardware ===
+BfdMon --> S32G : path health
+StrongSwan --> TomTom : IPsec tunnels
+Keepalived --> TomTom : VRRP forwarding
+Mplssub --> TomTom : MPLS forwarding
+NetSub --> Ports10G : packets
+NetSub --> PortsGE : packets
+
+' === Hardware to Kernel ===
+TomTom ..> BfdMon : path events
+TomTom ..> StrongSwan : IPsec frames
+TomTom ..> Keepalived : VRRP events
+TomTom ..> Mplssub : MPLS frames
+Ports10G ..> NetSub : packets
+PortsGE ..> NetSub : packets
+
+legend right
+  |*C4: Linux Integration & Data Flow (Compact)*|
+  ||
+  |*6-Layer Architecture (top to bottom):*|
+  |1. External Clients (NMS/OSS, Monitoring)|
+  |2. gRPC Service (MtsEnterpriseServiceImpl)|
+  |3. HAL Layer (SdwanHal, IpsecHal, VrrpHal, MplsHal)|
+  |4. Linux Filesystem (sysfs, procfs)|
+  |5. Linux Kernel (BFD, strongSwan, keepalived, FRR)|
+  |6. NXP S32G + Broadcom Hardware|
+  ||
+  |*Data Flow (downward):*|
+  |Hardware -> Kernel -> sysfs/procfs -> HAL|
+  |-> gRPC -> External Clients|
+  ||
+  |*Control Flow (upward):*|
+  |Client -> gRPC -> HAL -> BFD/strongSwan|
+  |-> Kernel -> Hardware|
+endlegend
+
+@enduml
