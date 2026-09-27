@@ -1,0 +1,409 @@
+# MTS-MB-3000 Mobile Backhaul Buildroot Configuration
+# NXP S32G3 ARM32 processor
+# MPLS-TP + PTP grandmaster
+
+# ============================================================
+# Target architecture
+# ============================================================
+BR2_aarch64=y
+BR2_aarch64_64=y
+BR2_ENDIAN="little"
+BR2_HOST_GCC_AT_LEAST_9=y
+
+# ============================================================
+# System configuration
+# ============================================================
+BR2_INIT_SYSV=y
+BR2_ROOTFS_SKELETON_DEFAULT=y
+BR2_ROOTFS_HOSTNAME="mts-mb3000"
+BR2_ROOTFS_OVERLAY="board/mts/s32g3/overlay"
+BR2_ROOTFS_POST_BUILD_SCRIPT="board/mts/s32g3/post-build.sh"
+BR2_ROOTFS_POST_IMAGE_SCRIPT="board/mts/s32g3/post-image.sh"
+
+# ============================================================
+# Kernel
+# ============================================================
+BR2_LINUX_KERNEL=y
+BR2_LINUX_KERNEL_DEFCONFIG="s32g"
+BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="arch/arm/configs/mts-s32g3.cfg"
+BR2_LINUX_KERNEL_DTS_SUPPORT=y
+BR2_LINUX_KERNEL_INTREE_DTS_NAME="fsl-s32g274mdn"
+BR2_LINUX_KERNEL_CUSTOM_VERSION=y
+BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE="6.1.85"
+BR2_LINUX_KERNEL_INSTALL_TARGET=y
+
+# ============================================================
+# Bootloader
+# ============================================================
+BR2_TARGET_UBOOT=y
+BR2_TARGET_UBOOT_BUILD_SYSTEM_KCONFIG=y
+BR2_TARGET_UBOOT_FORMAT_BIN=y
+BR2_TARGET_UBOOT_FORMAT_ITB=y
+BR2_TARGET_UBOOT_CUSTOM_REPO_URL="https://source.denx.de/u-boot/u-boot.git"
+BR2_TARGET_UBOOT_CUSTOM_REPO_VERSION="v2024.04"
+BR2_TARGET_UBOOT_BOARD_DEFCONFIG="s32g274rdb"
+
+# ============================================================
+# Filesystem
+# ============================================================
+BR2_TARGET_GENERIC_PASSWD_SHA256=y
+BR2_ROOTFS_DEVICE_CREATION_STATIC=y
+BR2_ROOTFS_OVERLAY_DIR="board/mts/s32g3/overlay"
+
+# ============================================================
+# Toolchain
+# ============================================================
+BR2_TOOLCHAIN_BUILDROOT=y
+BR2_TOOLCHAIN_BUILDROOT_CXX=y
+BR2_TOOLCHAIN_BUILDROOT_INET_RPC=y
+BR2_TOOLCHAIN_HAS_NATIVE_RPC=y
+BR2_PACKAGE_BUSYBOX_CONFIG="board/mts/s32g3/busybox.config"
+BR2_PACKAGE_BUSYBOX_CONFIG_FRAGMENT_FILES="board/mts/s32g3/busybox-config.fragment"
+
+# ============================================================
+# Packages - Networking
+# ============================================================
+BR2_PACKAGE_IPROUTE2=y
+BR2_PACKAGE_IPUTILS=y
+BR2_PACKAGE_PING=y
+BR2_PACKAGE_TRACEROUTE=y
+BR2_PACKAGE_NETCAT=y
+BR2_PACKAGE_NETCAT_OPENBSD=y
+BR2_PACKAGE_NMAP=y
+BR2_PACKAGE_IPERF=y
+BR2_PACKAGE_IPERF3=y
+BR2_PACKAGE_TCPDUMP=y
+BR2_PACKAGE_WIRESHARK=y
+BR2_PACKAGE_OPENSSH=y
+BR2_PACKAGE_SSHPERF=y
+
+# ============================================================
+# Packages - Routing
+# ============================================================
+BR2_PACKAGE_FRR=y
+BR2_PACKAGE_FRR_BGP=y
+BR2_PACKAGE_FRR_OSPFD=y
+BR2_PACKAGE_FRR_OSPF6D=y
+BR2_PACKAGE_FRR_LDP=y
+BR2_PACKAGE_FRR_BMP=y
+BR2_PACKAGE_FRR_TELEMETRYD=y
+
+# ============================================================
+# Packages - MPLS-TP
+# ============================================================
+BR2_PACKAGE_MPLS_TP=y
+BR2_PACKAGE_MPLS_TP_FORWARDER=y
+BR2_PACKAGE_MPLS_TP_MANAGER=y
+BR2_PACKAGE_MPLS_TP_PSESYN=y
+BR2_PACKAGE_MPLS_TP_ACH=y
+BR2_PACKAGE_MPLS_TP_PW=y
+BR2_PACKAGE_MPLS_TP_TUNNEL=y
+BR2_PACKAGE_MPLS_TP_LSP=y
+BR2_PACKAGE_MPLS_TP_PSC=y
+BR2_PACKAGE_MPLS_TP_VCS=y
+BR2_PACKAGE_MPLS_TP_VCCV=y
+
+# ============================================================
+# Packages - PTP
+# ============================================================
+BR2_PACKAGE_LINUXPTP=y
+BR2_PACKAGE_LINUXPTP_PTP4L=y
+BR2_PACKAGE_LINUXPTP_PHC2SYS=y
+BR2_PACKAGE_LINUXPTP_PTP_Y1D=y
+BR2_PACKAGE_LINUXPTP_PTP_DTE=y
+BR2_PACKAGE_LINUXPTP_PTP_OPT=y
+
+# ============================================================
+# Packages - SyncE
+# ============================================================
+BR2_PACKAGE_SYNC_E=y
+BR2_PACKAGE_SYNC_E_S32G=y
+BR2_PACKAGE_SYNC_E_FMAN=y
+
+# ============================================================
+# Packages - DPDK
+# ============================================================
+BR2_PACKAGE_DPDK=y
+BR2_PACKAGE_DPDK_APP_TESTPMD=y
+BR2_PACKAGE_DPDK_APP_PTPGEN=y
+BR2_PACKAGE_DPDK_APP_PKTINFO=y
+BR2_PACKAGE_DPDK_APP_XLBU=y
+BR2_PACKAGE_DPDK_APP_AF_PACKET=y
+BR2_PACKAGE_DPDK_DRIVER_EAL=y
+BR2_PACKAGE_DPDK_DRIVER_MBUF=y
+BR2_PACKAGE_DPDK_DRIVER_RING=y
+BR2_PACKAGE_DPDK_DRIVER_HASH=y
+BR2_PACKAGE_DPDK_DRIVER_PIPELINE=y
+BR2_PACKAGE_DPDK_DRIVER_TABLE=y
+BR2_PACKAGE_DPDK_DRIVER_LPM=y
+BR2_PACKAGE_DPDK_DRIVER_ACL=y
+BR2_PACKAGE_DPDK_DRIVER_PMD_DPAA=y
+BR2_PACKAGE_DPDK_DRIVER_PMD_DPAA2=y
+BR2_PACKAGE_DPDK_DRIVER_PMD_ENA=y
+BR2_PACKAGE_DPDK_KMOD=y
+
+# ============================================================
+# Packages - Telephony
+# ============================================================
+BR2_PACKAGE_ASTERISK=y
+BR2_PACKAGE_ASTERISK_PJSIP=y
+BR2_PACKAGE_ASTERISK_CORE=y
+BR2_PACKAGE_ASTERISK_CODECS=y
+BR2_PACKAGE_ASTERISK_CHANNELS=y
+BR2_PACKAGE_ASTERISK_APPS=y
+BR2_PACKAGE_ASTERISK_MODULES=y
+
+# ============================================================
+# Packages - Management
+# ============================================================
+BR2_PACKAGE_CWMPD=y
+BR2_PACKAGE_OMCI_HANDLER=y
+BR2_PACKAGE_OMCI_MANAGER=y
+BR2_PACKAGE_OMCI_GATEWAY=y
+BR2_PACKAGE_PROMETHEUS_NODE_EXPORTER=y
+BR2_PACKAGE_TELEGRAF=y
+BR2_PACKAGE_INFLUXDB=y
+BR2_PACKAGE_GRAFANA=y
+
+# ============================================================
+# Packages - Development
+# ============================================================
+BR2_PACKAGE_MAKE=y
+BR2_PACKAGE_AUTOMAKE=y
+BR2_PACKAGE_AUTOCONF=y
+BR2_PACKAGE_GIT=y
+BR2_PACKAGE_CMAKE=y
+BR2_PACKAGE_NINJA=y
+BR2_PACKAGE_BINUTILS=y
+BR2_PACKAGE_GCC=y
+BR2_PACKAGE_GDB=y
+BR2_PACKAGE_VALGRIND=y
+BR2_PACKAGE_PERF=y
+
+# ============================================================
+# Packages - Utilities
+# ============================================================
+BR2_PACKAGE_JQ=y
+BR2_PACKAGE_CURL=y
+BR2_PACKAGE_WGET=y
+BR2_PACKAGE_PYTHON3=y
+BR2_PACKAGE_PYTHON3_PIP=y
+BR2_PACKAGE_PYTHON3_REQUESTS=y
+BR2_PACKAGE_PYTHON3_SCAPY=y
+BR2_PACKAGE_PYTHON3_PANDAS=y
+BR2_PACKAGE_PYTHON3_NUMPY=y
+BR2_PACKAGE_PYTHON3_YANGTOOLS=y
+BR2_PACKAGE_LIBYANG=y
+BR2_PACKAGE_LIBYANG_CPP=y
+BR2_PACKAGE_LIBNETCONF2=y
+BR2_PACKAGE_LIBSSH=y
+BR2_PACKAGE_LIBNCURSES=y
+BR2_PACKAGE_ZLIB=y
+BR2_PACKAGE_OPENSSL=y
+BR2_PACKAGE_MBEDTLS=y
+
+# ============================================================
+# Packages - Filesystem
+# ============================================================
+BR2_PACKAGE_E2FSPROGS=y
+BR2_PACKAGE_F2FS_TOOLS=y
+BR2_PACKAGE_SQUASHFS=y
+BR2_PACKAGE_SQUASHFS_MKFS=y
+BR2_PACKAGE_MTD=y
+BR2_PACKAGE_MTD_FLASH erase=y
+BR2_PACKAGE_MTD_FLASH nandwrite=y
+BR2_PACKAGE_MTD_FLASH badblockrb=y
+BR2_PACKAGE_MTD_FLASH nanddump=y
+BR2_PACKAGE_MTD_FLASH nandtest=y
+BR2_PACKAGE_MTD_FLASH ftl_format=y
+BR2_PACKAGE_MTD_FLASH ftl_check=y
+BR2_PACKAGE_MTD_FLASH smdk=y
+BR2_PACKAGE_MTD_FLASH jffs2dump=y
+BR2_PACKAGE_MTD_FLASH jffs2writer=y
+BR2_PACKAGE_MTD_FLASH mkfs.jffs2=y
+BR2_PACKAGE_MTD_FLASH mkfs.ubifs=y
+BR2_PACKAGE_MTD_FLASH ubiformat=y
+BR2_PACKAGE_MTD_FLASH ubimkvol=y
+BR2_PACKAGE_MTD_FLASH ubinfo=y
+BR2_PACKAGE_MTD_FLASH ubirmvol=y
+BR2_PACKAGE_MTD_FLASH ubirsvol=y
+BR2_PACKAGE_MTD_FLASH ubidetach=y
+BR2_PACKAGE_MTD_FLASH ubimerge=y
+BR2_PACKAGE_MTD_FLASH ubiattach=y
+BR2_PACKAGE_MTD_FLASH ubirdev=y
+
+# ============================================================
+# Packages - System
+# ============================================================
+BR2_PACKAGE_SYSKLOGD=y
+BR2_PACKAGE_RSYSLOG=y
+BR2_PACKAGE_LOGROTATE=y
+BR2_PACKAGE_CHRONY=y
+BR2_PACKAGE_NTP=y
+BR2_PACKAGE_HTPDATE=y
+BR2_PACKAGE_DEVMEM2=y
+BR2_PACKAGE_GPIOUTILS=y
+BR2_PACKAGE_I2C_TOOLS=y
+BR2_PACKAGE_SPI_TOOLS=y
+BR2_PACKAGE_GPIO_CDEV=y
+
+# ============================================================
+# Packages - Debug
+# ============================================================
+BR2_PACKAGE_STRACE=y
+BR2_PACKAGE_LTP=y
+BR2_PACKAGE_LTP_OPENPOSIX_TESTS=y
+BR2_PACKAGE_KSELFTEST=y
+BR2_PACKAGE_KMOD=y
+BR2_PACKAGE_UNZIP=y
+BR2_PACKAGE_UNCOMPRESS=y
+BR2_PACKAGE_GZIP=y
+BR2_PACKAGE_BUNZIP2=y
+BR2_PACKAGE_XZ=y
+BR2_PACKAGE_BZIP2=y
+
+# ============================================================
+# Host packages
+# ============================================================
+BR2_PACKAGE_HOST_GENIMAGE=y
+BR2_PACKAGE_HOST_DOSFSTOOLS=y
+BR2_PACKAGE_HOST_E2FSPROGS=y
+BR2_PACKAGE_HOST_FATCAT=y
+BR2_PACKAGE_HOST_FIS=y
+BR2_PACKAGE_HOST_FUTool=y
+BR2_PACKAGE_HOST_MTOOLS=y
+BR2_PACKAGE_HOST_UBOOT_TOOLS=y
+BR2_PACKAGE_HOST_DFUUTIL=y
+BR2_PACKAGE_HOST_MTD=y
+BR2_PACKAGE_HOST_OPENOCD=y
+BR2_PACKAGE_HOST_JLINK=y
+BR2_PACKAGE_HOST_QEMU=y
+BR2_PACKAGE_HOST_QEMU_SYSTEM_MODE=y
+BR2_PACKAGE_HOST_LINUX_HEADERS_LATEST=y
+
+# ============================================================
+# Toolchain
+# ============================================================
+BR2_TOOLCHAIN_EXTERNAL=y
+BR2_TOOLCHAIN_EXTERNAL_CUSTOM=y
+BR2_TOOLCHAIN_EXTERNAL_DOWNLOAD=y
+BR2_TOOLCHAIN_EXTERNAL_CUSTOM_URL="https://developer.arm.com/-/media/Files/gcc-linaro/13.2.1-2023.11/gcc-linaro-13.2.1-2023.11-aarch64_aarch64-none-elf.tar.xz"
+BR2_TOOLCHAIN_EXTERNAL_CUSTOM_PREFIX="aarch64-none-elf"
+BR2_TOOLCHAIN_EXTERNAL_GCC_13=y
+BR2_TOOLCHAIN_EXTERNAL_HAS_SYNC_128=y
+BR2_TOOLCHAIN_EXTERNAL_WCHAR=y
+BR2_TOOLCHAIN_EXTERNAL_LOCALE=y
+BR2_TOOLCHAIN_EXTERNAL_HAS_THREADS=y
+BR2_TOOLCHAIN_EXTERNAL_HAS_THREADS_DEBUG=y
+BR2_TOOLCHAIN_EXTERNAL_HAS_NPTL=y
+BR2_TOOLCHAIN_EXTERNAL_INET_RPC=y
+BR2_TOOLCHAIN_EXTERNAL_HAS_SSP=y
+BR2_TOOLCHAIN_EXTERNAL_ASM_HAS_LLVM=y
+BR2_TOOLCHAIN_EXTERNAL_CXX=y
+BR2_TOOLCHAIN_EXTERNAL_WCHAR=y
+BR2_TOOLCHAIN_EXTERNAL_ENABLE_NLS=y
+BR2_TOOLCHAIN_EXTERNAL_GDBJIT=y
+
+# ============================================================
+# Binary format
+# ============================================================
+BR2_TARGET_GENERIC_PASSWD_METHOD="sha256"
+
+# ============================================================
+# Architecture
+# ============================================================
+BR2_PACKAGE_ARCH="arm"
+BR2_PACKAGE_ARCH_32=y
+
+# ============================================================
+# Board name
+# ============================================================
+BR2_TARGET_BOARD="mts-mb3000"
+BR2_TARGET_VENDOR="MTS Digital"
+
+# ============================================================
+# Image name
+# ============================================================
+BR2_TARGET_IMAGE_NAME="mts-mb3000-image"
+
+# ============================================================
+# Image version
+# ============================================================
+BR2_TARGET_IMAGE_VERSION="1.0.0"
+
+# ============================================================
+# Image timestamp
+# ============================================================
+BR2_TARGET_IMAGE_TIMESTAMP=y
+
+# ============================================================
+# Image checksum
+# ============================================================
+BR2_TARGET_IMAGE_CHECKSUM=y
+BR2_TARGET_IMAGE_CHECKSUM_SHA256=y
+BR2_TARGET_IMAGE_CHECKSUM_SHA512=y
+
+# ============================================================
+# Image manifest
+# ============================================================
+BR2_TARGET_IMAGE_MANIFEST=y
+
+# ============================================================
+# Image deploy
+# ============================================================
+BR2_TARGET_IMAGE_DEPLOY=y
+
+# ============================================================
+# Image deploy dir
+# ============================================================
+BR2_TARGET_IMAGE_DEPLOY_DIR="deploy"
+
+# ============================================================
+# Image deploy fstype
+# ============================================================
+BR2_TARGET_IMAGE_DEPLOY_FSTYPES="ext4.gz"
+
+# ============================================================
+# Image deploy kernel
+# ============================================================
+BR2_TARGET_IMAGE_DEPLOY_KERNEL=y
+
+# ============================================================
+# Image deploy dtb
+# ============================================================
+BR2_TARGET_IMAGE_DEPLOY_DTB=y
+
+# ============================================================
+# Image deploy bootloader
+# ============================================================
+BR2_TARGET_IMAGE_DEPLOY_BOOTLOADER=y
+
+# ============================================================
+# Image deploy rootfs
+# ============================================================
+BR2_TARGET_IMAGE_DEPLOY_ROOTFS=y
+
+# ============================================================
+# Image deploy manifest
+# ============================================================
+BR2_TARGET_IMAGE_DEPLOY_MANIFEST=y
+
+# ============================================================
+# Image deploy checksum
+# ============================================================
+BR2_TARGET_IMAGE_DEPLOY_CHECKSUM=y
+
+# ============================================================
+# Image deploy sha256
+# ============================================================
+BR2_TARGET_IMAGE_DEPLOY_SHA256=y
+
+# ============================================================
+# Image deploy sha512
+# ============================================================
+BR2_TARGET_IMAGE_DEPLOY_SHA512=y
+
+# ============================================================
+# Image deploy md5
+# ============================================================
+BR2_TARGET_IMAGE_DEPLOY_MD5=y

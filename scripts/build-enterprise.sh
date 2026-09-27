@@ -1,323 +1,247 @@
 #!/bin/bash
-# Build script for MTS-ER-1000 Enterprise Router API
-# Generates C++ gRPC backend with SD-WAN, MPLS, IPsec HAL modules
+# Build script for MTS-ER-1000 Enterprise Router (OpenWrt)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-DEVICE_DIR="${PROJECT_DIR}/enterprise-router-api"
-BUILD_DIR="${DEVICE_DIR}/build"
-PROTO_DIR="${DEVICE_DIR}/proto"
-INCLUDE_DIR="${DEVICE_DIR}/include"
-SRC_DIR="${DEVICE_DIR}/src"
-CONFIG_DIR="${DEVICE_DIR}/config"
+BUILD_DIR="${PROJECT_DIR}/build/enterprise"
+LOG_FILE="${BUILD_DIR}/build.log"
 
-echo "[ER1000] Building MTS-ER-1000 Enterprise Router API..."
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
 
-mkdir -p "${PROTO_DIR}" "${INCLUDE_DIR}/hal" "${INCLUDE_DIR}/service" \
-         "${SRC_DIR}/hal" "${SRC_DIR}/service" "${SRC_DIR}/sdwan" \
-         "${SRC_DIR}/mpls" "${SRC_DIR}/ipsec" \
-         "${CONFIG_DIR}" "${BUILD_DIR}"
+log() { echo -e "${GREEN}[$(date +%H:%M:%S)]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 
-# Generate protobuf definition
-cat > "${PROTO_DIR}/mts_enterprise.proto" << 'PROTO_EOF'
-syntax = "proto3";
+mkdir -p "${BUILD_DIR}"
 
-package mts.enterprise.v1;
+log "=== Building MTS-ER-1000 Enterprise Router (OpenWrt) ==="
+log "Build directory: ${BUILD_DIR}"
 
-option cc_generic_services = true;
+# ============================================================
+# Step 1: Clone OpenWrt source
+# ============================================================
+log "Step 1: Setting up OpenWrt build environment..."
 
-// SD-WAN status
-message SdwanStatus {
-    string controller_id = 1;
-    string status = 2; // active, inactive, error
-    repeated WanPath paths = 3;
-    uint32 active_paths = 4;
-    uint32 max_paths = 5;
+OPENWRT_VERSION="23.05.4"
+OPENWRT_URL="https://github.com/openwrt/openwrt/releases/download/${OPENWRT_VERSION}/openwrt-sdk-${OPENWRT_VERSION}-arm_armv7-vfpv3-gcc-12.3.0_musl.Linux-x86_64.tar.xz"
+OPENWRT_DIR="${BUILD_DIR}/openwrt"
+
+if [ ! -d "${OPENWRT_DIR}" ]; then
+    log "Downloading OpenWrt SDK ${OPENWRT_VERSION}..."
+    mkdir -p "${BUILD_DIR}/downloads"
+    
+    if [ -f "${BUILD_DIR}/downloads/openwrt-sdk-${OPENWRT_VERSION}.tar.xz" ]; then
+        log "Using cached SDK..."
+        cp "${BUILD_DIR}/downloads/openwrt-sdk-${OPENWRT_VERSION}.tar.xz" "${BUILD_DIR}/"
+    else
+        curl -L -o "${BUILD_DIR}/downloads/openwrt-sdk-${OPENWRT_VERSION}.tar.xz" "${OPENWRT_URL}" || {
+            log_error "Failed to download OpenWrt SDK"
+            exit 1
+        }
+    fi
+    
+    log "Extracting SDK..."
+    tar xf "${BUILD_DIR}/openwrt-sdk-${OPENWRT_VERSION}*.tar.xz" -C "${BUILD_DIR}/"
+    mv "${BUILD_DIR}/openwrt-sdk-"* "${OPENWRT_DIR}"
+else
+    log "OpenWrt SDK already exists, skipping download"
+fi
+
+# ============================================================
+# Step 2: Configure OpenWrt for MTS-ER-1000
+# ============================================================
+log "Step 2: Configuring OpenWrt for MTS-ER-1000..."
+
+cd "${OPENWRT_DIR}"
+
+./scripts/feeds update -a 2>&1 | tee -a "${LOG_FILE}"
+./scripts/feeds install -a 2>&1 | tee -a "${LOG_FILE}"
+
+# Create MTS-ER-1000 target configuration
+cat > "${BUILD_DIR}/er1000.config" << 'EOF'
+# MTS-ER-1000 OpenWrt Configuration
+# NXP S32G3 ARM32 + TomTom switch
+
+# Target system
+CONFIG_TARGET_arm=y
+CONFIG_TARGET_arm_armv7=y
+CONFIG_TARGET_arm_armv7_vfpv3=y
+CONFIG_TARGET_arm_armv7_vfpv3_NXP_S32G=y
+
+# SD-WAN packages
+CONFIG_PACKAGE_sdwan-engine=y
+CONFIG_PACKAGE_sdwan-manager=y
+CONFIG_PACKAGE_sdwan-path-selector=y
+CONFIG_PACKAGE_sdwan-policy-controller=y
+CONFIG_PACKAGE_sdwan-monitor=y
+CONFIG_PACKAGE_sdwan-health-check=y
+CONFIG_PACKAGE_sdwan-failover=y
+CONFIG_PACKAGE_sdwan-load-balancer=y
+
+# IPSec packages
+CONFIG_PACKAGE_strongswan=y
+CONFIG_PACKAGE_strongswan-swanctl=y
+CONFIG_PACKAGE_strongswan-charon=y
+CONFIG_PACKAGE_strongswan-ipsecctl=y
+CONFIG_PACKAGE_strongswan-mod-crypto-aes=y
+CONFIG_PACKAGE_strongswan-mod-crypto-sha2=y
+CONFIG_PACKAGE_strongswan-mod-crypto-sha1=y
+CONFIG_PACKAGE_strongswan-mod-crypto-md5=y
+CONFIG_PACKAGE_strongswan-mod-crypto-des=y
+CONFIG_PACKAGE_strongswan-mod-crypto-aesni=y
+CONFIG_PACKAGE_strongswan-mod-crypto-camellia=y
+CONFIG_PACKAGE_strongswan-mod-crypto-blowfish=y
+CONFIG_PACKAGE_strongswan-mod-crypto-chaCha20=y
+CONFIG_PACKAGE_strongswan-mod-crypto-poly1305=y
+CONFIG_PACKAGE_strongswan-mod-crypto-gcm=y
+CONFIG_PACKAGE_strongswan-mod-crypto-ccm=y
+CONFIG_PACKAGE_strongswan-mod-crypto-ecdsa=y
+CONFIG_PACKAGE_strongswan-mod-crypto-eddsa=y
+CONFIG_PACKAGE_strongswan-mod-crypto-ecdh=y
+CONFIG_PACKAGE_strongswan-mod-crypto-dh=y
+CONFIG_PACKAGE_strongswan-mod-crypto-prf=y
+CONFIG_PACKAGE_strongswan-mod-crypto-prfplus=y
+CONFIG_PACKAGE_strongswan-mod-crypto-kdf=y
+CONFIG_PACKAGE_strongswan-mod-ipsec=y
+CONFIG_PACKAGE_strongswan-mod-addrblock=y
+CONFIG_PACKAGE_strongswan-mod-unity=y
+CONFIG_PACKAGE_strongswan-mod-csv=y
+CONFIG_PACKAGE_strongswan-mod-dbg=y
+CONFIG_PACKAGE_strongswan-mod-eap-identity=y
+CONFIG_PACKAGE_strongswan-mod-eap-md5=y
+CONFIG_PACKAGE_strongswan-mod-eap-mschapv2=y
+CONFIG_PACKAGE_strongswan-mod-eap-peap=y
+CONFIG_PACKAGE_strongswan-mod-eap-tls=y
+CONFIG_PACKAGE_strongswan-mod-eap-ttls=y
+CONFIG_PACKAGE_strongswan-mod-eap-psk=y
+CONFIG_PACKAGE_strongswan-mod-eap-dynamic=y
+CONFIG_PACKAGE_strongswan-mod-eap-aeskey=y
+CONFIG_PACKAGE_strongswan-mod-fips=y
+CONFIG_PACKAGE_strongswan-mod-ipseckey=y
+CONFIG_PACKAGE_strongswan-mod-kernel-libipsec=y
+CONFIG_PACKAGE_strongswan-mod-kernel-netlink=y
+CONFIG_PACKAGE_strongswan-mod-leafdb=y
+CONFIG_PACKAGE_strongswan-mod-led=y
+CONFIG_PACKAGE_strongswan-mod-lookup=y
+CONFIG_PACKAGE_strongswan-mod-mysql=y
+CONFIG_PACKAGE_strongswan-mod-nss=y
+CONFIG_PACKAGE_strongswan-mod-pkcs11=y
+CONFIG_PACKAGE_strongswan-mod-pubkey=y
+CONFIG_PACKAGE_strongswan-mod-radius=y
+CONFIG_PACKAGE_strongswan-mod-soup=y
+CONFIG_PACKAGE_strongswan-mod-sqlite=y
+CONFIG_PACKAGE_strongswan-mod-sockaddr=y
+CONFIG_PACKAGE_strongswan-mod-socket2=y
+CONFIG_PACKAGE_strongswan-mod-ssl=y
+CONFIG_PACKAGE_strongswan-mod-tpm=y
+CONFIG_PACKAGE_strongswan-mod-unique-id=y
+CONFIG_PACKAGE_strongswan-mod-updown=y
+CONFIG_PACKAGE_strongswan-mod-vici=y
+CONFIG_PACKAGE_strongswan-mod-x509=y
+CONFIG_PACKAGE_strongswan-mod-xauth-generic=y
+CONFIG_PACKAGE_strongswan-mod-xauth-esm=y
+CONFIG_PACKAGE_strongswan-mod-xauth-pam=y
+
+# Routing
+CONFIG_PACKAGE_frr=y
+CONFIG_PACKAGE_frr-bgpd=y
+CONFIG_PACKAGE_frr-ospfd=y
+CONFIG_PACKAGE_frr-ospf6d=y
+CONFIG_PACKAGE_frr-bmp=y
+
+# TomTom switch support
+CONFIG_PACKAGE_kmod-tomtom-switch=y
+CONFIG_PACKAGE_kmod-tomtom-switch-mac=y
+CONFIG_PACKAGE_kmod-tomtom-switch-phy=y
+CONFIG_PACKAGE_kmod-tomtom-switch-vlan=y
+CONFIG_PACKAGE_kmod-tomtom-switch-qos=y
+
+# Network
+CONFIG_PACKAGE_iproute2=y
+CONFIG_PACKAGE_ipset=y
+CONFIG_PACKAGE_iptables=y
+CONFIG_PACKAGE_iptables-mod-nat=y
+CONFIG_PACKAGE_iptables-mod-filter=y
+CONFIG_PACKAGE_iptables-mod-conntrack=y
+CONFIG_PACKAGE_ip6tables=y
+CONFIG_PACKAGE_mtr=y
+CONFIG_PACKAGE_tcpdump=y
+
+# Telemetry
+CONFIG_PACKAGE_telegraf=y
+CONFIG_PACKAGE_prometheus=y
+CONFIG_PACKAGE_grafana=y
+
+# Management
+CONFIG_PACKAGE_cwmpd=y
+CONFIG_PACKAGE_luci=y
+CONFIG_PACKAGE_luci-base=y
+CONFIG_PACKAGE_luci-ssl=y
+CONFIG_PACKAGE_luci-app-sdwan=y
+CONFIG_PACKAGE_luci-app-status=y
+CONFIG_PACKAGE_luci-app-system=y
+CONFIG_PACKAGE_luci-app-network=y
+CONFIG_PACKAGE_luci-app-firewall=y
+EOF
+
+cp "${BUILD_DIR}/er1000.config" "${OPENWRT_DIR}/.config"
+make defconfig 2>&1 | tee -a "${LOG_FILE}"
+
+# ============================================================
+# Step 3: Build OpenWrt image
+# ============================================================
+log "Step 3: Building OpenWrt image..."
+
+make -j$(nproc) 2>&1 | tee -a "${LOG_FILE}" || {
+    log_error "OpenWrt build failed"
+    exit 1
 }
 
-message WanPath {
-    string path_id = 1;
-    string wan_interface = 2;
-    string type = 3; // mpls, internet, lte, 5g
-    string status = 4; // active, standby, down
-    uint32 priority = 5;
-    string qos_profile = 6;
-    string failover_interface = 7;
-    uint64 rx_bytes = 8;
-    uint64 tx_bytes = 9;
-    double latency_ms = 10;
-    double packet_loss_pct = 11;
-}
+# ============================================================
+# Step 4: Verify build artifacts
+# ============================================================
+log "Step 4: Verifying build artifacts..."
 
-// MPLS LSP status
-message MplsLspStatus {
-    uint32 lsp_id = 1;
-    string name = 2;
-    string ingress_label = 3;
-    string egress_label = 4;
-    string next_hop = 5;
-    string interface = 6;
-    string status = 7; // up, down, initializing
-    uint64 rx_packets = 8;
-    uint64 tx_packets = 9;
-    uint64 rx_bytes = 10;
-    uint64 tx_bytes = 11;
-}
+DEPLOY_DIR="${BUILD_DIR}/images"
+mkdir -p "${DEPLOY_DIR}"
 
-// IPsec tunnel status
-message IpsecTunnelStatus {
-    string tunnel_id = 1;
-    string name = 2;
-    string peer_ip = 3;
-    string local_subnet = 4;
-    string remote_subnet = 5;
-    string mode = 6; // tunnel, transport
-    string status = 7; // up, down, negotiating
-    uint32 phase = 8; // 1, 2
-    uint64 rx_bytes = 9;
-    uint64 tx_bytes = 10;
-    uint64 rx_packets = 11;
-    uint64 tx_packets = 12;
-    int64 established_at = 13;
-}
+if [ -d "${OPENWRT_DIR}/bin/targets" ]; then
+    find "${OPENWRT_DIR}/bin/targets" -type f \( -name "*.img.gz" -o -name "*.bin" -o -name "*.squashfs" \) | while read -r img; do
+        basename_img=$(basename "${img}")
+        cp "${img}" "${DEPLOY_DIR}/mts-er1000-${basename_img}"
+        log "Copied: ${img} -> ${DEPLOY_DIR}/mts-er1000-${basename_img}"
+    done
+fi
 
-// VRRP status
-message VrrpStatus {
-    string interface = 1;
-    uint32 virtual_router_id = 2;
-    string status = 3; // master, backup, init
-    double priority = 4;
-    string master_ip = 5;
-    double preempt_delay = 6;
-}
+if [ -d "${DEPLOY_DIR}" ]; then
+    cd "${DEPLOY_DIR}"
+    for img in mts-er1000-*; do
+        if [ -f "${img}" ]; then
+            sha256sum "${img}" > "${img}.sha256"
+            log "Checksum: ${img}.sha256"
+        fi
+    done
+fi
 
-// Device health
-message DeviceHealth {
-    string device_id = 1;
-    string model = 2;
-    string firmware = 3;
-    double cpu_usage = 4;
-    double memory_usage = 5;
-    double temperature = 6;
-    string status = 7;
-    uint64 uptime_seconds = 8;
-}
+# ============================================================
+# Step 5: Generate build manifest
+# ============================================================
+log "Step 5: Generating build manifest..."
 
-// Responses
-message SdwanStatusResponse {
-    SdwanStatus sdwan = 1;
-}
+cat > "${DEPLOY_DIR}/mts-er1000-manifest.txt" << EOF
+# MTS-ER-1000 OpenWrt Build Manifest
+# Build date: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+# OpenWrt version: ${OPENWRT_VERSION}
+# Target: arm/armv7 NXP S32G
+# Configuration: ${BUILD_DIR}/er1000.config
+EOF
 
-message MplsLspStatusResponse {
-    repeated MplsLspStatus lsps = 1;
-}
+log "=== MTS-ER-1000 OpenWrt build complete ==="
+log "Images: ${DEPLOY_DIR}/"
+log "Log: ${LOG_FILE}"
 
-message IpsecTunnelResponse {
-    repeated IpsecTunnelStatus tunnels = 1;
-}
-
-message VrrpStatusResponse {
-    repeated VrrpStatus vrrps = 1;
-}
-
-message DeviceHealthResponse {
-    DeviceHealth health = 1;
-}
-
-// Create SD-WAN path
-message CreateSdwanPathRequest {
-    string wan_interface = 1;
-    string type = 2; // mpls, internet, lte, 5g
-    uint32 priority = 3;
-    string qos_profile = 4;
-    string failover_interface = 5;
-}
-
-message CreateSdwanPathResponse {
-    bool success = 1;
-    string message = 2;
-    string path_id = 3;
-}
-
-// Update SD-WAN path
-message UpdateSdwanPathRequest {
-    string path_id = 1;
-    string wan_interface = 2;
-    string type = 3;
-    uint32 priority = 4;
-    string qos_profile = 5;
-    string failover_interface = 6;
-}
-
-message UpdateSdwanPathResponse {
-    bool success = 1;
-    string message = 2;
-}
-
-// Create MPLS LSP
-message CreateMplsLspRequest {
-    string name = 1;
-    string ingress_label = 2;
-    string egress_label = 3;
-    string next_hop = 4;
-    string interface = 5;
-}
-
-message CreateMplsLspResponse {
-    bool success = 1;
-    string message = 2;
-    uint32 lsp_id = 3;
-}
-
-// Create IPsec tunnel
-message CreateIpsecTunnelRequest {
-    string name = 1;
-    string peer_ip = 2;
-    string local_subnet = 3;
-    string remote_subnet = 4;
-    string mode = 5; // tunnel, transport
-    string encryption = 6; // aes-256, aes-128
-    string auth = 7; // sha256, sha1
-    string key = 8;
-}
-
-message CreateIpsecTunnelResponse {
-    bool success = 1;
-    string message = 2;
-    string tunnel_id = 3;
-}
-
-// MTS Enterprise Router Service
-service MtsEnterpriseService {
-    rpc GetSdwanStatus(Empty) returns (SdwanStatusResponse);
-    rpc CreateSdwanPath(CreateSdwanPathRequest) returns (CreateSdwanPathResponse);
-    rpc UpdateSdwanPath(UpdateSdwanPathRequest) returns (UpdateSdwanPathResponse);
-    rpc GetMplsLspStatus(Empty) returns (MplsLspStatusResponse);
-    rpc CreateMplsLsp(CreateMplsLspRequest) returns (CreateMplsLspResponse);
-    rpc GetIpsecTunnels(Empty) returns (IpsecTunnelResponse);
-    rpc CreateIpsecTunnel(CreateIpsecTunnelRequest) returns (CreateIpsecTunnelResponse);
-    rpc GetVrrpStatus(Empty) returns (VrrpStatusResponse);
-    rpc GetDeviceHealth(Empty) returns (DeviceHealthResponse);
-    rpc SubscribeTelemetry(TelemetrySubscription) returns (stream TelemetryData);
-}
-
-message Empty {}
-
-message TelemetrySubscription {
-    repeated string paths = 1;
-    int64 sample_interval = 2;
-}
-
-message TelemetryData {
-    int64 timestamp = 1;
-    map<string, double> metrics = 2;
-    repeated PortStats ports = 3;
-}
-
-message PortStats {
-    string name = 1;
-    uint64 rx_bytes = 2;
-    uint64 tx_bytes = 3;
-    uint64 rx_packets = 4;
-    uint64 tx_packets = 5;
-    uint64 rx_errors = 6;
-    uint64 tx_errors = 7;
-}
-PROTO_EOF
-
-echo "[ER1000] Proto file generated."
-
-# Generate CMakeLists.txt
-cat > "${DEVICE_DIR}/CMakeLists.txt" << 'CMAKE_EOF'
-cmake_minimum_required(VERSION 3.14)
-project(mts-er1000-api VERSION 1.0.0 LANGUAGES CXX)
-
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-find_package(protobuf REQUIRED)
-find_package(gRPC REQUIRED)
-find_package(Threads REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system filesystem)
-
-include_directories(
-    ${PROJECT_SOURCE_DIR}/include
-    ${PROJECT_SOURCE_DIR}/proto
-    ${PROTOBUF_INCLUDE_DIR}
-    ${gRPC_INCLUDE_DIRS}
-    ${Boost_INCLUDE_DIRS}
-)
-
-set(PROTO_SRC proto/mts_enterprise.proto)
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_SRC})
-grpc_cpp_plugin_location(${CMAKE_CURRENT_BINARY_DIR}/grpc_cpp_plugin)
-grpc_generate_cpp(GRPC_SRCS GRPC_HDRS ${PROTO_SRC})
-
-set(SOURCES
-    src/hal/sdwan_hal.cpp
-    src/hal/mpls_hal.cpp
-    src/hal/ipsec_hal.cpp
-    src/hal/vrrp_hal.cpp
-    src/service/enterprise_service.cpp
-    src/sdwan/path_manager.cpp
-    src/mpls/lsp_manager.cpp
-    src/ipsec/tunnel_manager.cpp
-    src/main.cpp
-    ${PROTO_SRCS}
-    ${GRPC_SRCS}
-)
-
-add_executable(mts-er1000-server ${SOURCES})
-
-target_link_libraries(mts-er1000-server
-    protobuf::libprotobuf
-    gRPC::grpc++
-    pthread
-    ${Boost_LIBRARIES}
-)
-
-install(TARGETS mts-er1000-server DESTINATION bin)
-CMAKE_EOF
-
-echo "[ER1000] CMakeLists.txt generated."
-
-# Generate config
-cat > "${CONFIG_DIR}/mts-er1000.conf" << 'CONF_EOF'
-{
-    "device_id": "MTS-ER-1000-001",
-    "model": "MTS-ER-1000",
-    "grpc_port": 50054,
-    "health_interval_ms": 5000,
-    "telemetry_interval_ms": 1000,
-    "sdwan": {
-        "controller_id": "mts-sdwan-ctrl-001",
-        "max_paths": 256,
-        "path_selection": "application-aware",
-        "failover_delay_ms": 50
-    },
-    "mpls": {
-        "label_range_start": 16,
-        "label_range_end": 1048575,
-        "max_lsps": 5000
-    },
-    "ipsec": {
-        "max_tunnels": 128,
-        "default_encryption": "aes-256",
-        "default_auth": "sha256"
-    },
-    "vrrp": {
-        "default_priority": 100,
-        "default_preempt_delay": 0
-    },
-    "logging": {
-        "level": "info",
-        "file": "/var/log/mts-er1000.log",
-        "max_size_mb": 100
-    }
-}
-CONF_EOF
-
-echo "[ER1000] Config generated."
-echo "[ER1000] Enterprise Router API skeleton created at ${DEVICE_DIR}"
-echo "[ER1000] To compile: cd ${DEVICE_DIR} && mkdir build && cd build && cmake .. && make"
+exit 0

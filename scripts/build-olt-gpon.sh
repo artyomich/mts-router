@@ -1,323 +1,221 @@
 #!/bin/bash
-# Build script for MTS-OLT-2000 OLT GPON API
-# Generates C++ gRPC backend with GPON, ONU, OMCI, TR-069 HAL modules
+# Build script for MTS-OLT-2000 OLT GPON (OpenWrt)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-DEVICE_DIR="${PROJECT_DIR}/olt-gpon-api"
-BUILD_DIR="${DEVICE_DIR}/build"
-PROTO_DIR="${DEVICE_DIR}/proto"
-INCLUDE_DIR="${DEVICE_DIR}/include"
-SRC_DIR="${DEVICE_DIR}/src"
-CONFIG_DIR="${DEVICE_DIR}/config"
+BUILD_DIR="${PROJECT_DIR}/build/olt-gpon"
+LOG_FILE="${BUILD_DIR}/build.log"
 
-echo "[OLT2000] Building MTS-OLT-2000 OLT GPON API..."
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
 
-mkdir -p "${PROTO_DIR}" "${INCLUDE_DIR}/hal" "${INCLUDE_DIR}/service" \
-         "${SRC_DIR}/hal" "${SRC_DIR}/service" "${SRC_DIR}/gpon" \
-         "${SRC_DIR}/onu" "${SRC_DIR}/omci" "${SRC_DIR}/tr069" \
-         "${CONFIG_DIR}" "${BUILD_DIR}"
+log() { echo -e "${GREEN}[$(date +%H:%M:%S)]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 
-# Generate protobuf definition
-cat > "${PROTO_DIR}/mts_olt_gpon.proto" << 'PROTO_EOF'
-syntax = "proto3";
+mkdir -p "${BUILD_DIR}"
 
-package mts.olt.gpon.v1;
+log "=== Building MTS-OLT-2000 OLT GPON (OpenWrt) ==="
+log "Build directory: ${BUILD_DIR}"
 
-option cc_generic_services = true;
+# ============================================================
+# Step 1: Clone OpenWrt source
+# ============================================================
+log "Step 1: Setting up OpenWrt build environment..."
 
-// OLT status
-message OltStatus {
-    string device_id = 1;
-    string status = 2; // active, degraded, offline
-    uint32 total_onu = 3;
-    uint32 online_onu = 4;
-    uint32 offline_onu = 5;
-    uint32 error_onu = 6;
-    double temperature = 7;
-    double voltage = 8;
-    uint64 uptime_seconds = 9;
+OPENWRT_VERSION="23.05.4"
+OPENWRT_URL="https://github.com/openwrt/openwrt/releases/download/${OPENWRT_VERSION}/openwrt-sdk-${OPENWRT_VERSION}-x86-64-gcc-12.3.0_musl.Linux-x86_64.tar.xz"
+OPENWRT_DIR="${BUILD_DIR}/openwrt"
+
+if [ ! -d "${OPENWRT_DIR}" ]; then
+    log "Downloading OpenWrt SDK ${OPENWRT_VERSION}..."
+    mkdir -p "${BUILD_DIR}/downloads"
+    
+    # Use cached SDK if available
+    if [ -f "${BUILD_DIR}/downloads/openwrt-sdk-${OPENWRT_VERSION}.tar.xz" ]; then
+        log "Using cached SDK..."
+        cp "${BUILD_DIR}/downloads/openwrt-sdk-${OPENWRT_VERSION}.tar.xz" "${BUILD_DIR}/"
+    else
+        curl -L -o "${BUILD_DIR}/downloads/openwrt-sdk-${OPENWRT_VERSION}.tar.xz" "${OPENWRT_URL}" || {
+            log_error "Failed to download OpenWrt SDK"
+            exit 1
+        }
+    fi
+    
+    log "Extracting SDK..."
+    tar xf "${BUILD_DIR}/openwrt-sdk-${OPENWRT_VERSION}*.tar.xz" -C "${BUILD_DIR}/"
+    mv "${BUILD_DIR}/openwrt-sdk-"* "${OPENWRT_DIR}"
+else
+    log "OpenWrt SDK already exists, skipping download"
+fi
+
+# ============================================================
+# Step 2: Configure OpenWrt for MTS-OLT-2000
+# ============================================================
+log "Step 2: Configuring OpenWrt for MTS-OLT-2000..."
+
+cd "${OPENWRT_DIR}"
+
+# Update feeds
+./scripts/feeds update -a 2>&1 | tee -a "${LOG_FILE}"
+./scripts/feeds install -a 2>&1 | tee -a "${LOG_FILE}"
+
+# Apply MTS-specific patches
+if [ -d "${PROJECT_DIR}/olt-gpatchs" ]; then
+    log "Applying MTS patches..."
+    for patch in "${PROJECT_DIR}/olt-gpatchs/"*.patch; do
+        if [ -f "${patch}" ]; then
+            log "Applying ${patch}..."
+            patch -p1 < "${patch}" 2>&1 | tee -a "${LOG_FILE}" || true
+        fi
+    done
+fi
+
+# Create MTS-OLT-2000 target configuration
+cat > "${BUILD_DIR}/olt2000.config" << 'EOF'
+# MTS-OLT-2000 OpenWrt Configuration
+# Tofino 2 ASIC + AMD EPYC + RTL960x GPON
+
+# Target system
+CONFIG_TARGET_x86=y
+CONFIG_TARGET_x86_64=y
+CONFIG_TARGET_x86_64_GENERIC=y
+
+# Package selection
+CONFIG_PACKAGE_luci=y
+CONFIG_PACKAGE_luci-base=y
+CONFIG_PACKAGE_luci-ssl=y
+CONFIG_PACKAGE_luci-app-cwmp=y
+CONFIG_PACKAGE_luci-app-omci=y
+CONFIG_PACKAGE_luci-app-status=y
+CONFIG_PACKAGE_luci-app-system=y
+CONFIG_PACKAGE_luci-app-network=y
+CONFIG_PACKAGE_luci-app-firewall=y
+
+# GPON packages
+CONFIG_PACKAGE_kmod-rtl960x=y
+CONFIG_PACKAGE_omci-handler=y
+CONFIG_PACKAGE_cwmpd=y
+CONFIG_PACKAGE_omci-manager=y
+
+# Network packages
+CONFIG_PACKAGE_iproute2=y
+CONFIG_PACKAGE_iproute2-ebpf=y
+CONFIG_PACKAGE_ipset=y
+CONFIG_PACKAGE_ip6tables=y
+CONFIG_PACKAGE_iptables=y
+CONFIG_PACKAGE_iptables-mod-nat=y
+CONFIG_PACKAGE_iptables-mod-filter=y
+CONFIG_PACKAGE_iptables-mod-tproxy=y
+CONFIG_PACKAGE_iptables-mod-conntrack=y
+CONFIG_PACKAGE_iptables-mod-conntrack-extra=y
+CONFIG_PACKAGE_iptables-mod-ipopt=y
+CONFIG_PACKAGE_iptables-mod-ipsec=y
+CONFIG_PACKAGE_iptables-mod-raw=y
+CONFIG_PACKAGE_iptables-mod-extra=y
+
+# Routing packages
+CONFIG_PACKAGE_frr=y
+CONFIG_PACKAGE_frr-bgpd=y
+CONFIG_PACKAGE_frr-ospfd=y
+CONFIG_PACKAGE_frr-ospf6d=y
+CONFIG_PACKAGE_frr-pimd=y
+CONFIG_PACKAGE_frr-lldp=y
+CONFIG_PACKAGE_frr-snmp=y
+
+# Telemetry
+CONFIG_PACKAGE_telegraf=y
+CONFIG_PACKAGE_prometheus=y
+CONFIG_PACKAGE_grafana=y
+
+# VoIP
+CONFIG_PACKAGE_asterisk=y
+CONFIG_PACKAGE_asterisk-pjsip=y
+CONFIG_PACKAGE_asterisk-core=y
+
+# Development
+CONFIG_PACKAGE_python3=y
+CONFIG_PACKAGE_python3-pip=y
+CONFIG_PACKAGE_python3-requests=y
+CONFIG_PACKAGE_python3-scapy=y
+EOF
+
+# Copy config and build
+cp "${BUILD_DIR}/olt2000.config" "${OPENWRT_DIR}/.config"
+
+# Menuconfig to validate
+make defconfig 2>&1 | tee -a "${LOG_FILE}"
+
+# ============================================================
+# Step 3: Build OpenWrt image
+# ============================================================
+log "Step 3: Building OpenWrt image..."
+
+make -j$(nproc) 2>&1 | tee -a "${LOG_FILE}" || {
+    log_error "OpenWrt build failed"
+    exit 1
 }
 
-// PON port
-message PonPortInfo {
-    string pon_id = 1;
-    string name = 2;
-    string status = 3; // up, down, error
-    uint32 num_onu = 4;
-    uint32 max_onu = 5;
-    double downstream_rate = 6;
-    double upstream_rate = 7;
-    double downstream_util = 8;
-    double upstream_util = 9;
-    double optical_power = 10;
-}
+# ============================================================
+# Step 4: Verify build artifacts
+# ============================================================
+log "Step 4: Verifying build artifacts..."
 
-// ONU info
-message OnuInfo {
-    string onu_id = 1;
-    string serial = 2;
-    string mac = 3;
-    string pon_port = 4;
-    string status = 5; // online, offline, error
-    int32 power_level = 6;
-    int32 distance = 7;
-    uint32 vlan = 8;
-    string qos_profile = 9;
-    uint32 bandwidth_up = 10;
-    uint32 bandwidth_down = 11;
-    int64 last_seen = 12;
-    int64 created = 13;
-    uint64 rx_bytes = 14;
-    uint64 tx_bytes = 15;
-}
+DEPLOY_DIR="${BUILD_DIR}/images"
+mkdir -p "${DEPLOY_DIR}"
 
-// ONU status
-message OnuStatus {
-    string onu_id = 1;
-    string status = 2;
-    int32 power_level = 3;
-    int32 distance = 4;
-    uint64 rx_bytes = 5;
-    uint64 tx_bytes = 6;
-    uint64 rx_packets = 7;
-    uint64 tx_packets = 8;
-    uint64 rx_errors = 9;
-    uint64 tx_errors = 10;
-    int64 timestamp = 11;
-}
+# Find and copy images
+if [ -d "${OPENWRT_DIR}/bin/targets" ]; then
+    find "${OPENWRT_DIR}/bin/targets" -type f \( -name "*.img.gz" -o -name "*.bin" -o -name "*.squashfs" \) | while read -r img; do
+        basename_img=$(basename "${img}")
+        cp "${img}" "${DEPLOY_DIR}/mts-olt2000-${basename_img}"
+        log "Copied: ${img} -> ${DEPLOY_DIR}/mts-olt2000-${basename_img}"
+    done
+fi
 
-// OMCI status
-message OmcisStatus {
-    string device_id = 1;
-    string status = 2;
-    uint32 active_sessions = 3;
-    uint32 total_sessions = 4;
-    int64 timestamp = 5;
-}
+# Generate checksums
+if [ -d "${DEPLOY_DIR}" ]; then
+    cd "${DEPLOY_DIR}"
+    for img in mts-olt2000-*; do
+        if [ -f "${img}" ]; then
+            sha256sum "${img}" > "${img}.sha256"
+            log "Checksum: ${img}.sha256"
+        fi
+    done
+fi
 
-// TR-069 config
-message Tr069Config {
-    string device_id = 1;
-    string url = 2;
-    string username = 3;
-    bool enabled = 4;
-    uint32 polling_interval = 5;
-    int64 last_poll = 6;
-    int64 next_poll = 7;
-}
+# ============================================================
+# Step 5: Generate build manifest
+# ============================================================
+log "Step 5: Generating build manifest..."
 
-// Device health
-message DeviceHealth {
-    string device_id = 1;
-    string model = 2;
-    string firmware = 3;
-    double cpu_usage = 4;
-    double memory_usage = 5;
-    double temperature = 6;
-    string status = 7;
-    uint64 uptime_seconds = 8;
-}
+cat > "${DEPLOY_DIR}/mts-olt2000-manifest.txt" << EOF
+# MTS-OLT-2000 OpenWrt Build Manifest
+# Build date: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+# OpenWrt version: ${OPENWRT_VERSION}
+# Target: x86/64 generic
+# Configuration: ${BUILD_DIR}/olt2000.config
 
-// Responses
-message OltStatusResponse {
-    OltStatus olt = 1;
-}
+## Packages installed:
+$(grep "^CONFIG_PACKAGE_" "${BUILD_DIR}/olt2000.config" | sed 's/CONFIG_PACKAGE_//;s/=y//' | sort -u)
 
-message PonPortInfoResponse {
-    repeated PonPortInfo pon_ports = 1;
-}
+## Kernel version:
+$(grep "^CONFIG_KERNEL_" "${OPENWRT_DIR}/.config" 2>/dev/null | grep "=y" | head -20 || echo "N/A")
 
-message OnuInfoResponse {
-    repeated OnuInfo onus = 1;
-}
+## Toolchain:
+GCC: $(gcc --version 2>/dev/null | head -1 || echo "N/A")
+Musl: $(ls "${OPENWRT_DIR}/staging_dir/toolchain-"* | head -1 || echo "N/A")
+EOF
 
-message OnuStatusResponse {
-    OnuStatus status = 1;
-}
+# ============================================================
+# Done
+# ============================================================
+log "=== MTS-OLT-2000 OpenWrt build complete ==="
+log "Images: ${DEPLOY_DIR}/"
+log "Log: ${LOG_FILE}"
+log "Manifest: ${DEPLOY_DIR}/mts-olt2000-manifest.txt"
 
-message OmcisStatusResponse {
-    OmcisStatus omci = 1;
-}
-
-message Tr069ConfigResponse {
-    Tr069Config config = 1;
-}
-
-message DeviceHealthResponse {
-    DeviceHealth health = 1;
-}
-
-// Update ONU config
-message UpdateOnuConfigRequest {
-    string onu_id = 1;
-    string pon_port = 2;
-    uint32 vlan = 3;
-    string qos_profile = 4;
-    uint32 bandwidth_up = 5;
-    uint32 bandwidth_down = 6;
-}
-
-message UpdateOnuConfigResponse {
-    bool success = 1;
-    string message = 2;
-}
-
-// Reset ONU
-message ResetOnuRequest {
-    string onu_id = 1;
-    bool force = 2;
-}
-
-message ResetOnuResponse {
-    bool success = 1;
-    string message = 2;
-}
-
-// MTS OLT GPON Service
-service MtsOltGponService {
-    rpc GetOltStatus(Empty) returns (OltStatusResponse);
-    rpc GetPonPorts(Empty) returns (PonPortInfoResponse);
-    rpc GetOnuList(OnuListRequest) returns (stream OnuInfo);
-    rpc GetOnuStatus(OnuStatusRequest) returns (OnuStatusResponse);
-    rpc UpdateOnuConfig(UpdateOnuConfigRequest) returns (UpdateOnuConfigResponse);
-    rpc ResetOnu(ResetOnuRequest) returns (ResetOnuResponse);
-    rpc GetOmcisStatus(Empty) returns (OmcisStatusResponse);
-    rpc GetTr069Config(Empty) returns (Tr069ConfigResponse);
-    rpc GetDeviceHealth(Empty) returns (DeviceHealthResponse);
-    rpc SubscribeTelemetry(TelemetrySubscription) returns (stream TelemetryData);
-}
-
-message Empty {}
-
-message OnuListRequest {
-    string pon_port = 1;
-    string status = 2;
-    uint32 limit = 3;
-    uint32 offset = 4;
-}
-
-message OnuStatusRequest {
-    string onu_id = 1;
-}
-
-message TelemetrySubscription {
-    repeated string paths = 1;
-    int64 sample_interval = 2;
-}
-
-message TelemetryData {
-    int64 timestamp = 1;
-    map<string, double> metrics = 2;
-    repeated PortStats ports = 3;
-}
-
-message PortStats {
-    string name = 1;
-    uint64 rx_bytes = 2;
-    uint64 tx_bytes = 3;
-    uint64 rx_packets = 4;
-    uint64 tx_packets = 5;
-    uint64 rx_errors = 6;
-    uint64 tx_errors = 7;
-}
-PROTO_EOF
-
-echo "[OLT2000] Proto file generated."
-
-# Generate CMakeLists.txt
-cat > "${DEVICE_DIR}/CMakeLists.txt" << 'CMAKE_EOF'
-cmake_minimum_required(VERSION 3.14)
-project(mts-olt2000-api VERSION 1.0.0 LANGUAGES CXX)
-
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-find_package(protobuf REQUIRED)
-find_package(gRPC REQUIRED)
-find_package(Threads REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system filesystem)
-
-include_directories(
-    ${PROJECT_SOURCE_DIR}/include
-    ${PROJECT_SOURCE_DIR}/proto
-    ${PROTOBUF_INCLUDE_DIR}
-    ${gRPC_INCLUDE_DIRS}
-    ${Boost_INCLUDE_DIRS}
-)
-
-set(PROTO_SRC proto/mts_olt_gpon.proto)
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_SRC})
-grpc_cpp_plugin_location(${CMAKE_CURRENT_BINARY_DIR}/grpc_cpp_plugin)
-grpc_generate_cpp(GRPC_SRCS GRPC_HDRS ${PROTO_SRC})
-
-set(SOURCES
-    src/hal/gpon_hal.cpp
-    src/hal/onu_hal.cpp
-    src/hal/omci_hal.cpp
-    src/hal/tr069_hal.cpp
-    src/service/olt_gpon_service.cpp
-    src/gpon/gpon_engine.cpp
-    src/onu/onu_manager.cpp
-    src/omci/omci_handler.cpp
-    src/tr069/tr069_agent.cpp
-    src/main.cpp
-    ${PROTO_SRCS}
-    ${GRPC_SRCS}
-)
-
-add_executable(mts-olt2000-server ${SOURCES})
-
-target_link_libraries(mts-olt2000-server
-    protobuf::libprotobuf
-    gRPC::grpc++
-    pthread
-    ${Boost_LIBRARIES}
-)
-
-install(TARGETS mts-olt2000-server DESTINATION bin)
-CMAKE_EOF
-
-echo "[OLT2000] CMakeLists.txt generated."
-
-# Generate config
-cat > "${CONFIG_DIR}/mts-olt2000.conf" << 'CONF_EOF'
-{
-    "device_id": "MTS-OLT-2000-001",
-    "model": "MTS-OLT-2000",
-    "grpc_port": 50053,
-    "health_interval_ms": 5000,
-    "telemetry_interval_ms": 1000,
-    "gpon": {
-        "num_ports": 16,
-        "onu_per_port": 128,
-        "downstream_rate_mbps": 2488,
-        "upstream_rate_mbps": 1244,
-        "split_ratio": 128
-    },
-    "omci": {
-        "max_sessions": 2048,
-        "management_entity_base": 1024
-    },
-    "tr069": {
-        "url": "acs.mts.ru:7547",
-        "username": "olt001",
-        "polling_interval_s": 300,
-        "enabled": true
-    },
-    "wdm": {
-        "channel_spacing_nm": 0.8,
-        "wavelength_range": "1480-1580"
-    },
-    "logging": {
-        "level": "info",
-        "file": "/var/log/mts-olt2000.log",
-        "max_size_mb": 100
-    }
-}
-CONF_EOF
-
-echo "[OLT2000] Config generated."
-echo "[OLT2000] OLT GPON API skeleton created at ${DEVICE_DIR}"
-echo "[OLT2000] To compile: cd ${DEVICE_DIR} && mkdir build && cd build && cmake .. && make"
+exit 0

@@ -1,0 +1,103 @@
+# U-Boot environment for MTS Router devices
+# This file is deployed alongside U-Boot and contains device-specific boot parameters
+
+# ============================================================
+# Common U-Boot environment variables
+# ============================================================
+
+# Boot arguments
+bootargs_console="console=ttyS0,115200n8"
+bootargs_root="rootwait rw"
+bootargs_mts="mts.board=${mts_board} mts.os=${mts_os}"
+
+# ============================================================
+# Boot command
+# ============================================================
+bootcmd=run boot_detect; run boot_select; run boot_apply
+
+# ============================================================
+# Boot detection
+# ============================================================
+boot_detect=if env exists mts_board; then setenv mts_detected 1; else setenv mts_detected 0; fi
+
+# ============================================================
+# Boot selection
+# ============================================================
+boot_select=if test ${mts_detected} = 1; then run boot_main; else run boot_recovery; fi
+
+# ============================================================
+# Boot apply
+# ============================================================
+boot_apply=setenv bootargs "${bootargs_console} ${bootargs_root} ${bootargs_mts} ${extra_bootargs}"
+
+# ============================================================
+# Main boot
+# ============================================================
+boot_main=if mmc dev ${mmcdev}; then if fatload mmc ${mmcdev} ${loadaddr} boot/vmlinuz; then if fatload mmc ${mmcdev} ${fdtaddr} boot/${fdtfile}; then if fatload mmc ${mmcdev} ${rdaddr} boot/initrd.img; then booti ${loadaddr} ${rdaddr} ${fdtaddr}; else booti ${loadaddr} - ${fdtaddr}; fi; fi; fi; fi; run boot_recovery
+
+# ============================================================
+# Recovery boot
+# ============================================================
+boot_recovery=echo "Main boot failed, trying recovery..."; setenv bootdev usb; run boot_usb; run boot_net
+
+# ============================================================
+# USB boot
+# ============================================================
+boot_usb=if usb start; then if fatload usb 0 ${loadaddr} boot/vmlinuz; then if fatload usb 0 ${fdtaddr} boot/${fdtfile}; then booti ${loadaddr} - ${fdtaddr}; fi; fi; fi;
+
+# ============================================================
+# Network boot
+# ============================================================
+boot_net=if dhcp ${loadaddr} ${serverip}:${bootfile}; then if dhcp ${fdtaddr} ${serverip}:${fdtfile}; then booti ${loadaddr} - ${fdtaddr}; fi; fi
+
+# ============================================================
+# Environment defaults
+# ============================================================
+# Default values (overridden by machine config)
+# mts_board=cr9000
+# mts_os=yocto
+# mmcdev=0
+# loadaddr=0x40000000
+# fdtaddr=0x44000000
+# rdaddr=0x48000000
+# fdtfile=mts-cr9000.dtb
+# bootfile=vmlinuz
+# serverip=10.0.0.1
+# ipaddr=10.0.0.2
+# gatewayip=10.0.0.1
+# netmask=255.255.255.0
+
+# ============================================================
+# DPDK hugepages hint
+# ============================================================
+# dpdk_hugepages=256
+
+# ============================================================
+# IOMMU hint
+# ============================================================
+# iommu_hint=iommu=pt
+
+# ============================================================
+# Serial console
+# ============================================================
+# serial_console=ttyS0,115200n8
+
+# ============================================================
+# Network boot parameters
+# ============================================================
+# bootdelay=3
+# bootretry=5
+# ethaddr=<MAC address>
+# serial=<serial number>
+
+# ============================================================
+# Recovery mode
+# ============================================================
+# recovery_key=0x73 (s key)
+# recovery_timeout=10
+
+# ============================================================
+# Firmware update
+# ============================================================
+# fw_update=if test ${fw_update_pending} = 1; then run update_fw; fi
+# update_fw=fatwrite mmc ${mmcdev} ${fw_loadaddr} /firmware/fw.bin ${filesize}
