@@ -1,226 +1,71 @@
 /**
- * MTS-OLT-2000 OLT GPON — OMCI HAL
- * OMCI (ONU Management and Control Interface) monitoring
- * 
- * Интеграция с Linux subsystem:
- * - /sys/class/gpon/ — sysfs для OMCI entity monitoring
- * - /proc/net/ — OMCI message statistics
- * - rtl_omci CLI — OMCI entity management
- * - SNMP — OMCI MIB monitoring (ITU-T G.988)
- * - /var/log/omci.log — OMCI event logs
- * 
- * Уровень реализации:
- * - Чтение из sysfs для мониторинга OMCI entities
- * - Парсинь /proc/net для OMCI message stats
- * - SNMP polling для OMCI MIBs
- * - Мок-режим для тестирования без hardware
- * - Thread-safe доступ к общим ресурсам
+ * MTS-OLT-2000 OMCI HAL — OMCI management implementation
+ * Provides OMCI entity management
  */
 
 #include "hal/omci_hal.h"
-#include <fstream>
-#include <sstream>
-#include <iostream>
-#include <algorithm>
+#include <cstdio>
 #include <cstring>
-#include <chrono>
-#include <sys/stat.h>
-#include <dirent.h>
-#include <unistd.h>
 
-namespace mts::olt2000::hal {
+static mts_olt2000_omci_entity_t g_entities[MTS_OLT2000_OMCI_MAX_ENTITIES];
+static uint32_t g_num_entities = 0;
+static mts_olt2000_omci_status_t g_omci_status;
 
-// ============================================================================
-// OmciHal Implementation
-// ============================================================================
-
-OmciHal::OmciHal()
-    : mock_mode_(false)
-    , available_(false)
-{
-    // Инициализация статуса
-    memset(&omcis_status_, 0, sizeof(omcis_status_));
-    omcis_status_.device_id = "MTS-OLT-2000-001";
-    omcis_status_.status = "inactive";
-    omcis_status_.active_sessions = 0;
-    omcis_status_.total_sessions = 2048;
-
-    // Проверка доступности OMCI subsystem
-    available_ = isAvailable();
-
-    if (available_) {
-        // Мониторинг OMCI entities
-        entity_count_ = countOmciEntities();
-        std::cout << "[OMCI HAL] OMCI entities: " << entity_count_ << std::endl;
-    } else {
-        std::cout << "[OMCI HAL] OMCI subsystem not available, enabling mock mode" << std::endl;
-        mock_mode_ = true;
-    }
+int mts_olt2000_omci_init(void) {
+    memset(&g_omci_status, 0, sizeof(g_omci_status));
+    memset(g_entities, 0, sizeof(g_entities));
+    g_omci_status.status = MTS_OLT2000_OMCI_ENTITY_ACTIVE;
+    return 0;
 }
 
-OmciHal::~OmciHal() {
-    // Очистка ресурсов
+void mts_olt2000_omci_cleanup(void) {
+    g_num_entities = 0;
+    memset(&g_omci_status, 0, sizeof(g_omci_status));
 }
 
-/**
- * Получить текущий статус OMCI
- * 
- * Чтение данных из:
- * 1. /sys/class/gpon/*/onu*/omci — OMCI entity status
- * 2. /proc/net/omci — OMCI message statistics
- * 3. SNMP — OMCI MIBs (G.988)
- * 4. Моки при отсутствии hardware
- */
-OmcisStatus OmciHal::getStatus() {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    if (mock_mode_) {
-        applyMockData();
-        return omcis_status_;
-    }
-
-    if (!available_) {
-        mock_mode_ = true;
-        applyMockData();
-        return omcis_status_;
-    }
-
-    // Чтение OMCI entity status из sysfs
-    readOmciEntities();
-
-    // Чтение OMCI message stats из /proc/net
-    readOmciMessageStats();
-
-    // SNMP polling для OMCI MIBs
-    pollOmciMib();
-
-    omcis_status_.status = "active";
-
-    return omcis_status_;
+int mts_olt2000_omci_get_status(mts_olt2000_omci_status_t *status) {
+    if (!status) return -1;
+    *status = g_omci_status;
+    return 0;
 }
 
-/**
- * Проверить доступность OMCI subsystem
- */
-bool OmciHal::isAvailable() {
-    struct stat st;
-    // Проверка sysfs OMCI
-    if (stat("/sys/class/gpon", &st) == 0 && S_ISDIR(st.st_mode)) {
-        return true;
-    }
-
-    // Проверка rtl_omci CLI
-    if (stat("/usr/bin/rtl_omci", &st) == 0) {
-        return true;
-    }
-
-    return false;
+int mts_olt2000_omci_get_entity(uint32_t entity_id, mts_olt2000_omci_entity_t *entity) {
+    if (!entity || entity_id >= g_num_entities) return -1;
+    *entity = g_entities[entity_id];
+    return 0;
 }
 
-/**
- * Получить имя OMCI device
- */
-std::string OmciHal::getDeviceName() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return "MTS-OLT-2000-OMCI";
-}
-
-/**
- * Посчитать OMCI entities
- */
-uint32_t OmciHal::countOmciEntities() {
-    uint32_t count = 0;
-
-    DIR* dir = opendir("/sys/class/gpon/");
-    if (dir) {
-        struct dirent* entry;
-        while ((entry = readdir(dir)) != nullptr) {
-            std::string name = entry->d_name;
-            if (name != "." && name != "..") {
-                // Проверяем наличие OMCI subdir
-                std::string onu_path = "/sys/class/gpon/" + name + "/onu";
-                DIR* onu_dir = opendir(onu_path.c_str());
-                if (onu_dir) {
-                    closedir(onu_dir);
-                    count++;
-                }
-            }
-        }
-        closedir(dir);
+int mts_olt2000_omci_get_all_entities(mts_olt2000_omci_entity_t *entities, int max_entities) {
+    if (!entities || max_entities <= 0) return -1;
+    int count = (max_entities < (int)g_num_entities) ? max_entities : (int)g_num_entities;
+    for (int i = 0; i < count; i++) {
+        entities[i] = g_entities[i];
     }
-
     return count;
 }
 
-// ============================================================================
-// Private Methods
-// ============================================================================
-
-/**
- * Чтение OMCI entity status из sysfs
- */
-bool OmciHal::readOmciEntities() {
-    // В реальном устройстве:
-    // - Чтение /sys/class/gpon/ponX/onuY/omci/status
-    // - Парсинь OMCI entity table
-    std::cout << "[OMCI HAL] Reading OMCI entity status from sysfs" << std::endl;
-    return true;
+int mts_olt2000_omci_create_entity(mts_olt2000_omci_entity_type_t type, mts_olt2000_omci_entity_t *entity) {
+    if (!entity || g_num_entities >= MTS_OLT2000_OMCI_MAX_ENTITIES) return -1;
+    uint32_t id = g_num_entities;
+    memset(entity, 0, sizeof(*entity));
+    entity->entity_id = id;
+    entity->type = type;
+    entity->status = MTS_OLT2000_OMCI_ENTITY_ACTIVE;
+    snprintf(entity->name, sizeof(entity->name), "entity-%u", id);
+    g_entities[id] = *entity;
+    g_num_entities++;
+    g_omci_status.total_entities = g_num_entities;
+    g_omci_status.active_entities++;
+    return 0;
 }
 
-/**
- * Чтение OMCI message stats из /proc/net
- */
-bool OmciHal::readOmciMessageStats() {
-    std::string path = "/proc/net/omci";
-    std::ifstream file(path);
-
-    if (!file.is_open()) {
-        std::cerr << "[OMCI HAL] Cannot open: " << path << std::endl;
-        return false;
+int mts_olt2000_omci_delete_entity(uint32_t entity_id) {
+    if (entity_id >= g_num_entities) return -1;
+    for (uint32_t i = entity_id; i < g_num_entities - 1; i++) {
+        g_entities[i] = g_entities[i + 1];
     }
-
-    // Парсинь OMCI message statistics
-    // Формат: entity_id type tx_msgs rx_msgs tx_errors rx_errors
-    std::string line;
-    bool header_skipped = false;
-    while (std::getline(file, line)) {
-        if (!header_skipped) {
-            header_skipped = true;
-            continue;
-        }
-
-        std::istringstream iss(line);
-        uint32_t entity_id, msg_type;
-        uint64_t tx_msgs, rx_msgs, tx_errors, rx_errors;
-
-        iss >> entity_id >> msg_type >> tx_msgs >> rx_msgs >> tx_errors >> rx_errors;
-
-        // Обновление OMCI message stats
-        // ...
-    }
-
-    return true;
+    g_num_entities--;
+    g_omci_status.total_entities = g_num_entities;
+    g_omci_status.active_entities--;
+    return 0;
 }
-
-/**
- * SNMP polling для OMCI MIBs
- */
-bool OmciHal::pollOmciMib() {
-    // В реальном устройстве:
-    // - SNMP walk для G.988 MIB
-    // - SNMP get для specific OIDs
-    std::cout << "[OMCI HAL] Polling OMCI MIBs via SNMP" << std::endl;
-    return true;
-}
-
-/**
- * Мок-данные для тестирования
- */
-void OmciHal::applyMockData() {
-    omcis_status_.device_id = "MTS-OLT-2000-001";
-    omcis_status_.status = "active";
-    omcis_status_.active_sessions = 800;
-    omcis_status_.total_sessions = 2048;
-}
-
-} // namespace mts::olt2000::hal

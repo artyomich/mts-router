@@ -28,9 +28,6 @@ set(SOURCES
     src/hal/ipsec_hal.cpp
     src/hal/vrrp_hal.cpp
     src/service/enterprise_service.cpp
-    src/sdwan/path_manager.cpp
-    src/mpls/lsp_manager.cpp
-    src/ipsec/tunnel_manager.cpp
     src/main.cpp
     ${PROTO_SRCS}
     ${GRPC_SRCS}

@@ -29,11 +29,6 @@ set(SOURCES
     src/hal/iptv_hal.cpp
     src/hal/tr069_hal.cpp
     src/service/residential_service.cpp
-    src/gpon/gpon_engine.cpp
-    src/wifi/wifi_manager.cpp
-    src/voip/voip_engine.cpp
-    src/iptv/iptv_manager.cpp
-    src/tr069/tr069_agent.cpp
     src/main.cpp
     ${PROTO_SRCS}
     ${GRPC_SRCS}

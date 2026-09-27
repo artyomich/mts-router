@@ -42,8 +42,11 @@ public:
     void setMockMode(bool enabled);
 
 private:
+    GponOnuStatus gpon_status_;
     mutable std::mutex mutex_;
     std::atomic<bool> mock_mode_;
+
+    GponOnuStatus applyMockStatus();
 };
 
 } // namespace mts::rg500::hal

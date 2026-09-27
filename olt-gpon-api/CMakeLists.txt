@@ -28,10 +28,6 @@ set(SOURCES
     src/hal/omci_hal.cpp
     src/hal/tr069_hal.cpp
     src/service/olt_gpon_service.cpp
-    src/gpon/gpon_engine.cpp
-    src/onu/onu_manager.cpp
-    src/omci/omci_handler.cpp
-    src/tr069/tr069_agent.cpp
     src/main.cpp
     ${PROTO_SRCS}
     ${GRPC_SRCS}
