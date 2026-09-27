@@ -20,7 +20,7 @@ mkdir -p "${BUILD_DIR}" "${LOG_DIR}"
 echo '{"timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'", "devices": {}, "total": 0, "success": 0, "failed": 0}' > "${RESULTS_FILE}"
 
 log() {
-    echo -e "${1}${2}${NC}"
+    echo -e "${1}${NC}"
 }
 
 log_status() {
