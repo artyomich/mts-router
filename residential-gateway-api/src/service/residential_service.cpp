@@ -37,7 +37,7 @@ ResidentialService::ResidentialService()
     , tr069_hal_(std::make_unique<hal::Tr069Hal>()) {}
 
 grpc::Status ResidentialService::GetGponStatus(grpc::ServerContext* ctx,
-                                                const google::protobuf::Empty* req,
+                                                const Empty* req,
                                                 GponOnuStatusResponse* resp) {
     try {
         auto status = gpon_hal_->getStatus();
@@ -57,7 +57,7 @@ grpc::Status ResidentialService::GetGponStatus(grpc::ServerContext* ctx,
 }
 
 grpc::Status ResidentialService::GetWifiStatus(grpc::ServerContext* ctx,
-                                                const google::protobuf::Empty* req,
+                                                const Empty* req,
                                                 WifiBssInfoResponse* resp) {
     try {
         auto bss = wifi_hal_->getBssInfo();
@@ -110,7 +110,7 @@ grpc::Status ResidentialService::UpdateWifi(grpc::ServerContext* ctx,
 }
 
 grpc::Status ResidentialService::GetWifiClients(grpc::ServerContext* ctx,
-                                                 const google::protobuf::Empty* req,
+                                                 const Empty* req,
                                                  WifiClientInfoResponse* resp) {
     try {
         auto clients = wifi_hal_->getClientInfo();
@@ -137,17 +137,12 @@ grpc::Status ResidentialService::GetWifiClients(grpc::ServerContext* ctx,
 }
 
 grpc::Status ResidentialService::GetVoipStatus(grpc::ServerContext* ctx,
-                                                const google::protobuf::Empty* req,
+                                                const Empty* req,
                                                 VoipStatusResponse* resp) {
     try {
         auto status = voip_hal_->getStatus();
         auto* voip = resp->mutable_voip();
         voip->set_status(status.status);
-        voip->set_total_lines(status.total_lines);
-        voip->set_active_calls(status.active_calls);
-        voip->set_total_calls(status.total_calls);
-        voip->set_codec(status.codec);
-        voip->set_sample_rate(status.sample_rate);
         for (const auto& line : status.lines) {
             auto* l = voip->add_lines();
             l->set_line_id(line.line_id);
@@ -179,7 +174,7 @@ grpc::Status ResidentialService::UpdateVoip(grpc::ServerContext* ctx,
 }
 
 grpc::Status ResidentialService::GetIptvStatus(grpc::ServerContext* ctx,
-                                                const google::protobuf::Empty* req,
+                                                const Empty* req,
                                                 IptvStatusResponse* resp) {
     try {
         auto status = iptv_hal_->getStatus();
@@ -204,7 +199,7 @@ grpc::Status ResidentialService::GetIptvStatus(grpc::ServerContext* ctx,
 }
 
 grpc::Status ResidentialService::GetTr069Status(grpc::ServerContext* ctx,
-                                                 const google::protobuf::Empty* req,
+                                                 const Empty* req,
                                                  Tr069StatusResponse* resp) {
     try {
         auto status = tr069_hal_->getStatus();
@@ -223,7 +218,7 @@ grpc::Status ResidentialService::GetTr069Status(grpc::ServerContext* ctx,
 }
 
 grpc::Status ResidentialService::GetLanConfig(grpc::ServerContext* ctx,
-                                               const google::protobuf::Empty* req,
+                                               const Empty* req,
                                                LanConfigResponse* resp) {
     try {
         auto* config = resp->mutable_config();
@@ -242,7 +237,7 @@ grpc::Status ResidentialService::GetLanConfig(grpc::ServerContext* ctx,
 }
 
 grpc::Status ResidentialService::GetParentalControl(grpc::ServerContext* ctx,
-                                                     const google::protobuf::Empty* req,
+                                                     const Empty* req,
                                                      ParentalControlResponse* resp) {
     try {
         auto* control = resp->mutable_control();
@@ -296,7 +291,7 @@ grpc::Status ResidentialService::UnblockClient(grpc::ServerContext* ctx,
 }
 
 grpc::Status ResidentialService::GetDeviceHealth(grpc::ServerContext* ctx,
-                                                  const google::protobuf::Empty* req,
+                                                  const Empty* req,
                                                   DeviceHealthResponse* resp) {
     try {
         *resp->mutable_health() = createHealthResponse();
@@ -312,46 +307,46 @@ grpc::Status ResidentialService::SubscribeTelemetry(grpc::ServerContext* ctx,
     try {
         auto interval_ms = req->sample_interval() > 0 ? req->sample_interval() : 5000;
 
-        while (ctx->IsRunning()) {
+        while (ctx->IsCancelled() == false) {
             TelemetryData data;
             data.set_timestamp(std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::steady_clock::now().time_since_epoch()).count());
 
             // GPON metrics
             auto gpon_status = gpon_hal_->getStatus();
-            data.add_metrics()->set_key("gpon.power_level")->set_value(static_cast<double>(gpon_status.power_level));
-            data.add_metrics()->set_key("gpon.distance")->set_value(static_cast<double>(gpon_status.distance));
-            data.add_metrics()->set_key("gpon.rx_bytes")->set_value(static_cast<double>(gpon_status.rx_bytes));
-            data.add_metrics()->set_key("gpon.tx_bytes")->set_value(static_cast<double>(gpon_status.tx_bytes));
+            auto* metrics_map = data.mutable_metrics();
+            auto telem = createTelemetryData();
+            for (const auto& kv : telem.metrics()) {
+                (*metrics_map)[kv.first] = kv.second;
+            }
 
             // WiFi metrics
             auto wifi_bss = wifi_hal_->getBssInfo();
             auto wifi_clients = wifi_hal_->getClientInfo();
             for (const auto& b : wifi_bss) {
-                data.add_metrics()->set_key("wifi." + b.bss_id + ".temperature")->set_value(b.temperature);
-                data.add_metrics()->set_key("wifi." + b.bss_id + ".clients")->set_value(static_cast<double>(b.num_clients));
-                data.add_metrics()->set_key("wifi." + b.bss_id + ".rx_bytes")->set_value(b.rx_bytes);
-                data.add_metrics()->set_key("wifi." + b.bss_id + ".tx_bytes")->set_value(b.tx_bytes);
+                (*metrics_map)["wifi." + b.bss_id + ".temperature"] = b.temperature;
+                (*metrics_map)["wifi." + b.bss_id + ".clients"] = static_cast<double>(b.num_clients);
+                (*metrics_map)["wifi." + b.bss_id + ".rx_bytes"] = b.rx_bytes;
+                (*metrics_map)["wifi." + b.bss_id + ".tx_bytes"] = b.tx_bytes;
             }
-            data.add_metrics()->set_key("wifi.total_clients")->set_value(static_cast<double>(wifi_clients.size()));
+            (*metrics_map)["wifi.total_clients"] = static_cast<double>(wifi_clients.size());
 
             // VoIP metrics
             auto voip_status = voip_hal_->getStatus();
-            data.add_metrics()->set_key("voip.active_calls")->set_value(static_cast<double>(voip_status.active_calls));
-            data.add_metrics()->set_key("voip.total_lines")->set_value(static_cast<double>(voip_status.total_lines));
-            data.add_metrics()->set_key("voip.codec")->set_value(
-                voip_status.codec == "g711a" ? 1.0 : 0.0);
+            (*metrics_map)["voip.active_calls"] = static_cast<double>(voip_status.active_calls);
+            (*metrics_map)["voip.total_lines"] = static_cast<double>(voip_status.total_lines);
+            (*metrics_map)["voip.codec"] = (voip_status.codec == "g711a" ? 1.0 : 0.0);
 
             // IPTV metrics
             auto iptv_status = iptv_hal_->getStatus();
-            data.add_metrics()->set_key("iptv.active_channels")->set_value(static_cast<double>(iptv_status.active_channels));
-            data.add_metrics()->set_key("iptv.total_channels")->set_value(static_cast<double>(iptv_status.total_channels));
-            data.add_metrics()->set_key("iptv.bandwidth_mbps")->set_value(iptv_status.bandwidth_mbps);
+            (*metrics_map)["iptv.active_channels"] = static_cast<double>(iptv_status.active_channels);
+            (*metrics_map)["iptv.total_channels"] = static_cast<double>(iptv_status.total_channels);
+            (*metrics_map)["iptv.bandwidth_mbps"] = iptv_status.bandwidth_mbps;
 
             // TR-069 metrics
             auto tr069_status = tr069_hal_->getStatus();
-            data.add_metrics()->set_key("tr069.enabled")->set_value(tr069_status.enabled ? 1.0 : 0.0);
-            data.add_metrics()->set_key("tr069.polling_interval")->set_value(static_cast<double>(tr069_status.polling_interval));
+            (*metrics_map)["tr069.enabled"] = tr069_status.enabled ? 1.0 : 0.0;
+            (*metrics_map)["tr069.polling_interval"] = static_cast<double>(tr069_status.polling_interval);
 
             // Port stats
             for (const auto& b : wifi_bss) {

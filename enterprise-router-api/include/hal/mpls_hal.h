@@ -47,7 +47,7 @@ public:
 class MplsHal : public IMplsHal {
 public:
     MplsHal();
-    ~MplsHal() override = default;
+    ~MplsHal() override;
 
     std::vector<MplsLspStatus> getLspStatus() override;
     bool isAvailable() override;

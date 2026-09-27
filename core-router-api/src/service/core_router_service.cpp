@@ -9,6 +9,8 @@
 #include <iostream>
 #include <algorithm>
 
+using namespace mts::core::router::v1;
+
 namespace mts::cr9000::service {
 
 CoreRouterService::CoreRouterService()
@@ -16,12 +18,12 @@ CoreRouterService::CoreRouterService()
     , line_card_hal_(std::make_unique<hal::LineCardHal>())
     , port_hal_(std::make_unique<hal::PortHal>())
     , p4_manager_(std::make_unique<p4runtime::P4Manager>())
-    , bgp_monitor_(std::make_unique<bgp::Bgpmonitor>())
+    , bgp_monitor_(std::make_unique<bgp::BgpMonitor>())
     , lsp_manager_(std::make_unique<mpls::LspManager>())
     , srv6_manager_(std::make_unique<srv6::Srv6Manager>()) {}
 
 grpc::Status CoreRouterService::GetFabricStatus(grpc::ServerContext* ctx,
-                                                 const google::protobuf::Empty* req,
+                                                 const ::mts::core::router::v1::Empty* req,
                                                  FabricStatusResponse* resp) {
     try {
         auto status = fabric_hal_->getStatus();
@@ -46,7 +48,7 @@ grpc::Status CoreRouterService::GetFabricStatus(grpc::ServerContext* ctx,
 }
 
 grpc::Status CoreRouterService::GetLineCardStatus(grpc::ServerContext* ctx,
-                                                   const google::protobuf::Empty* req,
+                                                   const ::mts::core::router::v1::Empty* req,
                                                    LineCardStatusResponse* resp) {
     try {
         auto cards = line_card_hal_->getAllCardStatus();
@@ -81,7 +83,7 @@ grpc::Status CoreRouterService::GetLineCardStatus(grpc::ServerContext* ctx,
 }
 
 grpc::Status CoreRouterService::GetPortStatus(grpc::ServerContext* ctx,
-                                               const google::protobuf::Empty* req,
+                                               const ::mts::core::router::v1::Empty* req,
                                                PortStatusResponse* resp) {
     try {
         auto stats = port_hal_->getStats();
@@ -102,7 +104,7 @@ grpc::Status CoreRouterService::GetPortStatus(grpc::ServerContext* ctx,
 }
 
 grpc::Status CoreRouterService::GetDeviceHealth(grpc::ServerContext* ctx,
-                                                 const google::protobuf::Empty* req,
+                                                 const ::mts::core::router::v1::Empty* req,
                                                  DeviceHealthResponse* resp) {
     try {
         *resp->mutable_health() = createHealthResponse();
@@ -113,7 +115,7 @@ grpc::Status CoreRouterService::GetDeviceHealth(grpc::ServerContext* ctx,
 }
 
 grpc::Status CoreRouterService::GetP4Pipelines(grpc::ServerContext* ctx,
-                                                const google::protobuf::Empty* req,
+                                                const ::mts::core::router::v1::Empty* req,
                                                 P4PipelineStatusResponse* resp) {
     try {
         auto pipeline = p4_manager_->getPipelineStatus();
@@ -149,7 +151,7 @@ grpc::Status CoreRouterService::CompileP4(grpc::ServerContext* ctx,
 }
 
 grpc::Status CoreRouterService::GetSrv6Status(grpc::ServerContext* ctx,
-                                               const google::protobuf::Empty* req,
+                                               const ::mts::core::router::v1::Empty* req,
                                                Srv6StatusResponse* resp) {
     try {
         auto entries = srv6_manager_->getEntries();
@@ -169,7 +171,7 @@ grpc::Status CoreRouterService::GetSrv6Status(grpc::ServerContext* ctx,
 }
 
 grpc::Status CoreRouterService::GetMplsLspStatus(grpc::ServerContext* ctx,
-                                                  const google::protobuf::Empty* req,
+                                                  const ::mts::core::router::v1::Empty* req,
                                                   MplsLspStatusResponse* resp) {
     try {
         auto lsps = lsp_manager_->getLspStatus();
@@ -194,8 +196,8 @@ grpc::Status CoreRouterService::GetMplsLspStatus(grpc::ServerContext* ctx,
 }
 
 grpc::Status CoreRouterService::CreateMplsLsp(grpc::ServerContext* ctx,
-                                               const CreateMplsLspRequest* req,
-                                               CreateMplsLspResponse* resp) {
+                                               const CreateLspRequest* req,
+                                               CreateLspResponse* resp) {
     try {
         auto result = lsp_manager_->createLsp(req->name(), req->ingress_label(),
                                                req->egress_label(), req->next_hop(),
@@ -247,13 +249,16 @@ grpc::Status CoreRouterService::SubscribeTelemetry(grpc::ServerContext* ctx,
     try {
         auto interval_ms = req->sample_interval() > 0 ? req->sample_interval() : 1000;
         
-        while (ctx->IsRunning()) {
+        while (ctx->IsCancelled() == false) {
             TelemetryData data;
             data.set_timestamp(std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::steady_clock::now().time_since_epoch()).count());
             
             auto metrics = createTelemetryData();
-            data.mutable_metrics()->merge_from(metrics.metrics());
+            auto* metrics_map = data.mutable_metrics();
+            for (const auto& kv : metrics.metrics()) {
+                (*metrics_map)[kv.first] = kv.second;
+            }
             
             // Add port stats
             auto stats = port_hal_->getStats();
@@ -280,8 +285,8 @@ grpc::Status CoreRouterService::SubscribeTelemetry(grpc::ServerContext* ctx,
     return grpc::Status::OK;
 }
 
-DeviceHealth CoreRouterService::createHealthResponse() {
-    DeviceHealth health;
+::mts::core::router::v1::DeviceHealth CoreRouterService::createHealthResponse() {
+    ::mts::core::router::v1::DeviceHealth health;
     health.set_device_id("MTS-CR-9000-001");
     health.set_model("MTS-CR-9000");
     health.set_firmware("1.0.0");
@@ -293,8 +298,8 @@ DeviceHealth CoreRouterService::createHealthResponse() {
     return health;
 }
 
-TelemetryData CoreRouterService::createTelemetryData() {
-    TelemetryData data;
+::mts::core::router::v1::TelemetryData CoreRouterService::createTelemetryData() {
+    ::mts::core::router::v1::TelemetryData data;
     data.set_timestamp(std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now().time_since_epoch()).count());
     return data;

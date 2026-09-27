@@ -15,15 +15,20 @@
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
-#include <google/protobuf/empty.pb.h>
 
-#include "proto/mts_olt_gpon.grpc.pb.h"
-#include "proto/mts_olt_gpon.pb.h"
+#include "grpc_generated/mts_olt_gpon.grpc.pb.h"
+#include "mts_olt_gpon.pb.h"
 
 #include "hal/gpon_hal.h"
 #include "hal/onu_hal.h"
 #include "hal/omci_hal.h"
 #include "hal/tr069_hal.h"
+
+// C++ HAL wrappers
+#include "hal/gpon_hal_cpp.h"
+#include "hal/onu_hal_cpp.h"
+#include "hal/omci_hal_cpp.h"
+#include "hal/tr069_hal_cpp.h"
 
 #include <memory>
 #include <thread>
@@ -32,50 +37,58 @@
 
 namespace mts::olt2000::service {
 
-class OltGponService final : public MtsOltGponService::Service {
+class OltGponServiceImpl final : public mts::olt2000::OltGponService::Service {
 public:
-    OltGponService();
-    ~OltGponService() override = default;
+    OltGponServiceImpl();
+    ~OltGponServiceImpl() override = default;
 
     grpc::Status GetOltStatus(grpc::ServerContext* ctx,
-                               const google::protobuf::Empty* req,
+                               const Empty* req,
                                OltStatusResponse* resp) override;
     
-    grpc::Status GetPonPorts(grpc::ServerContext* ctx,
-                              const google::protobuf::Empty* req,
-                              PonPortInfoResponse* resp) override;
-    
-    grpc::Status GetOnuList(grpc::ServerContext* ctx,
-                             const OnuListRequest* req,
-                             grpc::ServerWriter<OnuInfo>* writer) override;
-    
-    grpc::Status GetOnuStatus(grpc::ServerContext* ctx,
-                               const OnuStatusRequest* req,
-                               OnuStatusResponse* resp) override;
+    grpc::Status GetOnu(grpc::ServerContext* ctx,
+                               const OnuIdRequest* req,
+                               OnuResponse* resp) override;
     
     grpc::Status UpdateOnuConfig(grpc::ServerContext* ctx,
-                                  const UpdateOnuConfigRequest* req,
-                                  UpdateOnuConfigResponse* resp) override;
+                                 const UpdateOnuConfigRequest* req,
+                                 UpdateOnuConfigResponse* resp) override;
     
     grpc::Status ResetOnu(grpc::ServerContext* ctx,
-                          const ResetOnuRequest* req,
+                          const OnuIdRequest* req,
                           ResetOnuResponse* resp) override;
     
-    grpc::Status GetOmcisStatus(grpc::ServerContext* ctx,
-                                 const google::protobuf::Empty* req,
-                                 OmcisStatusResponse* resp) override;
+    grpc::Status GetOmciStatus(grpc::ServerContext* ctx,
+                                 const Empty* req,
+                                 OmciStatusResponse* resp) override;
     
     grpc::Status GetTr069Config(grpc::ServerContext* ctx,
-                                 const google::protobuf::Empty* req,
+                                 const Empty* req,
                                  Tr069ConfigResponse* resp) override;
     
-    grpc::Status GetDeviceHealth(grpc::ServerContext* ctx,
-                                  const google::protobuf::Empty* req,
-                                  DeviceHealthResponse* resp) override;
+    grpc::Status GetHealth(grpc::ServerContext* ctx,
+                           const Empty* req,
+                           DeviceHealthResponse* resp) override;
     
-    grpc::Status SubscribeTelemetry(grpc::ServerContext* ctx,
-                                     const TelemetrySubscription* req,
-                                     grpc::ServerWriter<TelemetryData>* writer) override;
+    grpc::Status HealthCheck(grpc::ServerContext* ctx,
+                             const HealthCheckRequest* req,
+                             HealthCheckResponse* resp) override;
+    
+    grpc::Status SetOnu(grpc::ServerContext* ctx,
+                        const SetOnuRequest* req,
+                        SetOnuResponse* resp) override;
+    
+    grpc::Status SetTr069Config(grpc::ServerContext* ctx,
+                                 const Tr069ConfigRequest* req,
+                                 Tr069ConfigResponse* resp) override;
+    
+    grpc::Status GetWdmStatus(grpc::ServerContext* ctx,
+                              const Empty* req,
+                              WdmStatusResponse* resp) override;
+    
+    grpc::Status ListOnus(grpc::ServerContext* ctx,
+                          const Empty* req,
+                          OnuListResponse* resp) override;
 
     void startHealthMonitor();
     void stopHealthMonitor();

@@ -22,6 +22,32 @@
 #include <mutex>
 #include <atomic>
 
+// C-типы для SyncE HAL
+typedef enum {
+    MTS_MB_SYNCE_MASTER = 0,
+    MTS_MB_SYNCE_SLAVE,
+    MTS_MB_SYNCE_TRANSPARENT
+} mts_mb_synce_mode_t;
+
+typedef enum {
+    MTS_MB_SYNCE_LOCKED = 0,
+    MTS_MB_SYNCE_UNLOCKED,
+    MTS_MB_SYNCE_HOLD_OVER
+} mts_mb_synce_status_t;
+
+typedef struct {
+    char port_name[32];
+    mts_mb_synce_mode_t mode;
+    int32_t target_frequency;
+    double actual_frequency;
+    double phase_offset_ns;
+    mts_mb_synce_status_t status;
+} mts_mb_synce_port_t;
+
+#define MTS_MB_SYNCE_MAX_PORTS 8
+
+#include "mpls_hal.h"
+
 namespace mts {
 namespace hal {
 

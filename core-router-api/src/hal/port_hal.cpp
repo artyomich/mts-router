@@ -37,8 +37,8 @@ std::vector<PortStats> PortHal::readFromSysfs() {
         
         PortStats stat;
         stat.name = iface;
-        iss >> stat.rx_bytes >> stat.rx_packets >> stat.rx_errors >> stat.rx_drops;
-        iss >> stat.tx_bytes >> stat.tx_packets >> stat.tx_errors >> stat.tx_drops;
+        iss >> stat.rx_bytes >> stat.rx_packets >> stat.rx_errors;
+        iss >> stat.tx_bytes >> stat.tx_packets >> stat.tx_errors;
         
         stats.push_back(stat);
     }

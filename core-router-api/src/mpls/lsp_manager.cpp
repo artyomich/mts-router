@@ -6,6 +6,7 @@
 #include "mpls/lsp_manager.h"
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 
 namespace mts::cr9000::mpls {
 

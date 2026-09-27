@@ -135,3 +135,62 @@ int mts_rg_gpon_get_distance(uint32_t *distance_m) {
 }
 
 } // extern "C"
+
+namespace mts::rg500::hal {
+
+GponHal::GponHal()
+    : gpon_status_{}
+    , mock_mode_(false)
+    , available_(true) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    gpon_status_.onu_id = "rg500-onu";
+    gpon_status_.status = "online";
+    gpon_status_.power_level = -30;
+    gpon_status_.distance = 5000;
+    gpon_status_.pon_port = "pon0";
+    gpon_status_.vlan = 100;
+    gpon_status_.rx_bytes = 0;
+    gpon_status_.tx_bytes = 0;
+    std::cout << "[GponHal] Constructed" << std::endl;
+}
+
+GponHal::~GponHal() {
+    std::cout << "[GponHal] Destructed" << std::endl;
+}
+
+GponOnuStatus GponHal::getStatus() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    if (mock_mode_.load()) {
+        return applyMockStatus();
+    }
+    
+    return gpon_status_;
+}
+
+bool GponHal::isAvailable() {
+    return available_;
+}
+
+std::string GponHal::getDeviceName() {
+    return "RTL960x GPON";
+}
+
+void GponHal::setMockMode(bool enabled) {
+    mock_mode_.store(enabled);
+}
+
+GponOnuStatus GponHal::applyMockStatus() {
+    GponOnuStatus status;
+    status.onu_id = "rtl960x-mock";
+    status.status = "online";
+    status.power_level = -30;
+    status.distance = 5000;
+    status.pon_port = "pon0";
+    status.vlan = 100;
+    status.rx_bytes = 0;
+    status.tx_bytes = 0;
+    return status;
+}
+
+} // namespace mts::rg500::hal

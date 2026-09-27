@@ -21,6 +21,7 @@
 #include <iomanip>
 
 namespace mts {
+using namespace mts::backhaul::v1;
 namespace service {
 
 // ============================================================================
@@ -47,7 +48,7 @@ grpc::Status MtsBackhaulServiceImpl::GetPtpStatus(
     std::cout << "[Backhaul Service] GetPtpStatus called" << std::endl;
     
     // Получение статуса из HAL
-    hal::PtpHal::PtpStatus status = ptp_hal_.getStatus();
+    hal::PtpStatus status = ptp_hal_.getStatus();
     
     // Заполнение protobuf response
     mts::backhaul::v1::PtpStatus* ptp_status = response->mutable_ptp_status();
@@ -242,7 +243,7 @@ grpc::Status MtsBackhaulServiceImpl::SubscribeTelemetry(
               << interval_ms << " ms" << std::endl;
     
     // Отправка telemetry данных
-    while (context->IsRunning()) {
+    while (context->IsCancelled() == false) {
         mts::backhaul::v1::TelemetryData telemetry;
         
         // Timestamp
@@ -299,7 +300,7 @@ grpc::Status MtsBackhaulServiceImpl::SubscribeTelemetry(
 void MtsBackhaulServiceImpl::populatePtpStatus(
     mts::backhaul::v1::PtpStatus* ptp_status) {
     
-    hal::PtpHal::PtpStatus status = ptp_hal_.getStatus();
+    hal::PtpStatus status = ptp_hal_.getStatus();
     
     ptp_status->set_device_name(status.device_name);
     ptp_status->set_mode(status.mode);

@@ -15,10 +15,11 @@
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
-#include <google/protobuf/empty.pb.h>
 
-#include "proto/mts_enterprise.grpc.pb.h"
-#include "proto/mts_enterprise.pb.h"
+#include "grpc_generated/mts_enterprise.grpc.pb.h"
+#include "mts_enterprise.pb.h"
+
+using namespace mts::enterprise::v1;
 
 #include "hal/sdwan_hal.h"
 #include "hal/mpls_hal.h"
@@ -38,7 +39,7 @@ public:
     ~EnterpriseService() override = default;
 
     grpc::Status GetSdwanStatus(grpc::ServerContext* ctx,
-                                 const google::protobuf::Empty* req,
+                                 const mts::enterprise::v1::Empty* req,
                                  SdwanStatusResponse* resp) override;
     
     grpc::Status CreateSdwanPath(grpc::ServerContext* ctx,
@@ -50,7 +51,7 @@ public:
                                   UpdateSdwanPathResponse* resp) override;
     
     grpc::Status GetMplsLspStatus(grpc::ServerContext* ctx,
-                                   const google::protobuf::Empty* req,
+                                   const mts::enterprise::v1::Empty* req,
                                    MplsLspStatusResponse* resp) override;
     
     grpc::Status CreateMplsLsp(grpc::ServerContext* ctx,
@@ -58,7 +59,7 @@ public:
                                 CreateMplsLspResponse* resp) override;
     
     grpc::Status GetIpsecTunnels(grpc::ServerContext* ctx,
-                                  const google::protobuf::Empty* req,
+                                  const Empty* req,
                                   IpsecTunnelResponse* resp) override;
     
     grpc::Status CreateIpsecTunnel(grpc::ServerContext* ctx,
@@ -66,11 +67,11 @@ public:
                                     CreateIpsecTunnelResponse* resp) override;
     
     grpc::Status GetVrrpStatus(grpc::ServerContext* ctx,
-                                const google::protobuf::Empty* req,
+                                const Empty* req,
                                 VrrpStatusResponse* resp) override;
     
     grpc::Status GetDeviceHealth(grpc::ServerContext* ctx,
-                                  const google::protobuf::Empty* req,
+                                  const Empty* req,
                                   DeviceHealthResponse* resp) override;
     
     grpc::Status SubscribeTelemetry(grpc::ServerContext* ctx,

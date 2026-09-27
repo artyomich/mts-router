@@ -84,8 +84,7 @@ LineCardStatus LineCardHal::getStatus(uint32_t card_id) {
     status.errors = 0;
     
     // Read ASIC counters from sysfs if available
-    std::string path = "/sys/class/net/eth0/statistics/" + 
-                       (mock_mode_ ? "" : "");
+    std::string path = mock_mode_ ? "/sys/class/net/eth0/statistics/" : "/sys/class/net/eth0/statistics/";
     
     return status;
 }

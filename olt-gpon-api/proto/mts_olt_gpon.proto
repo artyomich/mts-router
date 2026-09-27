@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package mts.olt2000;
 
-option cc_generic_services = true;
+option cc_generic_services = false;
 
 // ==================== OLT Status ====================
 message OltStatus {
@@ -17,6 +17,23 @@ message OltStatus {
 }
 
 // ==================== PON Port ====================
+message PonPortInfo {
+    uint32 pon_id = 1;
+    string name = 2;
+    string status = 3;
+    uint32 num_onu = 4;
+    uint32 max_onu = 5;
+    uint64 downstream_rate = 6;
+    uint64 upstream_rate = 7;
+    double downstream_util = 8;
+    double upstream_util = 9;
+    double optical_power = 10;
+}
+
+message PonPortInfoResponse {
+    repeated PonPortInfo pon_ports = 1;
+}
+
 message PonPortStatus {
     uint32 port_id = 1;
     string status = 2; // up, down, error
@@ -100,6 +117,19 @@ message OnuListResponse {
     repeated OnuInfo onus = 1;
 }
 
+message OnuListRequest {
+    string pon_port = 1;
+    string status_filter = 2;
+}
+
+message OnuStatusRequest {
+    string onu_id = 1;
+}
+
+message OnuStatusResponse {
+    OnuInfo status = 1;
+}
+
 message OnuResponse {
     OnuInfo onu = 1;
 }
@@ -123,8 +153,33 @@ message ResetOnuResponse {
     string message = 2;
 }
 
+message UpdateOnuConfigRequest {
+    string onu_id = 1;
+    uint32 pon_port = 2;
+    uint32 vlan = 3;
+    string qos_profile = 4;
+    uint32 bandwidth_up_mbps = 5;
+    uint32 bandwidth_down_mbps = 6;
+}
+
+message UpdateOnuConfigResponse {
+    bool success = 1;
+    string message = 2;
+}
+
 message OmciStatusResponse {
     OmciStatus omci_status = 1;
+}
+
+message Tr069Config {
+    bool enabled = 1;
+    string acs_url = 2;
+    bool polling_enabled = 3;
+    uint32 polling_interval = 4;
+    string username = 5;
+    string password = 6;
+    uint32 last_session_id = 7;
+    int64 last_bootstrap = 8;
 }
 
 message Tr069ConfigRequest {
@@ -137,8 +192,7 @@ message Tr069ConfigRequest {
 }
 
 message Tr069ConfigResponse {
-    bool success = 1;
-    string message = 2;
+    Tr069Config config = 1;
 }
 
 message WdmStatusResponse {
@@ -159,12 +213,13 @@ service OltGponService {
     rpc GetOnu(OnuIdRequest) returns (OnuResponse);
     rpc SetOnu(SetOnuRequest) returns (SetOnuResponse);
     rpc ResetOnu(OnuIdRequest) returns (ResetOnuResponse);
+    rpc UpdateOnuConfig(UpdateOnuConfigRequest) returns (UpdateOnuConfigResponse);
     
     // OMCI
     rpc GetOmciStatus(Empty) returns (OmciStatusResponse);
     
     // TR-069
-    rpc GetTr069Config(Empty) returns (Tr069Status);
+    rpc GetTr069Config(Empty) returns (Tr069ConfigResponse);
     rpc SetTr069Config(Tr069ConfigRequest) returns (Tr069ConfigResponse);
     
     // WDM
@@ -196,4 +251,25 @@ message HealthCheckResponse {
         SERVICE_UNKNOWN = 3;
     }
     ServingStatus status = 1;
+}
+
+message TelemetrySubscription {
+    repeated string paths = 1;
+    int64 sample_interval = 2;
+}
+
+message TelemetryData {
+    int64 timestamp = 1;
+    map<string, double> metrics = 2;
+    repeated PortStats ports = 3;
+}
+
+message PortStats {
+    string name = 1;
+    uint64 rx_bytes = 2;
+    uint64 tx_bytes = 3;
+    uint64 rx_packets = 4;
+    uint64 tx_packets = 5;
+    uint64 rx_errors = 6;
+    uint64 tx_errors = 7;
 }

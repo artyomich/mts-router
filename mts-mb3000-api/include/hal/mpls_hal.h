@@ -23,6 +23,37 @@
 #include <mutex>
 #include <atomic>
 
+// C-типы для MPLS-TP
+typedef enum {
+    MTS_MB_MPLS_ETH = 0,
+    MTS_MB_MPLS_HDLC,
+    MTS_MB_MPLS_UNSTRUCTURED
+} mts_mb_mpls_encapsulation_t;
+
+typedef enum {
+    MTS_MB_MPLS_PW_UP = 0,
+    MTS_MB_MPLS_PW_DOWN,
+    MTS_MB_MPLS_PW_INITIALIZING
+} mts_mb_mpls_pw_status_code_t;
+
+/* MPLS-TP pseudowire status struct for C API */
+typedef struct {
+    uint32_t pw_id;
+    char ingress_port[32];
+    char egress_port[32];
+    int encapsulation;
+    uint32_t qos_class;
+    uint64_t rx_bytes;
+    uint64_t tx_bytes;
+    uint64_t rx_packets;
+    uint64_t tx_packets;
+    uint64_t rx_errors;
+    uint64_t tx_errors;
+    mts_mb_mpls_pw_status_code_t status;
+} mts_mb_mpls_pw_status_t;
+
+#define MTS_MB_MPLS_MAX_PW 64
+
 namespace mts {
 namespace hal {
 

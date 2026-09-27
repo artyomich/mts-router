@@ -18,6 +18,30 @@
 #include <mutex>
 #include <atomic>
 
+// C-типы для PTP HAL
+typedef enum {
+    MTS_MB_PTP_GRANDMASTER = 0,
+    MTS_MB_PTP_BOUNDARY,
+    MTS_MB_PTP_ORDINARY
+} mts_mb_ptp_mode_t;
+
+typedef enum {
+    MTS_MB_PTP_ACTIVE = 0,
+    MTS_MB_PTP_INACTIVE,
+    MTS_MB_PTP_FAULT
+} mts_mb_ptp_status_code_t;
+
+/* PTP status struct for C API */
+typedef struct {
+    char device_name[64];
+    int mode;
+    int64_t current_time_ns;
+    int64_t offset_from_master_ns;
+    int64_t mean_path_delay_ns;
+    double frequency_offset_ppm;
+    mts_mb_ptp_status_code_t status;
+} mts_mb_ptp_status_t;
+
 namespace mts {
 namespace hal {
 

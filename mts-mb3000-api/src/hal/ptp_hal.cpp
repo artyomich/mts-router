@@ -22,7 +22,7 @@ static struct {
     int64_t offset_from_master_ns;
     int64_t mean_path_delay_ns;
     double frequency_offset_ppm;
-    mts_mb_ptp_status_t status;
+    mts_mb_ptp_status_code_t status;
 } g_ptp_state = {
     .device_name = "ptp4l",
     .mode = MTS_MB_PTP_GRANDMASTER,
@@ -135,3 +135,58 @@ int mts_mb_ptp_get_frequency_offset(double *offset_ppm) {
 }
 
 } // extern "C"
+
+namespace mts::hal {
+
+PtpHal::PtpHal() : mock_mode_(false) {
+    mts_mb_ptp_init();
+    std::cout << "[PtpHal] Constructed" << std::endl;
+}
+
+PtpHal::~PtpHal() {
+    mts_mb_ptp_cleanup();
+    std::cout << "[PtpHal] Destructed" << std::endl;
+}
+
+PtpStatus PtpHal::getStatus() {
+    std::lock_guard<std::mutex> lock(ptp_mutex);
+    PtpStatus s;
+    mts_mb_ptp_status_t c;
+    mts_mb_ptp_get_status(&c);
+    s.device_name = c.device_name;
+    s.mode = (c.mode == MTS_MB_PTP_GRANDMASTER) ? "grandmaster" :
+             (c.mode == MTS_MB_PTP_BOUNDARY) ? "boundary" : "ordinary";
+    s.current_time = c.current_time_ns;
+    s.offset_from_master = c.offset_from_master_ns;
+    s.mean_path_delay = c.mean_path_delay_ns;
+    s.frequency_offset = c.frequency_offset_ppm;
+    s.status = (c.status == MTS_MB_PTP_ACTIVE) ? "active" :
+               (c.status == MTS_MB_PTP_FAULT) ? "fault" : "inactive";
+    s.phase_offset = 0.0;
+    return s;
+}
+
+bool PtpHal::setGrandmasterMode(bool enable) {
+    if (enable) {
+        return mts_mb_ptp_set_grandmaster("gm-001") == 0;
+    }
+    return mts_mb_ptp_set_mode(MTS_MB_PTP_BOUNDARY) == 0;
+}
+
+bool PtpHal::isAvailable() {
+    return true;
+}
+
+std::string PtpHal::getDeviceName() {
+    return "ptp4l";
+}
+
+void PtpHal::setMockMode(bool enable) {
+    mock_mode_ = enable;
+}
+
+void PtpHal::applyMockData() {
+    // No-op for mock mode
+}
+
+} // namespace mts::hal

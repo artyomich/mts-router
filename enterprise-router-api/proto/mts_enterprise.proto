@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package mts.enterprise.v1;
 
-option cc_generic_services = true;
+option cc_generic_services = false;
 
 // SD-WAN status
 message SdwanStatus {

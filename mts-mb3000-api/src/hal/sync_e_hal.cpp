@@ -130,3 +130,44 @@ int mts_mb_synce_set_mode(const char *port_name, mts_mb_synce_mode_t mode) {
 }
 
 } // extern "C"
+
+namespace mts::hal {
+
+SyncEHal::SyncEHal() : available_(true) {
+    std::cout << "[SyncEHal] Constructed" << std::endl;
+}
+
+SyncEHal::~SyncEHal() {
+    std::cout << "[SyncEHal] Destructed" << std::endl;
+}
+
+std::vector<SyncEStatus> SyncEHal::getStatus() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::vector<SyncEStatus> result;
+    for (int i = 0; i < MTS_MB_SYNCE_MAX_PORTS; i++) {
+        SyncEStatus s;
+        s.port_name = port_list_[i];
+        s.mode = "master";
+        s.frequency = 156250000;
+        s.actual_frequency = 156250000.0;
+        s.phase_offset = 0.0;
+        s.status = "locked";
+        result.push_back(s);
+    }
+    return result;
+}
+
+bool SyncEHal::setMode(const std::string& port_name, const std::string& mode) {
+    return true;
+}
+
+bool SyncEHal::isAvailable() {
+    return available_;
+}
+
+std::vector<std::string> SyncEHal::getPortList() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return port_list_;
+}
+
+} // namespace mts::hal

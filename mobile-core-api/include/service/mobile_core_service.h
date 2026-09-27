@@ -23,10 +23,11 @@
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
-#include <google/protobuf/empty.pb.h>
 
-#include "proto/mts_mobile_core.grpc.pb.h"
-#include "proto/mts_mobile_core.pb.h"
+#include "grpc_generated/mts_mobile_core.grpc.pb.h"
+#include "mts_mobile_core.pb.h"
+
+using namespace mts::mobile::core::v1;
 
 #include "hal/upf_hal.h"
 #include "hal/sm_hal.h"
@@ -46,11 +47,11 @@ public:
     ~MobileCoreService() override = default;
 
     grpc::Status GetUpfStatus(grpc::ServerContext* ctx,
-                               const google::protobuf::Empty* req,
+                               const Empty* req,
                                UpfStatusResponse* resp) override;
     
     grpc::Status GetPduSessions(grpc::ServerContext* ctx,
-                                 const google::protobuf::Empty* req,
+                                 const Empty* req,
                                  PduSessionResponse* resp) override;
     
     grpc::Status CreatePduSession(grpc::ServerContext* ctx,
@@ -62,7 +63,7 @@ public:
                                    DeletePduSessionResponse* resp) override;
     
     grpc::Status GetPfcpSessions(grpc::ServerContext* ctx,
-                                  const google::protobuf::Empty* req,
+                                  const Empty* req,
                                   PfcpSessionResponse* resp) override;
     
     grpc::Status CreatePfcpSteering(grpc::ServerContext* ctx,
@@ -70,11 +71,11 @@ public:
                                      CreatePfcpSteeringResponse* resp) override;
     
     grpc::Status GetGtpTunnels(grpc::ServerContext* ctx,
-                                const google::protobuf::Empty* req,
+                                const Empty* req,
                                 GtpTunnelResponse* resp) override;
     
     grpc::Status GetFiveQIConfigs(grpc::ServerContext* ctx,
-                                   const google::protobuf::Empty* req,
+                                   const Empty* req,
                                    FiveQIConfigResponse* resp) override;
     
     grpc::Status UpdateFiveQI(grpc::ServerContext* ctx,
@@ -82,11 +83,11 @@ public:
                                UpdateFiveQIResponse* resp) override;
     
     grpc::Status GetNrfRegistry(grpc::ServerContext* ctx,
-                                  const google::protobuf::Empty* req,
+                                  const Empty* req,
                                   NrfRegistryResponse* resp) override;
     
     grpc::Status GetDeviceHealth(grpc::ServerContext* ctx,
-                                  const google::protobuf::Empty* req,
+                                  const Empty* req,
                                   DeviceHealthResponse* resp) override;
     
     grpc::Status SubscribeTelemetry(grpc::ServerContext* ctx,

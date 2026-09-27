@@ -49,7 +49,7 @@ public:
 class IpsecHal : public IIpsecHal {
 public:
     IpsecHal();
-    ~IpsecHal() override = default;
+    ~IpsecHal() override;
 
     std::vector<IpsecTunnelStatus> getTunnelStatus() override;
     bool isAvailable() override;

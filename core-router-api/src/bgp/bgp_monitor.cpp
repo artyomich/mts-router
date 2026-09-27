@@ -5,6 +5,7 @@
 
 #include "bgp/bgp_monitor.h"
 #include <iostream>
+#include <algorithm>
 
 namespace mts::cr9000::bgp {
 

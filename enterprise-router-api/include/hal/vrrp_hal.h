@@ -47,7 +47,7 @@ public:
 class VrrpHal : public IVrrpHal {
 public:
     VrrpHal();
-    ~VrrpHal() override = default;
+    ~VrrpHal() override;
 
     std::vector<VrrpStatus> getStatus() override;
     bool isAvailable() override;

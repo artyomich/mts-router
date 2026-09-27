@@ -17,8 +17,10 @@
 #include <grpcpp/server_context.h>
 #include <google/protobuf/empty.pb.h>
 
-#include "proto/mts_core_router.grpc.pb.h"
-#include "proto/mts_core_router.pb.h"
+#include "grpc_generated/mts_core_router.grpc.pb.h"
+#include "mts_core_router.pb.h"
+
+using namespace mts::core::router::v1;
 
 #include "hal/fabric_hal.h"
 #include "hal/line_card_hal.h"
@@ -42,23 +44,23 @@ public:
 
     // RPC implementations
     grpc::Status GetFabricStatus(grpc::ServerContext* ctx,
-                                  const google::protobuf::Empty* req,
+                                  const ::mts::core::router::v1::Empty* req,
                                   FabricStatusResponse* resp) override;
     
     grpc::Status GetLineCardStatus(grpc::ServerContext* ctx,
-                                    const google::protobuf::Empty* req,
+                                    const ::mts::core::router::v1::Empty* req,
                                     LineCardStatusResponse* resp) override;
     
     grpc::Status GetPortStatus(grpc::ServerContext* ctx,
-                                const google::protobuf::Empty* req,
+                                const ::mts::core::router::v1::Empty* req,
                                 PortStatusResponse* resp) override;
     
     grpc::Status GetDeviceHealth(grpc::ServerContext* ctx,
-                                  const google::protobuf::Empty* req,
+                                  const ::mts::core::router::v1::Empty* req,
                                   DeviceHealthResponse* resp) override;
     
     grpc::Status GetP4Pipelines(grpc::ServerContext* ctx,
-                                 const google::protobuf::Empty* req,
+                                 const ::mts::core::router::v1::Empty* req,
                                  P4PipelineStatusResponse* resp) override;
     
     grpc::Status CompileP4(grpc::ServerContext* ctx,
@@ -66,16 +68,16 @@ public:
                            CompileP4Response* resp) override;
     
     grpc::Status GetSrv6Status(grpc::ServerContext* ctx,
-                                const google::protobuf::Empty* req,
+                                const ::mts::core::router::v1::Empty* req,
                                 Srv6StatusResponse* resp) override;
     
     grpc::Status GetMplsLspStatus(grpc::ServerContext* ctx,
-                                   const google::protobuf::Empty* req,
+                                   const ::mts::core::router::v1::Empty* req,
                                    MplsLspStatusResponse* resp) override;
     
     grpc::Status CreateMplsLsp(grpc::ServerContext* ctx,
-                                const CreateMplsLspRequest* req,
-                                CreateMplsLspResponse* resp) override;
+                                const CreateLspRequest* req,
+                                CreateLspResponse* resp) override;
     
     grpc::Status SetFabric(grpc::ServerContext* ctx,
                            const SetFabricRequest* req,
@@ -95,15 +97,15 @@ public:
     void stopHealthMonitor();
 
 private:
-    DeviceHealth createHealthResponse();
-    TelemetryData createTelemetryData();
+    ::mts::core::router::v1::DeviceHealth createHealthResponse();
+    ::mts::core::router::v1::TelemetryData createTelemetryData();
 
     // HAL instances
     std::unique_ptr<hal::FabricHal> fabric_hal_;
     std::unique_ptr<hal::LineCardHal> line_card_hal_;
     std::unique_ptr<hal::PortHal> port_hal_;
     std::unique_ptr<p4runtime::P4Manager> p4_manager_;
-    std::unique_ptr<bgp::Bgpmonitor> bgp_monitor_;
+    std::unique_ptr<bgp::BgpMonitor> bgp_monitor_;
     std::unique_ptr<mpls::LspManager> lsp_manager_;
     std::unique_ptr<srv6::Srv6Manager> srv6_manager_;
 

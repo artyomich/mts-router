@@ -18,6 +18,19 @@
 #include <atomic>
 #include <cstdint>
 
+// C-типы для VoIP HAL (global scope для extern "C" совместимости)
+typedef struct {
+    int registered;
+    char server[64];
+    uint16_t port;
+    char username[32];
+    char caller_id[32];
+    char callee_id[32];
+    uint32_t duration_seconds;
+    char codec[16];
+    uint16_t rtp_port;
+} mts_rg_voip_status_t;
+
 namespace mts::rg500::hal {
 
 struct VoipLine {
@@ -52,7 +65,7 @@ public:
 class VoipHal : public IVoipHal {
 public:
     VoipHal();
-    ~VoipHal() override = default;
+    ~VoipHal() override;
 
     VoipStatus getStatus() override;
     bool isAvailable() override;

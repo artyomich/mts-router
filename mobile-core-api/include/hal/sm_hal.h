@@ -17,6 +17,8 @@
 #include <atomic>
 #include <cstdint>
 
+#include "upf_hal.h"
+
 namespace mts::mc5000::hal {
 
 struct SmfConfig {
@@ -30,14 +32,6 @@ struct SmfConfig {
     int64_t last_updated;  // timestamp in nanoseconds
 };
 
-struct InterfaceStats {
-    std::string name;
-    uint64_t rx_bytes;
-    uint64_t rx_packets;
-    uint64_t tx_bytes;
-    uint64_t tx_packets;
-};
-
 class ISmfHal {
 public:
     virtual ~ISmfHal() = default;
@@ -49,7 +43,7 @@ public:
 class SmfHal : public ISmfHal {
 public:
     SmfHal();
-    ~SmfHal() override = default;
+    ~SmfHal() override;
 
     SmfConfig getStatus() override;
     bool isAvailable() override;

@@ -54,7 +54,11 @@ CompileResult P4Manager::compile(const std::string& program, const std::string& 
     }
     
     // Generate pipeline ID from program hash (simplified)
-    std::string pipeline_id = "p4-" + std::to_hash(program);
+    std::hash<std::string> hasher;
+    auto hash_val = hasher(program);
+    std::ostringstream oss;
+    oss << std::hex << hash_val;
+    std::string pipeline_id = "p4-" + oss.str();
     auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now().time_since_epoch()).count();
     

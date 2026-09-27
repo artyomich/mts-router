@@ -18,7 +18,7 @@ EnterpriseService::EnterpriseService()
     , vrrp_hal_(std::make_unique<hal::VrrpHal>()) {}
 
 grpc::Status EnterpriseService::GetSdwanStatus(grpc::ServerContext* ctx,
-                                                const google::protobuf::Empty* req,
+                                                const Empty* req,
                                                 SdwanStatusResponse* resp) {
     try {
         auto status = sdwan_hal_->getStatus();
@@ -53,7 +53,7 @@ grpc::Status EnterpriseService::CreateSdwanPath(grpc::ServerContext* ctx,
                                                  CreateSdwanPathResponse* resp) {
     try {
         hal::WanPath path;
-        path.path_id = "path-" + std::to_hash(req->wan_interface());
+        path.path_id = "path-" + std::to_string(std::hash<std::string>{}(req->wan_interface()));
         path.wan_interface = req->wan_interface();
         path.type = req->type();
         path.status = "active";
@@ -97,7 +97,7 @@ grpc::Status EnterpriseService::UpdateSdwanPath(grpc::ServerContext* ctx,
 }
 
 grpc::Status EnterpriseService::GetMplsLspStatus(grpc::ServerContext* ctx,
-                                                  const google::protobuf::Empty* req,
+                                                  const Empty* req,
                                                   MplsLspStatusResponse* resp) {
     try {
         auto lsps = mpls_hal_->getLspStatus();
@@ -156,7 +156,7 @@ grpc::Status EnterpriseService::CreateMplsLsp(grpc::ServerContext* ctx,
 }
 
 grpc::Status EnterpriseService::GetIpsecTunnels(grpc::ServerContext* ctx,
-                                                 const google::protobuf::Empty* req,
+                                                 const Empty* req,
                                                  IpsecTunnelResponse* resp) {
     try {
         auto tunnels = ipsec_hal_->getTunnelStatus();
@@ -187,7 +187,7 @@ grpc::Status EnterpriseService::CreateIpsecTunnel(grpc::ServerContext* ctx,
                                                    CreateIpsecTunnelResponse* resp) {
     try {
         hal::IpsecTunnelStatus tunnel;
-        tunnel.tunnel_id = "tun-" + std::to_hash(req->peer_ip());
+        tunnel.tunnel_id = "tun-" + std::to_string(std::hash<std::string>{}(req->peer_ip()));
         tunnel.name = req->name();
         tunnel.peer_ip = req->peer_ip();
         tunnel.local_subnet = req->local_subnet();
@@ -219,7 +219,7 @@ grpc::Status EnterpriseService::CreateIpsecTunnel(grpc::ServerContext* ctx,
 }
 
 grpc::Status EnterpriseService::GetVrrpStatus(grpc::ServerContext* ctx,
-                                               const google::protobuf::Empty* req,
+                                               const Empty* req,
                                                VrrpStatusResponse* resp) {
     try {
         auto vrrps = vrrp_hal_->getStatus();
@@ -239,7 +239,7 @@ grpc::Status EnterpriseService::GetVrrpStatus(grpc::ServerContext* ctx,
 }
 
 grpc::Status EnterpriseService::GetDeviceHealth(grpc::ServerContext* ctx,
-                                                 const google::protobuf::Empty* req,
+                                                 const Empty* req,
                                                  DeviceHealthResponse* resp) {
     try {
         *resp->mutable_health() = createHealthResponse();
@@ -255,13 +255,16 @@ grpc::Status EnterpriseService::SubscribeTelemetry(grpc::ServerContext* ctx,
     try {
         auto interval_ms = req->sample_interval() > 0 ? req->sample_interval() : 1000;
         
-        while (ctx->IsRunning()) {
+        while (ctx->IsCancelled() == false) {
             TelemetryData data;
             data.set_timestamp(std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::steady_clock::now().time_since_epoch()).count());
             
             auto metrics = createTelemetryData();
-            data.mutable_metrics()->merge_from(metrics.metrics());
+            auto* metrics_map = data.mutable_metrics();
+            for (const auto& kv : metrics.metrics()) {
+                (*metrics_map)[kv.first] = kv.second;
+            }
             
             if (!writer->Write(data)) break;
             std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms));

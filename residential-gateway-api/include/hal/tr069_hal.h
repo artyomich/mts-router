@@ -25,6 +25,22 @@
 #include <atomic>
 #include <cstdint>
 
+#define MTS_RG_TR069_MAX_URL 256
+#define MTS_RG_TR069_MAX_USERNAME 64
+#define MTS_RG_TR069_MAX_PASSWORD 64
+
+// C-типы для TR-069 HAL
+typedef struct {
+    int enabled;
+    char acs_url[MTS_RG_TR069_MAX_URL];
+    int polling_enabled;
+    uint32_t polling_interval;
+    char username[MTS_RG_TR069_MAX_USERNAME];
+    char password[MTS_RG_TR069_MAX_PASSWORD];
+    uint32_t last_session_id;
+    int64_t last_bootstrap;
+} mts_rg_tr069_config_t;
+
 namespace mts::rg500::hal {
 
 struct Tr069Status {
@@ -48,7 +64,7 @@ public:
 class Tr069Hal : public ITr069Hal {
 public:
     Tr069Hal();
-    ~Tr069Hal() override = default;
+    ~Tr069Hal() override;
 
     Tr069Status getStatus() override;
     bool isAvailable() override;

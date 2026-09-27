@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package mts.mobile.core.v1;
 
-option cc_generic_services = true;
+option cc_generic_services = false;
 
 // UPF status
 message UpfStatus {

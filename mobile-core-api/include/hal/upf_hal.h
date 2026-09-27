@@ -51,12 +51,22 @@ struct PduSession {
     uint64_t tx_bytes;
 };
 
+struct PfcpRule {
+    uint32_t rule_id;
+    std::string description;
+    std::string action;  // "forward", "drop", "buffer"
+    uint32_t qos_index;
+};
+
 struct PfcpSession {
     std::string session_id;
     std::string f_seid;
     std::string peer_ip;
     std::string type;       // "upf", "smf"
     std::string status;     // "established", "inactive"
+    std::vector<PfcpRule> rules;
+    uint64_t rx_bytes;
+    uint64_t tx_bytes;
 };
 
 struct GtpTunnel {
@@ -77,6 +87,9 @@ struct ConntrackEntry {
     uint32_t proto_src;
     uint32_t proto_dst;
     uint32_t mark;
+    uint32_t teid;
+    uint64_t rx_bytes;
+    uint64_t tx_bytes;
 };
 
 struct InterfaceStats {
@@ -101,7 +114,7 @@ public:
 class UpfHal : public IUpfHal {
 public:
     UpfHal();
-    ~UpfHal() override = default;
+    ~UpfHal() override;
 
     UpfStatus getStatus() override;
     std::vector<PduSession> getPduSessions() override;

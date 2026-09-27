@@ -7,6 +7,7 @@
 #include <iostream>
 #include <cstring>
 #include <mutex>
+#include <algorithm>
 
 // Internal state
 static std::mutex mpls_mutex;
@@ -25,7 +26,7 @@ static struct {
     uint64_t tx_packets;
     uint64_t rx_errors;
     uint64_t tx_errors;
-    mts_mb_mpls_pw_status_t status;
+    mts_mb_mpls_pw_status_code_t status;
 } g_mpls_pws[MTS_MB_MPLS_MAX_PW] = {};
 
 extern "C" {
@@ -163,3 +164,64 @@ int mts_mb_mpls_get_all_pws(mts_mb_mpls_pw_status_t *pws, int max_pws) {
 }
 
 } // extern "C"
+
+namespace mts::hal {
+
+MplsTpHal::MplsTpHal() : available_(true) {
+    mts_mb_mpls_init();
+    std::cout << "[MplsTpHal] Constructed" << std::endl;
+}
+
+MplsTpHal::~MplsTpHal() {
+    mts_mb_mpls_cleanup();
+    std::cout << "[MplsTpHal] Destructed" << std::endl;
+}
+
+std::vector<MplsTpPwStatus> MplsTpHal::getStatus() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::vector<MplsTpPwStatus> result;
+    for (uint32_t id : pw_id_list_) {
+        MplsTpPwStatus s;
+        s.pw_id = id;
+        s.ingress_port = "eth0";
+        s.egress_port = "eth1";
+        s.encapsulation = "eth";
+        s.qos_class = 0;
+        s.rx_bytes = 0;
+        s.tx_bytes = 0;
+        s.rx_packets = 0;
+        s.tx_packets = 0;
+        s.rx_errors = 0;
+        s.tx_errors = 0;
+        s.status = "up";
+        result.push_back(s);
+    }
+    return result;
+}
+
+bool MplsTpHal::createPw(uint32_t pw_id, const std::string& ingress,
+                         const std::string& egress, const std::string& encap,
+                         uint32_t qos_class) {
+    pw_id_list_.push_back(pw_id);
+    return true;
+}
+
+bool MplsTpHal::deletePw(uint32_t pw_id) {
+    auto it = std::find(pw_id_list_.begin(), pw_id_list_.end(), pw_id);
+    if (it != pw_id_list_.end()) {
+        pw_id_list_.erase(it);
+        return true;
+    }
+    return false;
+}
+
+bool MplsTpHal::isAvailable() {
+    return available_;
+}
+
+std::vector<uint32_t> MplsTpHal::getPwList() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return pw_id_list_;
+}
+
+} // namespace mts::hal

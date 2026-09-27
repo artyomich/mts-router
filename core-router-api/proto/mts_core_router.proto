@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package mts.core.router.v1;
 
-option cc_generic_services = true;
+option cc_generic_services = false;
 
 // Fabric status
 message FabricStatus {

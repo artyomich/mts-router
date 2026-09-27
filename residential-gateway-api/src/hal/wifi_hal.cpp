@@ -190,3 +190,138 @@ int mts_rg_wifi_enable_guest(const char *band, bool enabled) {
 }
 
 } // extern "C"
+
+namespace mts::rg500::hal {
+
+WifiHal::WifiHal() : mock_mode_(false), available_(true) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    wifi_status_.device_id = "mt76-wifi";
+    wifi_status_.status = "active";
+    wifi_status_.total_bss = 2;
+    wifi_status_.active_bss = 2;
+    wifi_status_.total_clients = 0;
+    wifi_status_.total_rx_bytes = 0;
+    wifi_status_.total_tx_bytes = 0;
+    wifi_status_.temperature = 47.5;
+    std::cout << "[WifiHal] Constructed" << std::endl;
+}
+
+WifiHal::~WifiHal() = default;
+
+std::vector<WifiBssInfo> WifiHal::getBssInfo() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::vector<WifiBssInfo> result;
+    
+    if (mock_mode_.load()) {
+        return applyMockBssInfo();
+    }
+    
+    // Mock BSS info for simulation
+    WifiBssInfo bss2g;
+    bss2g.bss_id = "phy0-2g";
+    bss2g.ssid = "MTS_Home_2G";
+    bss2g.band = "2.4ghz";
+    bss2g.channel = 6;
+    bss2g.bandwidth = 20;
+    bss2g.security = "wpa3";
+    bss2g.mode = "ap";
+    bss2g.status = "up";
+    bss2g.num_clients = 5;
+    bss2g.rx_bytes = 1024000;
+    bss2g.tx_bytes = 512000;
+    bss2g.temperature = 45.0;
+    result.push_back(bss2g);
+    
+    WifiBssInfo bss5g;
+    bss5g.bss_id = "phy1-5g";
+    bss5g.ssid = "MTS_Home_5G";
+    bss5g.band = "5ghz";
+    bss5g.channel = 36;
+    bss5g.bandwidth = 80;
+    bss5g.security = "wpa3";
+    bss5g.mode = "ap";
+    bss5g.status = "up";
+    bss5g.num_clients = 3;
+    bss5g.rx_bytes = 2048000;
+    bss5g.tx_bytes = 1024000;
+    bss5g.temperature = 50.0;
+    result.push_back(bss5g);
+    
+    return result;
+}
+
+std::vector<WifiClientInfo> WifiHal::getClientInfo() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    if (mock_mode_.load()) {
+        return applyMockClients();
+    }
+    
+    return {};
+}
+
+bool WifiHal::isAvailable() {
+    return available_;
+}
+
+std::string WifiHal::getDeviceName() {
+    return "MT76 WiFi 6";
+}
+
+bool WifiHal::updateBssConfig(const std::string& bss_id, const std::string& config) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::cout << "[WifiHal] Update BSS " << bss_id << ": " << config << std::endl;
+    return true;
+}
+
+void WifiHal::setMockMode(bool enabled) {
+    mock_mode_.store(enabled);
+}
+
+WifiStatus WifiHal::applyMockStatus() {
+    WifiStatus status;
+    status.device_id = "mt76-mock";
+    status.status = "active";
+    status.total_bss = 2;
+    status.active_bss = 2;
+    status.total_clients = 0;
+    status.total_rx_bytes = 0;
+    status.total_tx_bytes = 0;
+    status.temperature = 45.0;
+    return status;
+}
+
+
+std::vector<WifiBssInfo> WifiHal::applyMockBssInfo() {
+    std::vector<WifiBssInfo> result;
+    WifiBssInfo bss;
+    bss.bss_id = "phy0-mock";
+    bss.ssid = "Mock_SSID";
+    bss.band = "2.4ghz";
+    bss.channel = 1;
+    bss.bandwidth = 20;
+    bss.security = "none";
+    bss.mode = "ap";
+    bss.status = "up";
+    bss.num_clients = 0;
+    bss.rx_bytes = 0;
+    bss.tx_bytes = 0;
+    bss.temperature = 40.0;
+    result.push_back(bss);
+    return result;
+}
+
+std::vector<WifiClientInfo> WifiHal::applyMockClients() {
+    return {};
+}
+
+bool WifiHal::readBssFromSysfs() { return false; }
+bool WifiHal::readWirelessStats() { return false; }
+bool WifiHal::readTemperature() { return false; }
+std::vector<WifiClientInfo> WifiHal::readClientListFromHostapd() { return {}; }
+std::vector<std::string> WifiHal::getBssListFromSysfs() { return {}; }
+std::vector<WifiClientInfo> WifiHal::getClientListFromSysfs() { return {}; }
+std::string WifiHal::findTemperatureSource() { return ""; }
+std::vector<WifiBssInfo> WifiHal::getBssInfoInternal() { return {}; }
+
+} // namespace mts::rg500::hal

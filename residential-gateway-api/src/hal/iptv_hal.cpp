@@ -171,3 +171,71 @@ int mts_rg_iptv_leave_channel(uint32_t channel_id) {
 }
 
 } // extern "C"
+
+namespace mts::rg500::hal {
+
+IptvHal::IptvHal() : igmp_available_(false), mock_mode_(false), available_(true) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    iptv_status_.device_id = "igmp-proxy";
+    iptv_status_.status = "active";
+    iptv_status_.active_channels = 0;
+    iptv_status_.total_channels = 50;
+    iptv_status_.bandwidth_mbps = 0.0;
+    std::cout << "[IptvHal] Constructed" << std::endl;
+}
+
+IptvHal::~IptvHal() {
+    std::cout << "[IptvHal] Destructed" << std::endl;
+}
+
+IptvStatus IptvHal::getStatus() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    if (mock_mode_.load()) {
+        return applyMockStatus();
+    }
+    
+    return iptv_status_;
+}
+
+bool IptvHal::isAvailable() {
+    return available_;
+}
+
+std::string IptvHal::getDeviceName() {
+    return "IGMP Proxy IPTV";
+}
+
+bool IptvHal::subscribeChannel(const std::string& multicast_ip, uint32_t multicast_port) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::cout << "[IptvHal] Subscribe " << multicast_ip << ":" << multicast_port << std::endl;
+    return true;
+}
+
+bool IptvHal::unsubscribeChannel(const std::string& multicast_ip) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::cout << "[IptvHal] Unsubscribe " << multicast_ip << std::endl;
+    return true;
+}
+
+void IptvHal::setMockMode(bool enabled) {
+    mock_mode_.store(enabled);
+}
+
+bool IptvHal::checkIgmpProxyRunning() { return igmp_available_; }
+std::vector<std::string> IptvHal::getMulticastGroupsFromProc() { return {}; }
+bool IptvHal::readMulticastGroups() { return false; }
+bool IptvHal::readMulticastStats() { return false; }
+double IptvHal::calculateBandwidth() { return 0.0; }
+
+IptvStatus IptvHal::applyMockStatus() {
+    IptvStatus status;
+    status.device_id = "igmp-mock";
+    status.status = "active";
+    status.active_channels = 0;
+    status.total_channels = 50;
+    status.bandwidth_mbps = 0.0;
+    return status;
+}
+
+} // namespace mts::rg500::hal

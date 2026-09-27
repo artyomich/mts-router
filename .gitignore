@@ -1,0 +1,282 @@
+# ============================================
+# MTS Router Project - Git Ignore
+# ============================================
+
+# ============================================
+# CMake Build Artifacts
+# ============================================
+build/
+*/build/
+*.o
+*.obj
+*.dll
+*.so
+*.so.*
+*.a
+*.lib
+*.exe
+*.pyd
+*.ninja
+*.ninja_deps
+*.ninja_log
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+CMakeFiles/
+cmake-build-*/
+
+# ============================================
+# C++ Compiler & Linker
+# ============================================
+*.gcda
+*.gcno
+*.gcov
+*.profraw
+*.profdata
+*.lcov
+coverage/
+*.pdb
+*.suo
+*.user
+*.sln.old
+
+# ============================================
+# IDE & Editor Files
+# ============================================
+.vs/
+.vscode/
+*.swp
+*.swo
+*~
+.idea/
+*.iml
+*.ipr
+*.iws
+.project
+.settings/
+.cproject
+.ncproject
+*.sublime-*
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
+
+# ============================================
+# Python
+# ============================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+.eggs/
+dist/
+build/
+*.whl
+.venv/
+venv/
+env/
+
+# ============================================
+# Node.js / JavaScript
+# ============================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# ============================================
+# Java
+# ============================================
+*.class
+*.jar
+*.war
+*.ear
+target/
+*.log
+
+# ============================================
+# Go
+# ============================================
+go.sum
+
+# ============================================
+# Rust
+# ============================================
+target/
+Cargo.lock
+
+# ============================================
+# Android
+# ============================================
+.gradle/
+local.properties
+*.dex
+*.apk
+*.ap_
+
+# ============================================
+# iOS / Xcode
+# ============================================
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xcworkspace
+*.xcodeproj/
+*.xcodeproj/.pbxproj.xcconfig
+*.xcodeproj/project.pbxproj
+*.xcodeproj/project.xcworkspace/
+*.xcodeproj/xcshareddata/
+*.xcodeproj/xcuserdata/
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# ============================================
+# macOS
+# ============================================
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ============================================
+# Windows
+# ============================================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# ============================================
+# Temporary & Log Files
+# ============================================
+*.tmp
+*.temp
+*.log
+*.cache
+*.dump
+*.core
+*.stackdump
+*.dmp
+*.crash
+*.trace
+*.tsv
+
+# ============================================
+# Test Results & Coverage
+# ============================================
+test-results/
+test-reports/
+coverage/
+*.lcov
+*.info
+junit/
+*.xml  # only if not needed in repo (e.g., non-config XML)
+
+# ============================================
+# Firmware & Binary Images
+# ============================================
+*.bin
+*.img
+*.fw
+*.uboot
+*.dtb
+*.dtbo
+*.bit
+*.rbf
+
+# ============================================
+# Yocto / Build System
+# ============================================
+tmp/
+deploy/
+sstate-cache/
+downloads/
+work/
+work-shared/
+work-crypto/
+build-aarch64/
+build-x86_64/
+*.tar.gz  # only if generated, not committed source
+
+# ============================================
+# OpenWrt
+# ============================================
+bin/
+dl/
+staging_dir/
+build_dir/
+target/
+feeds/
+.config.bak
+.*.config
+*.config.old
+
+# ============================================
+# Docker
+# ============================================
+.dockerenv
+!.dockerenv  # keep if intentionally committed
+docker-compose.override.yml
+
+# ============================================
+# Documentation Artifacts
+# ============================================
+*.png  # diagrams if generated
+*.svg  # if generated from code
+
+# ============================================
+# Protobuf / gRPC Generated Code (if regenerated)
+# ============================================
+*_pb2.py
+*_grpc.py
+*_pb2_grpc.py
+*.pb.go
+*.pb.cc
+*.pb.h
+*.proto.py
+
+# ============================================
+# API Spec Artifacts
+# ============================================
+swagger.json
+openapi.json
+gen/
+generated/
+
+# ============================================
+# MTS Router Specific
+# ============================================
+# Build artifacts from all subprojects
+core-router-api/build/
+mobile-core-api/build/
+mobile-backhaul-api/build/
+olt-gpon-api/build/
+enterprise-router-api/build/
+residential-gateway-api/build/
+mts-mb3000-api/build/
+
+# Compiled shared libraries from builds
+*.so.*
+*.dylib
+
+# Diagrams source files are kept, but not rendered output
+*.png
+*.jpg
+*.jpeg
+*.gif

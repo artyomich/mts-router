@@ -56,7 +56,7 @@ public:
 class SdwanHal : public ISdwanHal {
 public:
     SdwanHal();
-    ~SdwanHal() override = default;
+    ~SdwanHal() override;
 
     SdwanStatus getStatus() override;
     bool isAvailable() override;

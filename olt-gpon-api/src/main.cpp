@@ -9,7 +9,7 @@
 #include <thread>
 
 #include <grpcpp/grpcpp.h>
-#include <grpcpp/health_service.h>
+#include <grpcpp/health_check_service_interface.h>
 
 #include "service/olt_gpon_service.h"
 
@@ -19,7 +19,7 @@ using grpc::ServerBuilder;
 namespace mts::olt2000 {
 
 static Server* g_server = nullptr;
-static mts::olt2000::service::OltGponService* g_service = nullptr;
+static mts::olt2000::service::OltGponServiceImpl* g_service = nullptr;
 
 void signalHandler(int signum) {
     std::cout << "\nReceived signal " << signum << ", shutting down..." << std::endl;
@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
     std::cout << "MTS-OLT-2000 OLT GPON API Server" << std::endl;
     std::cout << "Starting on " << server_address << std::endl;
     
-    mts::olt2000::service::OltGponService service;
+    mts::olt2000::service::OltGponServiceImpl service;
     mts::olt2000::g_service = &service;
     service.startHealthMonitor();
     

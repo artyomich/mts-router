@@ -17,10 +17,11 @@
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
-#include <google/protobuf/empty.pb.h>
 
-#include "proto/mts_residential.grpc.pb.h"
-#include "proto/mts_residential.pb.h"
+#include "grpc_generated/mts_residential.grpc.pb.h"
+#include "mts_residential.pb.h"
+
+using namespace mts::residential::v1;
 
 #include "hal/gpon_hal.h"
 #include "hal/wifi_hal.h"
@@ -41,11 +42,11 @@ public:
     ~ResidentialService() override = default;
 
     grpc::Status GetGponStatus(grpc::ServerContext* ctx,
-                                const google::protobuf::Empty* req,
+                                const Empty* req,
                                 GponOnuStatusResponse* resp) override;
     
     grpc::Status GetWifiStatus(grpc::ServerContext* ctx,
-                                const google::protobuf::Empty* req,
+                                const Empty* req,
                                 WifiBssInfoResponse* resp) override;
     
     grpc::Status UpdateWifi(grpc::ServerContext* ctx,
@@ -53,11 +54,11 @@ public:
                              UpdateWifiResponse* resp) override;
     
     grpc::Status GetWifiClients(grpc::ServerContext* ctx,
-                                 const google::protobuf::Empty* req,
+                                 const Empty* req,
                                  WifiClientInfoResponse* resp) override;
     
     grpc::Status GetVoipStatus(grpc::ServerContext* ctx,
-                                const google::protobuf::Empty* req,
+                                const Empty* req,
                                 VoipStatusResponse* resp) override;
     
     grpc::Status UpdateVoip(grpc::ServerContext* ctx,
@@ -65,19 +66,19 @@ public:
                              UpdateVoipResponse* resp) override;
     
     grpc::Status GetIptvStatus(grpc::ServerContext* ctx,
-                                const google::protobuf::Empty* req,
+                                const Empty* req,
                                 IptvStatusResponse* resp) override;
     
     grpc::Status GetTr069Status(grpc::ServerContext* ctx,
-                                 const google::protobuf::Empty* req,
+                                 const Empty* req,
                                  Tr069StatusResponse* resp) override;
     
     grpc::Status GetLanConfig(grpc::ServerContext* ctx,
-                               const google::protobuf::Empty* req,
+                               const Empty* req,
                                LanConfigResponse* resp) override;
     
     grpc::Status GetParentalControl(grpc::ServerContext* ctx,
-                                     const google::protobuf::Empty* req,
+                                     const Empty* req,
                                      ParentalControlResponse* resp) override;
     
     grpc::Status UpdateParentalControl(grpc::ServerContext* ctx,
@@ -93,7 +94,7 @@ public:
                                 BlockClientResponse* resp) override;
     
     grpc::Status GetDeviceHealth(grpc::ServerContext* ctx,
-                                  const google::protobuf::Empty* req,
+                                  const Empty* req,
                                   DeviceHealthResponse* resp) override;
     
     grpc::Status SubscribeTelemetry(grpc::ServerContext* ctx,

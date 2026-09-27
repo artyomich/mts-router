@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <ctime>
+#include <sys/resource.h>
 
 namespace mts::mc5000::service {
 
@@ -34,7 +35,7 @@ MobileCoreService::MobileCoreService()
     , gtp_hal_(std::make_unique<hal::GtpHal>()) {}
 
 grpc::Status MobileCoreService::GetUpfStatus(grpc::ServerContext* ctx,
-                                              const google::protobuf::Empty* req,
+                                              const Empty* req,
                                               UpfStatusResponse* resp) {
     try {
         auto status = upf_hal_->getStatus();
@@ -56,7 +57,7 @@ grpc::Status MobileCoreService::GetUpfStatus(grpc::ServerContext* ctx,
 }
 
 grpc::Status MobileCoreService::GetPduSessions(grpc::ServerContext* ctx,
-                                                const google::protobuf::Empty* req,
+                                                const Empty* req,
                                                 PduSessionResponse* resp) {
     try {
         auto sessions = upf_hal_->getPduSessions();
@@ -86,8 +87,7 @@ grpc::Status MobileCoreService::CreatePduSession(grpc::ServerContext* ctx,
                                                   CreatePduSessionResponse* resp) {
     try {
         hal::PduSession session;
-        session.session_id = "sess-" + std::to_string(std::hash<std::string>{}(req->ue_ip())) % 100000
-                             + "-" + std::to_string(req->teid());
+        session.session_id = "sess-" + std::to_string(std::hash<std::string>{}(req->ue_ip()) % 100000) + "-" + std::to_string(req->teid());
         session.ue_ip = req->ue_ip();
         session.upf_ip = req->upf_ip();
         session.teid = req->teid();
@@ -139,7 +139,7 @@ grpc::Status MobileCoreService::DeletePduSession(grpc::ServerContext* ctx,
 }
 
 grpc::Status MobileCoreService::GetPfcpSessions(grpc::ServerContext* ctx,
-                                                 const google::protobuf::Empty* req,
+                                                 const Empty* req,
                                                  PfcpSessionResponse* resp) {
     try {
         auto sessions = pfcp_hal_->getStatus();
@@ -188,7 +188,7 @@ grpc::Status MobileCoreService::CreatePfcpSteering(grpc::ServerContext* ctx,
 }
 
 grpc::Status MobileCoreService::GetGtpTunnels(grpc::ServerContext* ctx,
-                                               const google::protobuf::Empty* req,
+                                               const Empty* req,
                                                GtpTunnelResponse* resp) {
     try {
         auto tunnels = gtp_hal_->getTunnels();
@@ -211,7 +211,7 @@ grpc::Status MobileCoreService::GetGtpTunnels(grpc::ServerContext* ctx,
 }
 
 grpc::Status MobileCoreService::GetFiveQIConfigs(grpc::ServerContext* ctx,
-                                                 const google::protobuf::Empty* req,
+                                                 const Empty* req,
                                                  FiveQIConfigResponse* resp) {
     try {
         // Standard 5QI configurations per 3GPP TS 23.501
@@ -226,31 +226,31 @@ grpc::Status MobileCoreService::GetFiveQIConfigs(grpc::ServerContext* ctx,
         };
         
         static const FiveQIEntry configs[] = {
-            {1, "GBR - Conversational Voice", "GBR", 1, 100, 1500, 1e-5},
-            {2, "GBR - Conversational Video", "GBR", 2, 100, 1500, 1e-6},
-            {65, "GBR - Video (live streaming)", "GBR", 3, 50, 2300, 1e-6},
-            {66, "GBR - Real-time Gaming", "GBR", 4, 50, 1500, 1e-7},
-            {67, "GBR - Bufferized video streaming", "GBR", 5, 100, 9600, 1e-7},
-            {69, "GBR - IMS video", "GBR", 6, 170, 1500, 1e-6},
-            {71, "GBR - IMS signaling", "GBR", 7, 100, 1500, 1e-6},
-            {72, "GBR - Bufferized video (low latency)", "GBR", 3, 50, 2300, 1e-7},
-            {73, "GBR - Bufferized video (interactive)", "GBR", 5, 100, 9600, 1e-7},
-            {74, "GBR - TCP-based gaming", "GBR", 4, 50, 1500, 1e-7},
-            {75, "GBR - Bufferized video (low latency)", "GBR", 3, 50, 2300, 1e-7},
-            {76, "GBR - File transfer", "GBR", 8, 1000, 102400, 1e-8},
-            {77, "GBR - File transfer", "GBR", 8, 1000, 102400, 1e-8},
-            {82, "GBR - IMS video (low latency)", "GBR", 3, 50, 1500, 1e-6},
-            {83, "GBR - IMS video (low latency)", "GBR", 3, 50, 1500, 1e-6},
-            {84, "GBR - IMS video (low latency)", "GBR", 3, 50, 1500, 1e-6},
-            {85, "GBR - IMS video (low latency)", "GBR", 3, 50, 1500, 1e-6},
-            {86, "GBR - IMS video (low latency)", "GBR", 3, 50, 1500, 1e-6},
-            {90, "Non-GBR - Conversational Speech", "non-GBR", 1, 100, 1500, 1e-5},
-            {91, "Non-GBR - Streaming Video", "non-GBR", 2, 150, 2300, 1e-6},
-            {92, "Non-GBR - Interactive Gaming", "non-GBR", 3, 50, 1500, 1e-7},
-            {93, "Non-GBR - Bufferized Video", "non-GBR", 4, 100, 9600, 1e-7},
-            {94, "Non-GBR - Non-buffered Video", "non-GBR", 5, 100, 2300, 1e-6},
-            {95, "Non-GBR - Background", "non-GBR", 9, 2560, 102400, 1e-8},
-            {96, "Non-GBR - Background", "non-GBR", 9, 2560, 102400, 1e-8},
+            {1, "GBR - Conversational Voice", "GBR", 1, 100, 1500, static_cast<uint32_t>(1e-5)},
+            {2, "GBR - Conversational Video", "GBR", 2, 100, 1500, static_cast<uint32_t>(1e-6)},
+            {65, "GBR - Video (live streaming)", "GBR", 3, 50, 2300, static_cast<uint32_t>(1e-6)},
+            {66, "GBR - Real-time Gaming", "GBR", 4, 50, 1500, static_cast<uint32_t>(1e-7)},
+            {67, "GBR - Bufferized video streaming", "GBR", 5, 100, 9600, static_cast<uint32_t>(1e-7)},
+            {69, "GBR - IMS video", "GBR", 6, 170, 1500, static_cast<uint32_t>(1e-6)},
+            {71, "GBR - IMS signaling", "GBR", 7, 100, 1500, static_cast<uint32_t>(1e-6)},
+            {72, "GBR - Bufferized video (low latency)", "GBR", 3, 50, 2300, static_cast<uint32_t>(1e-7)},
+            {73, "GBR - Bufferized video (interactive)", "GBR", 5, 100, 9600, static_cast<uint32_t>(1e-7)},
+            {74, "GBR - TCP-based gaming", "GBR", 4, 50, 1500, static_cast<uint32_t>(1e-7)},
+            {75, "GBR - Bufferized video (low latency)", "GBR", 3, 50, 2300, static_cast<uint32_t>(1e-7)},
+            {76, "GBR - File transfer", "GBR", 8, 1000, 102400, static_cast<uint32_t>(1e-8)},
+            {77, "GBR - File transfer", "GBR", 8, 1000, 102400, static_cast<uint32_t>(1e-8)},
+            {82, "GBR - IMS video (low latency)", "GBR", 3, 50, 1500, static_cast<uint32_t>(1e-6)},
+            {83, "GBR - IMS video (low latency)", "GBR", 3, 50, 1500, static_cast<uint32_t>(1e-6)},
+            {84, "GBR - IMS video (low latency)", "GBR", 3, 50, 1500, static_cast<uint32_t>(1e-6)},
+            {85, "GBR - IMS video (low latency)", "GBR", 3, 50, 1500, static_cast<uint32_t>(1e-6)},
+            {86, "GBR - IMS video (low latency)", "GBR", 3, 50, 1500, static_cast<uint32_t>(1e-6)},
+            {90, "Non-GBR - Conversational Speech", "non-GBR", 1, 100, 1500, static_cast<uint32_t>(1e-5)},
+            {91, "Non-GBR - Streaming Video", "non-GBR", 2, 150, 2300, static_cast<uint32_t>(1e-6)},
+            {92, "Non-GBR - Interactive Gaming", "non-GBR", 3, 50, 1500, static_cast<uint32_t>(1e-7)},
+            {93, "Non-GBR - Bufferized Video", "non-GBR", 4, 100, 9600, static_cast<uint32_t>(1e-7)},
+            {94, "Non-GBR - Non-buffered Video", "non-GBR", 5, 100, 2300, static_cast<uint32_t>(1e-6)},
+            {95, "Non-GBR - Background", "non-GBR", 9, 2560, 102400, static_cast<uint32_t>(1e-8)},
+            {96, "Non-GBR - Background", "non-GBR", 9, 2560, 102400, static_cast<uint32_t>(1e-8)},
         };
         
         for (const auto& cfg : configs) {
@@ -286,7 +286,7 @@ grpc::Status MobileCoreService::UpdateFiveQI(grpc::ServerContext* ctx,
 }
 
 grpc::Status MobileCoreService::GetNrfRegistry(grpc::ServerContext* ctx,
-                                                const google::protobuf::Empty* req,
+                                                const Empty* req,
                                                 NrfRegistryResponse* resp) {
     try {
         // Standard 5GC network function registry
@@ -321,7 +321,7 @@ grpc::Status MobileCoreService::GetNrfRegistry(grpc::ServerContext* ctx,
 }
 
 grpc::Status MobileCoreService::GetDeviceHealth(grpc::ServerContext* ctx,
-                                                 const google::protobuf::Empty* req,
+                                                 const Empty* req,
                                                  DeviceHealthResponse* resp) {
     try {
         *resp->mutable_health() = createHealthResponse();
@@ -337,7 +337,7 @@ grpc::Status MobileCoreService::SubscribeTelemetry(grpc::ServerContext* ctx,
     try {
         auto interval_ms = req->sample_interval() > 0 ? req->sample_interval() : 1000;
         
-        while (ctx->IsRunning()) {
+        while (ctx->IsCancelled() == false) {
             TelemetryData data;
             data.set_timestamp(std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::steady_clock::now().time_since_epoch()).count());
@@ -349,26 +349,26 @@ grpc::Status MobileCoreService::SubscribeTelemetry(grpc::ServerContext* ctx,
             auto gtp_tunnels = gtp_hal_->getTunnels();
             
             // UPF metrics
-            data.add_metrics()->set_key("upf.cpu_usage")->set_value(upf_status.cpu_usage);
-            data.add_metrics()->set_key("upf.memory_usage")->set_value(upf_status.memory_usage);
-            data.add_metrics()->set_key("upf.active_sessions")->set_value(upf_status.active_sessions);
-            data.add_metrics()->set_key("upf.rx_bytes")->set_value(static_cast<double>(upf_status.rx_bytes));
-            data.add_metrics()->set_key("upf.tx_bytes")->set_value(static_cast<double>(upf_status.tx_bytes));
+            auto* metrics_map = data.mutable_metrics();
+            auto telem = createTelemetryData();
+            for (const auto& kv : telem.metrics()) {
+                (*metrics_map)[kv.first] = kv.second;
+            }
             
             // SMF metrics
-            data.add_metrics()->set_key("smf.sessions")->set_value(smf_config.current_sessions);
-            data.add_metrics()->set_key("smf.max_sessions")->set_value(smf_config.max_sessions);
+            (*metrics_map)["smf.sessions"] = smf_config.current_sessions;
+            (*metrics_map)["smf.max_sessions"] = smf_config.max_sessions;
             
             // PFCP metrics
-            data.add_metrics()->set_key("pfcp.sessions")->set_value(pfcp_sessions.size());
+            (*metrics_map)["pfcp.sessions"] = pfcp_sessions.size();
             
             // GTP metrics
             uint32_t active_tunnels = 0;
             for (const auto& t : gtp_tunnels) {
                 if (t.status == "active") active_tunnels++;
             }
-            data.add_metrics()->set_key("gtp.active_tunnels")->set_value(active_tunnels);
-            data.add_metrics()->set_key("gtp.total_tunnels")->set_value(gtp_tunnels.size());
+            (*metrics_map)["gtp.active_tunnels"] = active_tunnels;
+            (*metrics_map)["gtp.total_tunnels"] = gtp_tunnels.size();
             
             // Port stats
             for (const auto& iface : gtp_hal_->getTunnels()) {

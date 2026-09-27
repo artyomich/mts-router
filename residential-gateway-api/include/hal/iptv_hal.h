@@ -18,6 +18,30 @@
 #include <atomic>
 #include <cstdint>
 
+#define MTS_RG_IPTV_MAX_CHANNELS 50
+
+// C-типы для IPTV HAL
+typedef struct {
+    uint32_t channel_id;
+    char name[64];
+    char multicast_ip[32];
+    uint32_t multicast_port;
+    int status;     // 0=inactive, 1=active
+    uint32_t viewers;
+} mts_rg_iptv_channel_t;
+
+typedef struct {
+    int active;
+    uint32_t active_channels;
+    uint32_t total_channels;
+    double bandwidth_mbps;
+} mts_rg_iptv_status_t;
+
+typedef enum {
+    MTS_RG_IPTV_CHANNEL_INACTIVE = 0,
+    MTS_RG_IPTV_CHANNEL_ACTIVE
+} mts_rg_iptv_channel_status_t;
+
 namespace mts::rg500::hal {
 
 struct IptvChannel {
@@ -49,7 +73,7 @@ public:
 class IptvHal : public IIptvHal {
 public:
     IptvHal();
-    ~IptvHal() override = default;
+    ~IptvHal() override;
 
     IptvStatus getStatus() override;
     bool isAvailable() override;

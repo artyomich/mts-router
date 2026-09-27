@@ -20,25 +20,12 @@
 #include <cstdint>
 #include <cstring>
 
+#include "upf_hal.h"
+
 namespace mts::mc5000::hal {
 
-struct PfcpRule {
-    uint32_t rule_id;
-    std::string description;
-    std::string action;  // "forward", "drop", "buffer"
-    uint32_t qos_index;
-};
-
-struct PfcpSession {
-    std::string session_id;
-    std::string f_seid;
-    std::string peer_ip;
-    std::string type;    // "upf", "smf"
-    std::string status;  // "established", "inactive"
-    std::vector<PfcpRule> rules;
-    uint64_t rx_bytes;
-    uint64_t tx_bytes;
-};
+// PfcpRule moved to upf_hal.h — no redefinition needed here
+// struct PfcpRule {...}  // removed — defined in upf_hal.h
 
 struct PfcpStatus {
     std::string device_name;
@@ -62,7 +49,7 @@ public:
 class PfcpHal : public IPfcpHal {
 public:
     PfcpHal();
-    ~PfcpHal() override = default;
+    ~PfcpHal() override;
 
     std::vector<PfcpSession> getStatus() override;
     bool isAvailable() override;

@@ -28,8 +28,10 @@
 #include "hal/sync_e_hal.h"
 #include "hal/mpls_hal.h"
 
-#include "mts_backhaul.grpc.pb.h"
+#include "grpc_generated/mts_backhaul.grpc.pb.h"
 #include "mts_backhaul.pb.h"
+
+using namespace mts::backhaul::v1;
 
 namespace mts {
 namespace service {

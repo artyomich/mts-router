@@ -10,7 +10,7 @@
 #include <thread>
 
 #include <grpcpp/grpcpp.h>
-#include <grpcpp/health_service.h>
+#include <grpcpp/health_check_service_interface.h>
 
 #include "service/core_router_service.h"
 

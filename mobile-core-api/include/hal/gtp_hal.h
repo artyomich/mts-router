@@ -18,20 +18,12 @@
 #include <atomic>
 #include <map>
 #include <cstdint>
+#include "upf_hal.h"
 
 namespace mts::mc5000::hal {
 
-struct GtpTunnel {
-    std::string tunnel_id;
-    std::string local_ip;
-    std::string remote_ip;
-    uint32_t local_teid;
-    uint32_t remote_teid;
-    std::string type;    // "gtp-u", "gtp-c"
-    std::string status;  // "active", "inactive"
-    uint64_t rx_bytes;
-    uint64_t tx_bytes;
-};
+// GtpTunnel moved to upf_hal.h — no redefinition needed here
+// struct GtpTunnel {...}  // removed — defined in upf_hal.h
 
 struct GtpStatus {
     std::string device_name;
@@ -55,7 +47,7 @@ public:
 class GtpHal : public IGtpHal {
 public:
     GtpHal();
-    ~GtpHal() override = default;
+    ~GtpHal() override;
 
     std::vector<GtpTunnel> getTunnels() override;
     bool isAvailable() override;

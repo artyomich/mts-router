@@ -132,3 +132,61 @@ int mts_rg_tr069_trigger_bootstrap(void) {
 }
 
 } // extern "C"
+
+namespace mts::rg500::hal {
+
+Tr069Hal::Tr069Hal() : mock_mode_(false), available_(true), cwmpd_running_(false) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    tr069_status_.device_id = "cwmpd";
+    tr069_status_.url = "";
+    tr069_status_.enabled = false;
+    tr069_status_.polling_interval = 300;
+    tr069_status_.last_poll = 0;
+    tr069_status_.next_poll = 0;
+    tr069_status_.status = "inactive";
+    std::cout << "[Tr069Hal] Constructed" << std::endl;
+}
+
+Tr069Hal::~Tr069Hal() {
+    std::cout << "[Tr069Hal] Destructed" << std::endl;
+}
+
+Tr069Status Tr069Hal::getStatus() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    if (mock_mode_.load()) {
+        return applyMockStatus();
+    }
+    
+    return tr069_status_;
+}
+
+bool Tr069Hal::isAvailable() {
+    return available_;
+}
+
+std::string Tr069Hal::getDeviceName() {
+    return "CWMP TR-069";
+}
+
+void Tr069Hal::setMockMode(bool enabled) {
+    mock_mode_.store(enabled);
+}
+
+bool Tr069Hal::monitorCwmpd() { return cwmpd_running_; }
+bool Tr069Hal::updateTcpConnections() { return false; }
+bool Tr069Hal::updateFromCwmpd() { return false; }
+
+Tr069Status Tr069Hal::applyMockStatus() {
+    Tr069Status status;
+    status.device_id = "cwmp-mock";
+    status.url = "http://acs.example.com:7547";
+    status.enabled = false;
+    status.polling_interval = 300;
+    status.last_poll = 0;
+    status.next_poll = 0;
+    status.status = "inactive";
+    return status;
+}
+
+} // namespace mts::rg500::hal

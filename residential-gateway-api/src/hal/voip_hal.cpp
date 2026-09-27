@@ -150,3 +150,63 @@ int mts_rg_voip_set_codec(const char *codec) {
 }
 
 } // extern "C"
+
+namespace mts::rg500::hal {
+
+VoipHal::VoipHal() : asterisk_available_(false), mock_mode_(false), available_(true) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    voip_status_.device_id = "asterisk-voip";
+    voip_status_.status = "active";
+    voip_status_.total_lines = 2;
+    voip_status_.active_calls = 0;
+    voip_status_.total_calls = 0;
+    voip_status_.codec = "g711u";
+    voip_status_.sample_rate = 8000;
+    std::cout << "[VoipHal] Constructed" << std::endl;
+}
+
+VoipHal::~VoipHal() {
+    std::cout << "[VoipHal] Destructed" << std::endl;
+}
+
+VoipStatus VoipHal::getStatus() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    if (mock_mode_.load()) {
+        return applyMockStatus();
+    }
+    
+    return voip_status_;
+}
+
+bool VoipHal::isAvailable() {
+    return available_;
+}
+
+std::string VoipHal::getDeviceName() {
+    return "Asterisk VoIP";
+}
+
+void VoipHal::setMockMode(bool enabled) {
+    mock_mode_.store(enabled);
+}
+
+bool VoipHal::checkAsteriskRunning() { return asterisk_available_; }
+std::vector<std::string> VoipHal::getLineListFromAsterisk() { return {}; }
+bool VoipHal::readCallsFromAsterisk() { return false; }
+bool VoipHal::readRtpStats() { return false; }
+bool VoipHal::readAudioQuality() { return false; }
+
+VoipStatus VoipHal::applyMockStatus() {
+    VoipStatus status;
+    status.device_id = "asterisk-mock";
+    status.status = "active";
+    status.total_lines = 2;
+    status.active_calls = 0;
+    status.total_calls = 0;
+    status.codec = "g711u";
+    status.sample_rate = 8000;
+    return status;
+}
+
+} // namespace mts::rg500::hal
