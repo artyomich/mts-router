@@ -7,7 +7,7 @@
 FROM ubuntu:24.04 AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    cmake g++-12 libprotobuf-dev protobuf-compiler libgrpc++-dev \
+    cmake make g++-12 libprotobuf-dev protobuf-compiler libgrpc++-dev \
     libboost-all-dev libgtest-dev \
     && rm -rf /var/lib/apt/lists/*
 
