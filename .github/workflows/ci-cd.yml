@@ -375,7 +375,7 @@ jobs:
           docker build -f core-router-api/Dockerfile -t mts/cr9000:latest .
       - name: Test Docker image
         run: |
-          docker run --rm mts/cr9000:latest /bin/sh -c "echo 'Docker OK'"
+          docker run --rm --entrypoint /bin/sh mts/cr9000:latest -c "mts-cr9000-server --help && echo 'Docker OK'"
 
   docker-mobile-core:
     name: Docker MTS-MC-5000
@@ -389,7 +389,7 @@ jobs:
           docker build -f mobile-core-api/Dockerfile -t mts/mc5000:latest .
       - name: Test Docker image
         run: |
-          docker run --rm mts/mc5000:latest /bin/sh -c "echo 'Docker OK'"
+          docker run --rm --entrypoint /bin/sh mts/mc5000:latest -c "mts-mc5000-server --help && echo 'Docker OK'"
 
   docker-olt-gpon:
     name: Docker MTS-OLT-2000
@@ -403,7 +403,7 @@ jobs:
           docker build -f olt-gpon-api/Dockerfile -t mts/olt2000:latest .
       - name: Test Docker image
         run: |
-          docker run --rm mts/olt2000:latest /bin/sh -c "echo 'Docker OK'"
+          docker run --rm --entrypoint /bin/sh mts/olt2000:latest -c "mts-olt2000-server --help && echo 'Docker OK'"
 
   docker-enterprise:
     name: Docker MTS-ER-1000
@@ -417,7 +417,7 @@ jobs:
           docker build -f enterprise-router-api/Dockerfile -t mts/er1000:latest .
       - name: Test Docker image
         run: |
-          docker run --rm mts/er1000:latest /bin/sh -c "echo 'Docker OK'"
+          docker run --rm --entrypoint /bin/sh mts/er1000:latest -c "mts-er1000-server --help && echo 'Docker OK'"
 
   docker-residential:
     name: Docker MTS-RG-500
@@ -431,7 +431,7 @@ jobs:
           docker build -f residential-gateway-api/Dockerfile -t mts/rg500:latest .
       - name: Test Docker image
         run: |
-          docker run --rm mts/rg500:latest /bin/sh -c "echo 'Docker OK'"
+          docker run --rm --entrypoint /bin/sh mts/rg500:latest -c "mts-rg500-server --help && echo 'Docker OK'"
 
   # ============================================================
   # Python SDK Tests
