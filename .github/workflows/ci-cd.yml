@@ -113,7 +113,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
             libboost-all-dev libgtest-dev libc-ares-dev pkg-config \
-            libgrpc++-dev grpc-common
+            libgrpc++-dev libgrpc-dev
 
       - name: Configure CMake
         run: |
