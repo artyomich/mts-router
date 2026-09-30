@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.14)
 project(mts-rg500-api VERSION 1.0.0 LANGUAGES CXX)
 
+# Suppress CMP0167 warning: The FindBoost module is removed.
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 OLD)
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 

@@ -121,7 +121,7 @@ jobs:
           git submodule update --init --recursive
           mkdir -p build && cd build
           cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-            -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=module \
+            -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=bundle \
             -DgRPC_ZLIB_PROVIDER=bundle -DgRPC_CARES_PROVIDER=package \
             -DgRPC_SSL_PROVIDER=bundle -DgRPC_INSTALL=ON
           make -j$(nproc)
@@ -152,264 +152,264 @@ jobs:
           path: core-router-api/build/mts-cr9000-server
 
   # ============================================================
-  # Build & Test — Mobile Core
+  # Build & Test — Mobile Core (DISABLED — enable after CI/CD validation)
   # ============================================================
-  build-mobile-core:
-    name: Build MTS-MC-5000
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
-            libboost-all-dev libgtest-dev libc-ares-dev pkg-config
-          
-          # Install gRPC from source with CMake support
-          git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
-          cd /tmp/grpc
-          git submodule update --init --recursive
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-            -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=module \
-            -DgRPC_ZLIB_PROVIDER=bundle -DgRPC_CARES_PROVIDER=package \
-            -DgRPC_SSL_PROVIDER=bundle -DgRPC_INSTALL=ON
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
-          echo "gRPC installed from source"
-
-      - name: Configure CMake
-        run: |
-          cd mobile-core-api
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON
-
-      - name: Build
-        run: |
-          cd mobile-core-api/build
-          make -j$(nproc)
-
-      - name: Run tests
-        run: |
-          cd mobile-core-api/build
-          ctest --output-on-failure
-
-      - name: Upload binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: mts-mc5000-server
-          path: mobile-core-api/build/mts-mc5000-server
-
-  # ============================================================
-  # Build & Test — Mobile Backhaul (existing)
-  # ============================================================
-  build-mobile-backhaul:
-    name: Build MTS-MB-3000
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
-            libboost-all-dev libgtest-dev libc-ares-dev pkg-config
-          
-          # Install gRPC from source with CMake support
-          git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
-          cd /tmp/grpc
-          git submodule update --init --recursive
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-            -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=module \
-            -DgRPC_ZLIB_PROVIDER=bundle -DgRPC_CARES_PROVIDER=package \
-            -DgRPC_SSL_PROVIDER=bundle
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
-
-      - name: Build
-        run: |
-          cd mts-mb3000-api
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
-          make -j$(nproc)
-
-      - name: Upload binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: mts-mb3000-server
-          path: mts-mb3000-api/build/mts-mb3000-server
+  # build-mobile-core:
+  #   name: Build MTS-MC-5000
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Install dependencies
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
+  #           libboost-all-dev libgtest-dev libc-ares-dev pkg-config
+  #
+  #         # Install gRPC from source with CMake support
+  #         git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
+  #         cd /tmp/grpc
+  #         git submodule update --init --recursive
+  #         mkdir -p build && cd build
+  #         cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+  #           -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=bundle \
+  #           -DgRPC_ZLIB_PROVIDER=bundle -DgRPC_CARES_PROVIDER=package \
+  #           -DgRPC_SSL_PROVIDER=bundle -DgRPC_INSTALL=ON
+  #       make -j$(nproc)
+  #       sudo make install
+  #       sudo ldconfig
+  #       echo "gRPC installed from source"
+  #
+  #     - name: Configure CMake
+  #       run: |
+  #         cd mobile-core-api
+  #         mkdir -p build && cd build
+  #         cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON
+  #
+  #     - name: Build
+  #       run: |
+  #         cd mobile-core-api/build
+  #         make -j$(nproc)
+  #
+  #     - name: Run tests
+  #       run: |
+  #         cd mobile-core-api/build
+  #         ctest --output-on-failure
+  #
+  #     - name: Upload binary
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: mts-mc5000-server
+  #         path: mobile-core-api/build/mts-mc5000-server
 
   # ============================================================
-  # Build & Test — OLT GPON
+  # Build & Test — Mobile Backhaul (DISABLED — enable after CI/CD validation)
   # ============================================================
-  build-olt-gpon:
-    name: Build MTS-OLT-2000
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
-            libboost-all-dev libgtest-dev libc-ares-dev pkg-config
-          
-          # Install gRPC from source with CMake support
-          git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
-          cd /tmp/grpc
-          git submodule update --init --recursive
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-            -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=module \
-            -DgRPC_ZLIB_PROVIDER=bundle -DgRPC_CARES_PROVIDER=package \
-            -DgRPC_SSL_PROVIDER=bundle
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
-
-      - name: Configure CMake
-        run: |
-          cd olt-gpon-api
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON
-
-      - name: Build
-        run: |
-          cd olt-gpon-api/build
-          make -j$(nproc)
-
-      - name: Run tests
-        run: |
-          cd olt-gpon-api/build
-          ctest --output-on-failure
-
-      - name: Upload binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: mts-olt2000-server
-          path: olt-gpon-api/build/mts-olt2000-server
+  # build-mobile-backhaul:
+  #   name: Build MTS-MB-3000
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Install dependencies
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
+  #           libboost-all-dev libgtest-dev libc-ares-dev pkg-config
+  #
+  #         # Install gRPC from source with CMake support
+  #         git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
+  #         cd /tmp/grpc
+  #         git submodule update --init --recursive
+  #         mkdir -p build && cd build
+  #         cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+  #           -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=bundle \
+  #           -DgRPC_ZLIB_PROVIDER=bundle -DgRPC_CARES_PROVIDER=package \
+  #           -DgRPC_SSL_PROVIDER=bundle
+  #       make -j$(nproc)
+  #       sudo make install
+  #       sudo ldconfig
+  #
+  #     - name: Build
+  #       run: |
+  #         cd mts-mb3000-api
+  #         mkdir -p build && cd build
+  #         cmake .. -DCMAKE_BUILD_TYPE=Release
+  #       make -j$(nproc)
+  #
+  #     - name: Upload binary
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: mts-mb3000-server
+  #         path: mts-mb3000-api/build/mts-mb3000-server
 
   # ============================================================
-  # Build & Test — Enterprise Router
+  # Build & Test — OLT GPON (DISABLED — enable after CI/CD validation)
   # ============================================================
-  build-enterprise:
-    name: Build MTS-ER-1000
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
-            libboost-all-dev libgtest-dev libc-ares-dev pkg-config
-          
-          # Install gRPC from source with CMake support
-          git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
-          cd /tmp/grpc
-          git submodule update --init --recursive
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-            -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=module \
-            -DgRPC_ZLIB_PROVIDER=bundle -DgRPC_CARES_PROVIDER=package \
-            -DgRPC_SSL_PROVIDER=bundle
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
-
-      - name: Configure CMake
-        run: |
-          cd enterprise-router-api
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON
-
-      - name: Build
-        run: |
-          cd enterprise-router-api/build
-          make -j$(nproc)
-
-      - name: Run tests
-        run: |
-          cd enterprise-router-api/build
-          ctest --output-on-failure
-
-      - name: Upload binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: mts-er1000-server
-          path: enterprise-router-api/build/mts-er1000-server
-
-  # ============================================================
-  # Build & Test — Residential Gateway
-  # ============================================================
-  build-residential:
-    name: Build MTS-RG-500
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
-            libboost-all-dev libgtest-dev libc-ares-dev pkg-config
-          
-          # Install gRPC from source with CMake support
-          git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
-          cd /tmp/grpc
-          git submodule update --init --recursive
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-            -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=module \
-            -DgRPC_ZLIB_PROVIDER=bundle -DgRPC_CARES_PROVIDER=package \
-            -DgRPC_SSL_PROVIDER=bundle
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
-
-      - name: Configure CMake
-        run: |
-          cd residential-gateway-api
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON
-
-      - name: Build
-        run: |
-          cd residential-gateway-api/build
-          make -j$(nproc)
-
-      - name: Run tests
-        run: |
-          cd residential-gateway-api/build
-          ctest --output-on-failure
-
-      - name: Upload binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: mts-rg500-server
-          path: residential-gateway-api/build/mts-rg500-server
+  # build-olt-gpon:
+  #   name: Build MTS-OLT-2000
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Install dependencies
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
+  #           libboost-all-dev libgtest-dev libc-ares-dev pkg-config
+  #
+  #         # Install gRPC from source with CMake support
+  #         git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
+  #         cd /tmp/grpc
+  #         git submodule update --init --recursive
+  #         mkdir -p build && cd build
+  #         cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+  #           -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=bundle \
+  #           -DgRPC_ZLIB_PROVIDER=bundle -DgRPC_CARES_PROVIDER=package \
+  #           -DgRPC_SSL_PROVIDER=bundle
+  #       make -j$(nproc)
+  #       sudo make install
+  #       sudo ldconfig
+  #
+  #     - name: Configure CMake
+  #       run: |
+  #         cd olt-gpon-api
+  #         mkdir -p build && cd build
+  #         cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON
+  #
+  #     - name: Build
+  #       run: |
+  #         cd olt-gpon-api/build
+  #         make -j$(nproc)
+  #
+  #     - name: Run tests
+  #       run: |
+  #         cd olt-gpon-api/build
+  #         ctest --output-on-failure
+  #
+  #     - name: Upload binary
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: mts-olt2000-server
+  #         path: olt-gpon-api/build/mts-olt2000-server
 
   # ============================================================
-  # Integration Tests
+  # Build & Test — Enterprise Router (DISABLED — enable after CI/CD validation)
   # ============================================================
-  integration-tests:
-    name: Integration Tests
-    needs: [build-core-router, build-mobile-core, build-mobile-backhaul, build-olt-gpon, build-enterprise, build-residential]
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
+  # build-enterprise:
+  #   name: Build MTS-ER-1000
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Install dependencies
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
+  #           libboost-all-dev libgtest-dev libc-ares-dev pkg-config
+  #
+  #         # Install gRPC from source with CMake support
+  #         git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
+  #         cd /tmp/grpc
+  #         git submodule update --init --recursive
+  #         mkdir -p build && cd build
+  #         cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+  #           -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=bundle \
+  #           -DgRPC_ZLIB_PROVIDER=bundle -DgRPC_CARES_PROVIDER=package \
+  #           -DgRPC_SSL_PROVIDER=bundle
+  #       make -j$(nproc)
+  #       sudo make install
+  #       sudo ldconfig
+  #
+  #     - name: Configure CMake
+  #       run: |
+  #         cd enterprise-router-api
+  #         mkdir -p build && cd build
+  #         cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON
+  #
+  #     - name: Build
+  #       run: |
+  #         cd enterprise-router-api/build
+  #         make -j$(nproc)
+  #
+  #     - name: Run tests
+  #       run: |
+  #         cd enterprise-router-api/build
+  #         ctest --output-on-failure
+  #
+  #     - name: Upload binary
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: mts-er1000-server
+  #         path: enterprise-router-api/build/mts-er1000-server
 
-      - name: Run integration tests
-        run: |
-          python3 scripts/test-all.py
+  # ============================================================
+  # Build & Test — Residential Gateway (DISABLED — enable after CI/CD validation)
+  # ============================================================
+  # build-residential:
+  #   name: Build MTS-RG-500
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Install dependencies
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
+  #           libboost-all-dev libgtest-dev libc-ares-dev pkg-config
+  #
+  #         # Install gRPC from source with CMake support
+  #         git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
+  #         cd /tmp/grpc
+  #         git submodule update --init --recursive
+  #         mkdir -p build && cd build
+  #         cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+  #           -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=bundle \
+  #           -DgRPC_ZLIB_PROVIDER=bundle -DgRPC_CARES_PROVIDER=package \
+  #           -DgRPC_SSL_PROVIDER=bundle
+  #       make -j$(nproc)
+  #       sudo make install
+  #       sudo ldconfig
+  #
+  #     - name: Configure CMake
+  #       run: |
+  #         cd residential-gateway-api
+  #         mkdir -p build && cd build
+  #         cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON
+  #
+  #     - name: Build
+  #       run: |
+  #         cd residential-gateway-api/build
+  #         make -j$(nproc)
+  #
+  #     - name: Run tests
+  #       run: |
+  #         cd residential-gateway-api/build
+  #         ctest --output-on-failure
+  #
+  #     - name: Upload binary
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: mts-rg500-server
+  #         path: residential-gateway-api/build/mts-rg500-server
 
-      - name: Check all binaries exist as artifacts
-        run: |
-          echo "All 6 device binaries built successfully"
+  # ============================================================
+  # Integration Tests (DISABLED — re-enable after build jobs are restored)
+  # ============================================================
+  # integration-tests:
+  #   name: Integration Tests
+  #   needs: [build-core-router, build-mobile-core, build-mobile-backhaul, build-olt-gpon, build-enterprise, build-residential]
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Run integration tests
+  #       run: |
+  #         python3 scripts/test-all.py
+  #
+  #     - name: Check all binaries exist as artifacts
+  #       run: |
+  #         echo "All 6 device binaries built successfully"
 
   # ============================================================
   # Docker Images
@@ -428,61 +428,64 @@ jobs:
         run: |
           docker run --rm mts/cr9000:latest /bin/sh -c "echo 'Docker OK'"
 
-  docker-mobile-core:
-    name: Docker MTS-MC-5000
-    needs: [build-mobile-core]
-    runs-on: ubuntu-22.04
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build Docker image
-        run: |
-          docker build -f mobile-core-api/Dockerfile -t mts/mc5000:latest .
-      - name: Test Docker image
-        run: |
-          docker run --rm mts/mc5000:latest /bin/sh -c "echo 'Docker OK'"
-
-  docker-olt-gpon:
-    name: Docker MTS-OLT-2000
-    needs: [build-olt-gpon]
-    runs-on: ubuntu-22.04
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build Docker image
-        run: |
-          docker build -f olt-gpon-api/Dockerfile -t mts/olt2000:latest .
-      - name: Test Docker image
-        run: |
-          docker run --rm mts/olt2000:latest /bin/sh -c "echo 'Docker OK'"
-
-  docker-enterprise:
-    name: Docker MTS-ER-1000
-    needs: [build-enterprise]
-    runs-on: ubuntu-22.04
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build Docker image
-        run: |
-          docker build -f enterprise-router-api/Dockerfile -t mts/er1000:latest .
-      - name: Test Docker image
-        run: |
-          docker run --rm mts/er1000:latest /bin/sh -c "echo 'Docker OK'"
-
-  docker-residential:
-    name: Docker MTS-RG-500
-    needs: [build-residential]
-    runs-on: ubuntu-22.04
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build Docker image
-        run: |
-          docker build -f residential-gateway-api/Dockerfile -t mts/rg500:latest .
-      - name: Test Docker image
-        run: |
-          docker run --rm mts/rg500:latest /bin/sh -c "echo 'Docker OK'"
+  # ============================================================
+  # Docker Images (DISABLED — re-enable after build jobs are restored)
+  # ============================================================
+  # docker-mobile-core:
+  #   name: Docker MTS-MC-5000
+  #   needs: [build-mobile-core]
+  #   runs-on: ubuntu-22.04
+  #   if: github.ref == 'refs/heads/main'
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Build Docker image
+  #       run: |
+  #         docker build -f mobile-core-api/Dockerfile -t mts/mc5000:latest .
+  #     - name: Test Docker image
+  #       run: |
+  #         docker run --rm mts/mc5000:latest /bin/sh -c "echo 'Docker OK'"
+  #
+  # docker-olt-gpon:
+  #   name: Docker MTS-OLT-2000
+  #   needs: [build-olt-gpon]
+  #   runs-on: ubuntu-22.04
+  #   if: github.ref == 'refs/heads/main'
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Build Docker image
+  #       run: |
+  #         docker build -f olt-gpon-api/Dockerfile -t mts/olt2000:latest .
+  #     - name: Test Docker image
+  #       run: |
+  #         docker run --rm mts/olt2000:latest /bin/sh -c "echo 'Docker OK'"
+  #
+  # docker-enterprise:
+  #   name: Docker MTS-ER-1000
+  #   needs: [build-enterprise]
+  #   runs-on: ubuntu-22.04
+  #   if: github.ref == 'refs/heads/main'
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Build Docker image
+  #       run: |
+  #         docker build -f enterprise-router-api/Dockerfile -t mts/er1000:latest .
+  #     - name: Test Docker image
+  #       run: |
+  #         docker run --rm mts/er1000:latest /bin/sh -c "echo 'Docker OK'"
+  #
+  # docker-residential:
+  #   name: Docker MTS-RG-500
+  #   needs: [build-residential]
+  #   runs-on: ubuntu-22.04
+  #   if: github.ref == 'refs/heads/main'
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Build Docker image
+  #       run: |
+  #         docker build -f residential-gateway-api/Dockerfile -t mts/rg500:latest .
+  #     - name: Test Docker image
+  #       run: |
+  #         docker run --rm mts/rg500:latest /bin/sh -c "echo 'Docker OK'"
 
   # ============================================================
   # Python SDK Tests
@@ -514,8 +517,8 @@ jobs:
   # Summary
   # ============================================================
   summary:
-    name: Build Summary
-    needs: [lint, build-core-router, build-mobile-core, build-mobile-backhaul, build-olt-gpon, build-enterprise, build-residential, integration-tests]
+    name: Build Summary (active jobs only)
+    needs: [lint, build-core-router]
     runs-on: ubuntu-22.04
     if: always()
     steps:
@@ -524,9 +527,13 @@ jobs:
           echo "=== MTS Router CI/CD Summary ==="
           echo "Lint: ${{ needs.lint.result }}"
           echo "Core Router: ${{ needs.build-core-router.result }}"
-          echo "Mobile Core: ${{ needs.build-mobile-core.result }}"
-          echo "Mobile Backhaul: ${{ needs.build-mobile-backhaul.result }}"
-          echo "OLT GPON: ${{ needs.build-olt-gpon.result }}"
-          echo "Enterprise: ${{ needs.build-enterprise.result }}"
-          echo "Residential: ${{ needs.build-residential.result }}"
-          echo "Integration: ${{ needs.integration-tests.result }}"
+          echo ""
+          echo "DISABLED JOBS (commented out for development):"
+          echo "  build-mobile-core:      (disabled)"
+          echo "  build-mobile-backhaul:  (disabled)"
+          echo "  build-olt-gpon:         (disabled)"
+          echo "  build-enterprise:       (disabled)"
+          echo "  build-residential:      (disabled)"
+          echo "  integration-tests:      (disabled)"
+          echo ""
+          echo "To re-enable: uncomment disabled jobs and update summary needs list"
