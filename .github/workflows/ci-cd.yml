@@ -108,20 +108,46 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install gRPC with CMake config files
+      - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget apt-transport-https gnupg
-          echo "deb [arch=amd64] https://dl.google.com/linux/grpc/debian/ stable main" | sudo tee /etc/apt/sources.list.d/grpc.list
-          wget -qO - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-          sudo apt-get update
-          sudo apt-get install -y libgrpc-dev libgrpc++-dev protobuf-compiler grpc-common
+          sudo apt-get install -y cmake g++-12 wget apt-transport-https gnupg
+          sudo apt-get install -y libboost-all-dev libgtest-dev libc-ares-dev pkg-config
+          sudo apt-get install -y libssl-dev zlib1g-dev libunwind-dev
 
-      - name: Install other dependencies
+      - name: Build and install protobuf from source
         run: |
-          sudo apt-get install -y cmake g++-12 libprotobuf-dev \
-            libboost-all-dev libgtest-dev libc-ares-dev pkg-config \
-            libssl-dev zlib1g-dev
+          git clone --depth 1 --branch v3.21.12 https://github.com/protocolbuffers/protobuf.git /tmp/protobuf
+          cd /tmp/protobuf
+          git submodule update --init --recursive
+          mkdir -p build && cd build
+          cmake ../cmake .. -DCMAKE_INSTALL_PREFIX=/usr \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DWITH_PROTOBUF_MODULE=ON \
+            -Dprotobuf_BUILD_SHARED_LIBS=ON
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
+          echo "protobuf installed with CMake config files"
+
+      - name: Build and install gRPC from source
+        run: |
+          git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
+          cd /tmp/grpc
+          git submodule update --init --recursive
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DgRPC_INSTALL=ON \
+            -DgRPC_BUILD_TESTS=OFF \
+            -DgRPC_PROTOBUF_PROVIDER=package \
+            -DgRPC_ZLIB_PROVIDER=package \
+            -DgRPC_CARES_PROVIDER=package \
+            -DgRPC_SSL_PROVIDER=package
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
+          echo "gRPC installed with CMake config files"
 
       - name: Configure CMake
         run: |
