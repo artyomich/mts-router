@@ -130,16 +130,6 @@ jobs:
           sudo ldconfig
           echo "protobuf installed with CMake config files"
 
-      - name: Build and install gtest from source
-        run: |
-          cd /usr/src/googletest
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
-          echo "gtest installed"
-
       - name: Build and install gRPC from source
         run: |
           git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
@@ -158,6 +148,17 @@ jobs:
           sudo make install
           sudo ldconfig
           echo "gRPC installed with CMake config files"
+
+      - name: Build and install gtest from gRPC bundled source
+        run: |
+          cd /tmp/grpc/third_party/googletest
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release \
+            -Dgtest_force_shared_crt=ON -DGTEST_HAS_ABSL=OFF
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
+          echo "gtest installed from gRPC bundled source"
 
       - name: Configure CMake
         run: |
