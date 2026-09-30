@@ -4,7 +4,7 @@
 # ============================================================
 # Stage 1: Builder
 # ============================================================
-FROM ubuntu:22.04 AS builder
+FROM ubuntu:24.04 AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake g++-12 libprotobuf-dev protobuf-compiler libgrpc++-dev \
@@ -22,12 +22,12 @@ RUN mkdir -p build && cd build \
 # ============================================================
 # Stage 2: Runtime
 # ============================================================
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libprotobuf32t64 \
-    libgrpc++1t64 \
+    libgrpc++1.51t64 \
     libboost-system1.83.0 \
     libboost-filesystem1.83.0 \
     && rm -rf /var/lib/apt/lists/*
