@@ -26,10 +26,10 @@ FROM ubuntu:22.04
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libprotobuf32 \
-    libgrpc++1 \
-    libboost-system1.74.0 \
-    libboost-filesystem1.74.0 \
+    libprotobuf32t64 \
+    libgrpc++1t64 \
+    libboost-system1.83.0 \
+    libboost-filesystem1.83.0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
