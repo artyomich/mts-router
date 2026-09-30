@@ -112,16 +112,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
-            libboost-all-dev libgtest-dev libgrpc-dev grpc-common libgrpc++-dev
-          # If libgrpc++-dev fails, install from source
-          if ! dpkg -l | grep -q libgrpc++-dev; then
-            git clone --depth 1 --branch v1.50.2 https://github.com/grpc/grpc.git /tmp/grpc
-            cd /tmp/grpc/third_party/protobuf && mkdir build && cd build
-            cmake .. -DCMAKE_INSTALL_PREFIX=/usr && make -j$(nproc) && sudo make install
-            cd /tmp/grpc && mkdir build && cd build
-            cmake .. -DCMAKE_INSTALL_PREFIX=/usr && make -j$(nproc) && sudo make install
-            sudo ldconfig
-          fi
+            libboost-all-dev libgtest-dev libgrpc-dev libgrpc++-dev
 
       - name: Configure CMake
         run: |
@@ -158,7 +149,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
-            libboost-all-dev libgtest-dev libgrpc-dev grpc-common libgrpc++-dev
+            libboost-all-dev libgtest-dev libgrpc-dev libgrpc++-dev
 
       - name: Configure CMake
         run: |
@@ -195,7 +186,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
-            libboost-all-dev libgtest-dev libgrpc-dev grpc-common libgrpc++-dev
+            libboost-all-dev libgtest-dev libgrpc-dev libgrpc++-dev
 
       - name: Build
         run: |
@@ -223,7 +214,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
-            libboost-all-dev libgtest-dev libgrpc-dev grpc-common libgrpc++-dev
+            libboost-all-dev libgtest-dev libgrpc-dev libgrpc++-dev
 
       - name: Configure CMake
         run: |
@@ -260,7 +251,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
-            libboost-all-dev libgtest-dev libgrpc-dev grpc-common libgrpc++-dev
+            libboost-all-dev libgtest-dev libgrpc-dev libgrpc++-dev
 
       - name: Configure CMake
         run: |
@@ -297,7 +288,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
-            libboost-all-dev libgtest-dev libgrpc-dev grpc-common libgrpc++-dev
+            libboost-all-dev libgtest-dev libgrpc-dev libgrpc++-dev
 
       - name: Configure CMake
         run: |
