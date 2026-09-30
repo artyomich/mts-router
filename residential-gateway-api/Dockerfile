@@ -1,9 +1,9 @@
 # MTS-RG-500 Residential Gateway — Dockerfile
-FROM ubuntu:22.04 AS builder
+FROM ubuntu:24.04 AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    cmake g++-12 libprotobuf-dev protobuf-compiler libgrpc++-dev \
-    libboost-all-dev libgtest-dev \
+    cmake make g++-12 libprotobuf-dev protobuf-compiler libgrpc++-dev \
+    libboost-all-dev libgtest-dev libgrpc-dev protobuf-compiler-grpc \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
@@ -11,13 +11,17 @@ COPY residential-gateway-api/ .
 
 RUN mkdir -p build && cd build \
     && cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON \
+    -DgRPC_DIR=/usr/lib/x86_64-linux-gnu/cmake/grpc \
     && make -j$(nproc) \
     && make install
 
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libprotobuf32 libgrpc++1 \
+    libprotobuf32t64 \
+    libgrpc++1.51t64 \
+    libboost-system1.83.0 \
+    libboost-filesystem1.83.0 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd -r mts && useradd -r -g mts -d /opt/mts -s /bin/bash mts

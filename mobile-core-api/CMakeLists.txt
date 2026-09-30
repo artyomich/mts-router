@@ -47,9 +47,9 @@ add_custom_command(
     COMMAND ${PROTOBUF_PROTOC_EXECUTABLE}
         --grpc_out=${CMAKE_CURRENT_BINARY_DIR}/grpc_generated
         --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN}
-        --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/proto
-        ${PROTO_SRC}
-    DEPENDS ${PROTO_SRC}
+        --proto_path=${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/${PROTO_SRC}
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${PROTO_SRC}
     COMMENT "Generating gRPC C++ code from ${PROTO_SRC}"
     VERBATIM
 )
