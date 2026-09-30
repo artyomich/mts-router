@@ -1,0 +1,461 @@
+# MTS Router — OpenAPI Extensions (Telemetry & Config)
+# Include this file to extend the main OpenAPI spec
+
+openapi: 3.0.3
+info:
+  title: MTS Router API Extensions
+  description: Telemetry and Configuration API extensions for all MTS Router devices
+  version: 1.0.0
+
+servers:
+  - url: https://mts-router.local/api/v1
+    description: Production
+  - url: http://localhost:8080/api/v1
+    description: Development
+
+tags:
+  - name: telemetry
+    description: Telemetry data and streaming
+  - name: config
+    description: Configuration management
+
+paths:
+  /telemetry/health:
+    get:
+      tags: [telemetry]
+      summary: Get device health telemetry
+      operationId: getHealthTelemetry
+      responses:
+        '200':
+          description: Health telemetry data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelemetryHealth'
+
+  /telemetry/performance:
+    get:
+      tags: [telemetry]
+      summary: Get performance metrics
+      operationId: getPerformanceTelemetry
+      responses:
+        '200':
+          description: Performance metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelemetryPerformance'
+
+  /telemetry/interfaces/{id}:
+    get:
+      tags: [telemetry]
+      summary: Get interface telemetry
+      operationId: getInterfaceTelemetry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Interface telemetry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelemetryInterface'
+
+  /telemetry/subscribe:
+    post:
+      tags: [telemetry]
+      summary: Subscribe to telemetry stream
+      operationId: subscribeTelemetry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelemetrySubscription'
+      responses:
+        '201':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelemetrySubscription'
+        '400':
+          $ref: '#/components/responses/Error'
+
+  /config:
+    get:
+      tags: [config]
+      summary: List all configuration
+      operationId: listConfig
+      responses:
+        '200':
+          description: Configuration entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConfigEntry'
+    post:
+      tags: [config]
+      summary: Create configuration entry
+      operationId: createConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigEntry'
+      responses:
+        '201':
+          description: Configuration created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigEntry'
+        '400':
+          $ref: '#/components/responses/Error'
+
+  /config/{path}:
+    get:
+      tags: [config]
+      summary: Get configuration value
+      operationId: getConfig
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Configuration value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigEntry'
+        '404':
+          $ref: '#/components/responses/Error'
+    put:
+      tags: [config]
+      summary: Update configuration value
+      operationId: updateConfig
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigEntry'
+      responses:
+        '200':
+          description: Configuration updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigEntry'
+        '400':
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [config]
+      summary: Delete configuration entry
+      operationId: deleteConfig
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Configuration deleted
+        '404':
+          $ref: '#/components/responses/Error'
+
+  /config/validate:
+    post:
+      tags: [config]
+      summary: Validate configuration
+      operationId: validateConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                config:
+                  type: object
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigValidation'
+        '400':
+          $ref: '#/components/responses/Error'
+
+  /config/rollback:
+    post:
+      tags: [config]
+      summary: Rollback to previous configuration
+      operationId: rollbackConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                version:
+                  type: integer
+      responses:
+        '200':
+          description: Rollback result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigRollback'
+        '400':
+          $ref: '#/components/responses/Error'
+
+  /config/history:
+    get:
+      tags: [config]
+      summary: Get configuration history
+      operationId: getConfigHistory
+      parameters:
+        - name: path
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Configuration history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConfigHistoryEntry'
+
+  /config/export:
+    get:
+      tags: [config]
+      summary: Export configuration
+      operationId: exportConfig
+      parameters:
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [json, yaml, xml]
+            default: json
+      responses:
+        '200':
+          description: Exported configuration
+        '400':
+          $ref: '#/components/responses/Error'
+
+  /config/import:
+    post:
+      tags: [config]
+      summary: Import configuration
+      operationId: importConfig
+      parameters:
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [json, yaml, xml]
+            default: json
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Import result
+        '400':
+          $ref: '#/components/responses/Error'
+
+components:
+  schemas:
+    TelemetryHealth:
+      type: object
+      properties:
+        cpu_temp:
+          type: integer
+        gpu_temp:
+          type: integer
+        fan_speed:
+          type: integer
+        voltage_core:
+          type: integer
+        voltage_mem:
+          type: integer
+        cpu_usage:
+          type: number
+        memory_usage:
+          type: number
+        disk_usage:
+          type: number
+        load_avg:
+          type: array
+          items:
+            type: number
+        uptime:
+          type: integer
+
+    TelemetryPerformance:
+      type: object
+      properties:
+        cpu_usage:
+          type: number
+        memory_usage:
+          type: number
+        network_throughput:
+          type: number
+        packet_rate:
+          type: number
+        latency_ms:
+          type: number
+        packet_loss_pct:
+          type: number
+        qos_score:
+          type: number
+
+    TelemetryInterface:
+      type: object
+      properties:
+        interface:
+          type: string
+        rx_bytes:
+          type: integer
+        tx_bytes:
+          type: integer
+        rx_packets:
+          type: integer
+        tx_packets:
+          type: integer
+        rx_errors:
+          type: integer
+        tx_errors:
+          type: integer
+        rx_drops:
+          type: integer
+        tx_drops:
+          type: integer
+        speed:
+          type: integer
+        duplex:
+          type: string
+
+    TelemetrySubscription:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        interval_ms:
+          type: integer
+        metrics:
+          type: array
+          items:
+            type: string
+        path:
+          type: string
+
+    ConfigEntry:
+      type: object
+      properties:
+        path:
+          type: string
+        value:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [STRING, INT, BOOL, LIST, MAP]
+        writable:
+          type: boolean
+        version:
+          type: integer
+        created:
+          type: integer
+        modified:
+          type: integer
+
+    ConfigValidation:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        errors:
+          type: array
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: string
+
+    ConfigRollback:
+      type: object
+      properties:
+        success:
+          type: boolean
+        previous_version:
+          type: integer
+        current_version:
+          type: integer
+        message:
+          type: string
+
+    ConfigHistoryEntry:
+      type: object
+      properties:
+        version:
+          type: integer
+        timestamp:
+          type: integer
+        path:
+          type: string
+        value:
+          type: string
+        user:
+          type: string
+
+  responses:
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+              message:
+                type: string
+              details:
+                type: string
