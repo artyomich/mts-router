@@ -16,7 +16,6 @@ find_package(gRPC REQUIRED)
 include(FindProtobuf)
 find_package(Protobuf REQUIRED)
 
-# Set include directories
 include_directories(
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/proto
@@ -27,10 +26,7 @@ include_directories(
     ${Boost_INCLUDE_DIRS}
 )
 
-# Define proto file
 set(PROTO_SRC proto/mts_mobile_core.proto)
-
-# Generate protobuf C++ code
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_SRC})
 
 # Find grpc_cpp_plugin
@@ -41,28 +37,21 @@ endif()
 
 # Generate gRPC C++ code
 add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/grpc_generated/mts_mobile_core.grpc.pb.cc
-           ${CMAKE_CURRENT_BINARY_DIR}/grpc_generated/mts_mobile_core.grpc.pb.h
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/grpc_generated
-    COMMAND ${PROTOBUF_PROTOC_EXECUTABLE}
-        --grpc_out=${CMAKE_CURRENT_BINARY_DIR}/grpc_generated
-        --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN}
-        --proto_path=${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/${PROTO_SRC}
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${PROTO_SRC}
-    COMMENT "Generating gRPC C++ code from ${PROTO_SRC}"
-    VERBATIM
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/grpc_generated/mts_mobile_core.grpc.pb.cc
+         ${CMAKE_CURRENT_BINARY_DIR}/grpc_generated/mts_mobile_core.grpc.pb.h
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/grpc_generated
+  COMMAND ${PROTOBUF_PROTOC_EXECUTABLE}
+  ARGS --grpc_out=${CMAKE_CURRENT_BINARY_DIR}/grpc_generated
+       --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN}
+       --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/proto
+       mts_mobile_core.proto
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${PROTO_SRC}
+  COMMENT "Generating gRPC C++ code"
 )
 
 set(GRPC_SRCS ${CMAKE_CURRENT_BINARY_DIR}/grpc_generated/mts_mobile_core.grpc.pb.cc)
 set(GRPC_HDRS ${CMAKE_CURRENT_BINARY_DIR}/grpc_generated/mts_mobile_core.grpc.pb.h)
 
-# Create a custom target for gRPC generation
-add_custom_target(grpc_generated ALL
-    DEPENDS ${GRPC_SRCS} ${GRPC_HDRS}
-)
-
-# Source files
 set(SOURCES
     src/hal/upf_hal.cpp
     src/hal/sm_hal.cpp
@@ -75,13 +64,10 @@ set(SOURCES
     src/gtp/gtp_tunnel.cpp
     src/main.cpp
     ${PROTO_SRCS}
-    ${PROTO_HDRS}
     ${GRPC_SRCS}
-    ${GRPC_HDRS}
 )
 
 add_executable(mts-mc5000-server ${SOURCES})
-add_dependencies(mts-mc5000-server grpc_generated)
 
 target_link_libraries(mts-mc5000-server
     protobuf::libprotobuf
@@ -93,12 +79,6 @@ target_link_libraries(mts-mc5000-server
 
 # Enable reflection
 target_compile_definitions(mts-mc5000-server PRIVATE GRPC_ENABLE_FORK_SUPPORT)
-
-# Set include directories for the target
-target_include_directories(mts-mc5000-server PRIVATE
-    ${PROJECT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_BINARY_DIR}
-)
 
 # Install
 install(TARGETS mts-mc5000-server DESTINATION bin)
