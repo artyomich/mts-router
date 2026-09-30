@@ -121,7 +121,7 @@ jobs:
           cd /tmp/protobuf
           git submodule update --init --recursive
           mkdir -p build && cd build
-          cmake ../cmake .. -DCMAKE_INSTALL_PREFIX=/usr \
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr \
             -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
             -DWITH_PROTOBUF_MODULE=ON \
             -Dprotobuf_BUILD_SHARED_LIBS=ON
