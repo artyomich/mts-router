@@ -113,14 +113,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
             libboost-all-dev libgtest-dev libc-ares-dev pkg-config \
-            libgrpc++-dev protobuf-grpc-dev
+            libgrpc++-dev
 
       - name: Configure CMake
         run: |
           cd core-router-api
           mkdir -p build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON \
-            -DgRPC_DIR=/usr/lib/x86_64-linux-gnu/cmake/gRPC
+            -DgRPC_DIR=/usr/lib/cmake/grpc
 
       - name: Build
         run: |
