@@ -112,7 +112,22 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
-            libboost-all-dev libgtest-dev libgrpc-dev libgrpc++-dev
+            libboost-all-dev libgtest-dev
+          
+          # Install gRPC from source with CMake support
+          # libgrpc-dev from apt does not install CMake config files
+          git clone --depth 1 --branch v1.50.2 https://github.com/grpc/grpc.git /tmp/grpc
+          cd /tmp/grpc
+          git submodule update --init --recursive
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=package \
+            -DgRPC_ZLIB_PROVIDER=package -DgRPC_CARES_PROVIDER=package \
+            -DgRPC_SSL_PROVIDER=package
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
+          echo "gRPC installed from source"
 
       - name: Configure CMake
         run: |
@@ -149,7 +164,22 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
-            libboost-all-dev libgtest-dev libgrpc-dev libgrpc++-dev
+            libboost-all-dev libgtest-dev
+          
+          # Install gRPC from source with CMake support
+          # libgrpc-dev from apt does not install CMake config files
+          git clone --depth 1 --branch v1.50.2 https://github.com/grpc/grpc.git /tmp/grpc
+          cd /tmp/grpc
+          git submodule update --init --recursive
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=package \
+            -DgRPC_ZLIB_PROVIDER=package -DgRPC_CARES_PROVIDER=package \
+            -DgRPC_SSL_PROVIDER=package
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
+          echo "gRPC installed from source"
 
       - name: Configure CMake
         run: |
@@ -186,7 +216,21 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
-            libboost-all-dev libgtest-dev libgrpc-dev libgrpc++-dev
+            libboost-all-dev libgtest-dev
+          
+          # Install gRPC from source with CMake support
+          git clone --depth 1 --branch v1.50.2 https://github.com/grpc/grpc.git /tmp/grpc
+          cd /tmp/grpc
+          git submodule update --init --recursive
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=package \
+            -DgRPC_ZLIB_PROVIDER=package -DgRPC_CARES_PROVIDER=package \
+            -DgRPC_SSL_PROVIDER=package
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
+          echo "gRPC installed from source"
 
       - name: Build
         run: |
@@ -214,7 +258,21 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
-            libboost-all-dev libgtest-dev libgrpc-dev libgrpc++-dev
+            libboost-all-dev libgtest-dev
+          
+          # Install gRPC from source with CMake support
+          git clone --depth 1 --branch v1.50.2 https://github.com/grpc/grpc.git /tmp/grpc
+          cd /tmp/grpc
+          git submodule update --init --recursive
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=package \
+            -DgRPC_ZLIB_PROVIDER=package -DgRPC_CARES_PROVIDER=package \
+            -DgRPC_SSL_PROVIDER=package
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
+          echo "gRPC installed from source"
 
       - name: Configure CMake
         run: |
@@ -251,7 +309,21 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
-            libboost-all-dev libgtest-dev libgrpc-dev libgrpc++-dev
+            libboost-all-dev libgtest-dev
+          
+          # Install gRPC from source with CMake support
+          git clone --depth 1 --branch v1.50.2 https://github.com/grpc/grpc.git /tmp/grpc
+          cd /tmp/grpc
+          git submodule update --init --recursive
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=package \
+            -DgRPC_ZLIB_PROVIDER=package -DgRPC_CARES_PROVIDER=package \
+            -DgRPC_SSL_PROVIDER=package
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
+          echo "gRPC installed from source"
 
       - name: Configure CMake
         run: |
@@ -288,7 +360,21 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
-            libboost-all-dev libgtest-dev libgrpc-dev libgrpc++-dev
+            libboost-all-dev libgtest-dev
+          
+          # Install gRPC from source with CMake support
+          git clone --depth 1 --branch v1.50.2 https://github.com/grpc/grpc.git /tmp/grpc
+          cd /tmp/grpc
+          git submodule update --init --recursive
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=package \
+            -DgRPC_ZLIB_PROVIDER=package -DgRPC_CARES_PROVIDER=package \
+            -DgRPC_SSL_PROVIDER=package
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
+          echo "gRPC installed from source"
 
       - name: Configure CMake
         run: |
