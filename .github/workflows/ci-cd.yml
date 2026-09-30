@@ -132,7 +132,7 @@ jobs:
 
       - name: Build and install gtest from source
         run: |
-          cd /usr/src/gtest
+          cd /usr/src/googletest
           mkdir -p build && cd build
           cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
           make -j$(nproc)
