@@ -97,7 +97,7 @@ target_compile_definitions(mts-mc5000-server PRIVATE GRPC_ENABLE_FORK_SUPPORT)
 # Set include directories for the target
 target_include_directories(mts-mc5000-server PRIVATE
     ${PROJECT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_BINARY_DIR}/grpc_generated
+    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 # Install
