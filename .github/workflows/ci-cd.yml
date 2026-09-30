@@ -115,22 +115,7 @@ jobs:
           sudo apt-get install -y libboost-all-dev libc-ares-dev pkg-config
           sudo apt-get install -y libssl-dev zlib1g-dev libunwind-dev
 
-      - name: Build and install protobuf from source
-        run: |
-          git clone --depth 1 --branch v3.21.12 https://github.com/protocolbuffers/protobuf.git /tmp/protobuf
-          cd /tmp/protobuf
-          git submodule update --init --recursive
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr \
-            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-            -DWITH_PROTOBUF_MODULE=ON \
-            -Dprotobuf_BUILD_SHARED_LIBS=ON
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
-          echo "protobuf installed with CMake config files"
-
-      - name: Build and install gRPC from source
+      - name: Build and install gRPC from source with bundled protobuf
         run: |
           git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
           cd /tmp/grpc
@@ -140,25 +125,14 @@ jobs:
             -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
             -DgRPC_INSTALL=ON \
             -DgRPC_BUILD_TESTS=OFF \
-            -DgRPC_PROTOBUF_PROVIDER=package \
+            -DgRPC_PROTOBUF_PROVIDER=bundle \
             -DgRPC_ZLIB_PROVIDER=package \
             -DgRPC_CARES_PROVIDER=package \
             -DgRPC_SSL_PROVIDER=package
           make -j$(nproc)
           sudo make install
           sudo ldconfig
-          echo "gRPC installed with CMake config files"
-
-      - name: Build and install gtest from gRPC bundled source
-        run: |
-          cd /tmp/grpc/third_party/googletest
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release \
-            -Dgtest_force_shared_crt=ON -DGTEST_HAS_ABSL=OFF
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
-          echo "gtest installed from gRPC bundled source"
+          echo "gRPC (with bundled protobuf) installed with CMake config files"
 
       - name: Configure CMake
         run: |
