@@ -116,7 +116,7 @@ jobs:
           
           # Install gRPC from source with CMake support
           # libgrpc-dev from apt does not install CMake config files
-          git clone --depth 1 --branch v1.50.2 https://github.com/grpc/grpc.git /tmp/grpc
+          git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
           cd /tmp/grpc
           git submodule update --init --recursive
           mkdir -p build && cd build
@@ -167,7 +167,7 @@ jobs:
             libboost-all-dev libgtest-dev pkg-config
           
           # Install gRPC from source with CMake support
-          git clone --depth 1 --branch v1.50.2 https://github.com/grpc/grpc.git /tmp/grpc
+          git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
           cd /tmp/grpc
           git submodule update --init --recursive
           mkdir -p build && cd build
@@ -218,7 +218,7 @@ jobs:
             libboost-all-dev libgtest-dev pkg-config
           
           # Install gRPC from source with CMake support
-          git clone --depth 1 --branch v1.50.2 https://github.com/grpc/grpc.git /tmp/grpc
+          git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
           cd /tmp/grpc
           git submodule update --init --recursive
           mkdir -p build && cd build
@@ -259,7 +259,7 @@ jobs:
             libboost-all-dev libgtest-dev pkg-config
           
           # Install gRPC from source with CMake support
-          git clone --depth 1 --branch v1.50.2 https://github.com/grpc/grpc.git /tmp/grpc
+          git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
           cd /tmp/grpc
           git submodule update --init --recursive
           mkdir -p build && cd build
@@ -309,7 +309,7 @@ jobs:
             libboost-all-dev libgtest-dev pkg-config
           
           # Install gRPC from source with CMake support
-          git clone --depth 1 --branch v1.50.2 https://github.com/grpc/grpc.git /tmp/grpc
+          git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
           cd /tmp/grpc
           git submodule update --init --recursive
           mkdir -p build && cd build
@@ -359,7 +359,7 @@ jobs:
             libboost-all-dev libgtest-dev pkg-config
           
           # Install gRPC from source with CMake support
-          git clone --depth 1 --branch v1.50.2 https://github.com/grpc/grpc.git /tmp/grpc
+          git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
           cd /tmp/grpc
           git submodule update --init --recursive
           mkdir -p build && cd build
