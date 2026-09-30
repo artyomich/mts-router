@@ -111,16 +111,20 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
+          sudo apt-get install -y cmake make g++-12 libprotobuf-dev protobuf-compiler \
             libboost-all-dev libgtest-dev libc-ares-dev pkg-config \
-            libgrpc++-dev protobuf-compiler-grpc libgrpc-dev
+            libgrpc++-dev libgrpc-dev protobuf-compiler-grpc libgrpc_cpp_plugin
+
+      - name: Verify grpc_cpp_plugin
+        run: which grpc_cpp_plugin || sudo find /usr -name grpc_cpp_plugin 2>/dev/null
 
       - name: Configure CMake
         run: |
           cd core-router-api
           mkdir -p build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON \
-            -DgRPC_DIR=/usr/lib/x86_64-linux-gnu/cmake/grpc
+            -DgRPC_DIR=/usr/lib/x86_64-linux-gnu/cmake/grpc \
+            -DProtobuf_DIR=/usr/lib/x86_64-linux-gnu/cmake/Protobuf
 
       - name: Build
         run: |
@@ -150,30 +154,18 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
+          sudo apt-get install -y cmake make g++-12 libprotobuf-dev protobuf-compiler \
             libboost-all-dev libgtest-dev libc-ares-dev pkg-config \
-            libssl-dev autoconf automake libtool make git curl
-
-          # Install gRPC from source with CMake support
-          git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
-          cd /tmp/grpc
-          git submodule update --init --recursive
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-            -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=bundle \
-            -DgRPC_ZLIB_PROVIDER=bundle -DgRPC_CARES_PROVIDER=package \
-            -DgRPC_SSL_PROVIDER=bundle -DgRPC_BUILD_CODEGEN=ON
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
-          echo "gRPC v1.62.0 installed from source"
+            libgrpc++-dev libgrpc-dev protobuf-compiler-grpc libgrpc_cpp_plugin \
+            libssl-dev
 
       - name: Configure CMake
         run: |
           cd mobile-core-api
           mkdir -p build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON \
-            -DCMAKE_PREFIX_PATH=/usr/lib/cmake/grpc
+            -DgRPC_DIR=/usr/lib/x86_64-linux-gnu/cmake/grpc \
+            -DProtobuf_DIR=/usr/lib/x86_64-linux-gnu/cmake/Protobuf
 
       - name: Build
         run: |
@@ -203,30 +195,18 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
+          sudo apt-get install -y cmake make g++-12 libprotobuf-dev protobuf-compiler \
             libboost-all-dev libgtest-dev libc-ares-dev pkg-config \
-            libssl-dev autoconf automake libtool make git curl
-
-          # Install gRPC from source with CMake support
-          git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
-          cd /tmp/grpc
-          git submodule update --init --recursive
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-            -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=bundle \
-            -DgRPC_ZLIB_PROVIDER=bundle -DgRPC_CARES_PROVIDER=package \
-            -DgRPC_SSL_PROVIDER=bundle -DgRPC_BUILD_CODEGEN=ON
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
-          echo "gRPC v1.62.0 installed from source"
+            libgrpc++-dev libgrpc-dev protobuf-compiler-grpc libgrpc_cpp_plugin \
+            libssl-dev
 
       - name: Configure CMake
         run: |
           cd mts-mb3000-api
           mkdir -p build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH=/usr/lib/cmake/grpc
+            -DgRPC_DIR=/usr/lib/x86_64-linux-gnu/cmake/grpc \
+            -DProtobuf_DIR=/usr/lib/x86_64-linux-gnu/cmake/Protobuf
 
       - name: Build
         run: |
@@ -251,30 +231,18 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
+          sudo apt-get install -y cmake make g++-12 libprotobuf-dev protobuf-compiler \
             libboost-all-dev libgtest-dev libc-ares-dev pkg-config \
-            libssl-dev autoconf automake libtool make git curl
-
-          # Install gRPC from source with CMake support
-          git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
-          cd /tmp/grpc
-          git submodule update --init --recursive
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-            -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=bundle \
-            -DgRPC_ZLIB_PROVIDER=bundle -DgRPC_CARES_PROVIDER=package \
-            -DgRPC_SSL_PROVIDER=bundle -DgRPC_BUILD_CODEGEN=ON
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
-          echo "gRPC v1.62.0 installed from source"
+            libgrpc++-dev libgrpc-dev protobuf-compiler-grpc libgrpc_cpp_plugin \
+            libssl-dev
 
       - name: Configure CMake
         run: |
           cd olt-gpon-api
           mkdir -p build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON \
-            -DCMAKE_PREFIX_PATH=/usr/lib/cmake/grpc
+            -DgRPC_DIR=/usr/lib/x86_64-linux-gnu/cmake/grpc \
+            -DProtobuf_DIR=/usr/lib/x86_64-linux-gnu/cmake/Protobuf
 
       - name: Build
         run: |
@@ -304,30 +272,18 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
+          sudo apt-get install -y cmake make g++-12 libprotobuf-dev protobuf-compiler \
             libboost-all-dev libgtest-dev libc-ares-dev pkg-config \
-            libssl-dev autoconf automake libtool make git curl
-
-          # Install gRPC from source with CMake support
-          git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
-          cd /tmp/grpc
-          git submodule update --init --recursive
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-            -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=bundle \
-            -DgRPC_ZLIB_PROVIDER=bundle -DgRPC_CARES_PROVIDER=package \
-            -DgRPC_SSL_PROVIDER=bundle -DgRPC_BUILD_CODEGEN=ON
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
-          echo "gRPC v1.62.0 installed from source"
+            libgrpc++-dev libgrpc-dev protobuf-compiler-grpc libgrpc_cpp_plugin \
+            libssl-dev
 
       - name: Configure CMake
         run: |
           cd enterprise-router-api
           mkdir -p build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON \
-            -DCMAKE_PREFIX_PATH=/usr/lib/cmake/grpc
+            -DgRPC_DIR=/usr/lib/x86_64-linux-gnu/cmake/grpc \
+            -DProtobuf_DIR=/usr/lib/x86_64-linux-gnu/cmake/Protobuf
 
       - name: Build
         run: |
@@ -357,30 +313,18 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
+          sudo apt-get install -y cmake make g++-12 libprotobuf-dev protobuf-compiler \
             libboost-all-dev libgtest-dev libc-ares-dev pkg-config \
-            libssl-dev autoconf automake libtool make git curl
-
-          # Install gRPC from source with CMake support
-          git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
-          cd /tmp/grpc
-          git submodule update --init --recursive
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-            -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=bundle \
-            -DgRPC_ZLIB_PROVIDER=bundle -DgRPC_CARES_PROVIDER=package \
-            -DgRPC_SSL_PROVIDER=bundle -DgRPC_BUILD_CODEGEN=ON
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
-          echo "gRPC v1.62.0 installed from source"
+            libgrpc++-dev libgrpc-dev protobuf-compiler-grpc libgrpc_cpp_plugin \
+            libssl-dev
 
       - name: Configure CMake
         run: |
           cd residential-gateway-api
           mkdir -p build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON \
-            -DCMAKE_PREFIX_PATH=/usr/lib/cmake/grpc
+            -DgRPC_DIR=/usr/lib/x86_64-linux-gnu/cmake/grpc \
+            -DProtobuf_DIR=/usr/lib/x86_64-linux-gnu/cmake/Protobuf
 
       - name: Build
         run: |

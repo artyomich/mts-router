@@ -8,7 +8,7 @@ FROM ubuntu:24.04 AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake make g++-12 libprotobuf-dev protobuf-compiler libgrpc++-dev \
-    libboost-all-dev libgtest-dev \
+    libboost-all-dev libgtest-dev libgrpc-dev protobuf-compiler-grpc \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
@@ -16,6 +16,7 @@ COPY core-router-api/ .
 
 RUN mkdir -p build && cd build \
     && cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON \
+    -DgRPC_DIR=/usr/lib/x86_64-linux-gnu/cmake/grpc \
     && make -j$(nproc) \
     && make install
 
