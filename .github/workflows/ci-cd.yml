@@ -115,6 +115,13 @@ jobs:
             libboost-all-dev libgtest-dev libc-ares-dev pkg-config \
             libgrpc++-dev protobuf-compiler-grpc
 
+      - name: Configure CMake
+        run: |
+          cd core-router-api
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON \
+            -DgRPC_DIR=/usr/lib/cmake/grpc
+
       - name: Build
         run: |
           cd core-router-api/build
