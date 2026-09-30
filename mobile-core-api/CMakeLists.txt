@@ -57,6 +57,11 @@ add_custom_command(
 set(GRPC_SRCS ${CMAKE_CURRENT_BINARY_DIR}/grpc_generated/mts_mobile_core.grpc.pb.cc)
 set(GRPC_HDRS ${CMAKE_CURRENT_BINARY_DIR}/grpc_generated/mts_mobile_core.grpc.pb.h)
 
+# Create a custom target for gRPC generation
+add_custom_target(grpc_generated ALL
+    DEPENDS ${GRPC_SRCS} ${GRPC_HDRS}
+)
+
 # Source files
 set(SOURCES
     src/hal/upf_hal.cpp
@@ -76,6 +81,7 @@ set(SOURCES
 )
 
 add_executable(mts-mc5000-server ${SOURCES})
+add_dependencies(mts-mc5000-server grpc_generated)
 
 target_link_libraries(mts-mc5000-server
     protobuf::libprotobuf
