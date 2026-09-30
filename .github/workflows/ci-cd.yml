@@ -104,41 +104,23 @@ jobs:
   # ============================================================
   build-core-router:
     name: Build MTS-CR-9000
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install build dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake g++-12 make wget apt-transport-https gnupg
-          sudo apt-get install -y libboost-all-dev libc-ares-dev pkg-config
-          sudo apt-get install -y libssl-dev zlib1g-dev libunwind-dev
-
-      - name: Build and install gRPC from source with bundled protobuf
-        run: |
-          git clone --depth 1 --branch v1.62.0 https://github.com/grpc/grpc.git /tmp/grpc
-          cd /tmp/grpc
-          git submodule update --init --recursive
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr \
-            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-            -DgRPC_INSTALL=ON \
-            -DgRPC_BUILD_TESTS=OFF \
-            -DgRPC_PROTOBUF_PROVIDER=bundle \
-            -DgRPC_ZLIB_PROVIDER=package \
-            -DgRPC_CARES_PROVIDER=package \
-            -DgRPC_SSL_PROVIDER=package
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
-          echo "gRPC (with bundled protobuf) installed with CMake config files"
+          sudo apt-get install -y cmake g++-12 libprotobuf-dev protobuf-compiler \
+            libboost-all-dev libgtest-dev libc-ares-dev pkg-config \
+            libgrpc++-dev grpc-common
 
       - name: Configure CMake
         run: |
           cd core-router-api
           mkdir -p build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=ON \
+            -DgRPC_DIR=/usr/lib/x86_64-linux-gnu/cmake/gRPC
 
       - name: Build
         run: |
