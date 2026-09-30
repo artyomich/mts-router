@@ -113,7 +113,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake make g++-12 libprotobuf-dev protobuf-compiler \
             libboost-all-dev libgtest-dev libc-ares-dev pkg-config \
-            libgrpc++-dev libgrpc-dev protobuf-compiler-grpc libgrpc_cpp_plugin
+            libgrpc++-dev libgrpc-dev protobuf-compiler-grpc
 
       - name: Verify grpc_cpp_plugin
         run: which grpc_cpp_plugin || sudo find /usr -name grpc_cpp_plugin 2>/dev/null
@@ -156,7 +156,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake make g++-12 libprotobuf-dev protobuf-compiler \
             libboost-all-dev libgtest-dev libc-ares-dev pkg-config \
-            libgrpc++-dev libgrpc-dev protobuf-compiler-grpc libgrpc_cpp_plugin \
+            libgrpc++-dev libgrpc-dev protobuf-compiler-grpc \
             libssl-dev
 
       - name: Configure CMake
@@ -197,7 +197,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake make g++-12 libprotobuf-dev protobuf-compiler \
             libboost-all-dev libgtest-dev libc-ares-dev pkg-config \
-            libgrpc++-dev libgrpc-dev protobuf-compiler-grpc libgrpc_cpp_plugin \
+            libgrpc++-dev libgrpc-dev protobuf-compiler-grpc \
             libssl-dev
 
       - name: Configure CMake
@@ -233,7 +233,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake make g++-12 libprotobuf-dev protobuf-compiler \
             libboost-all-dev libgtest-dev libc-ares-dev pkg-config \
-            libgrpc++-dev libgrpc-dev protobuf-compiler-grpc libgrpc_cpp_plugin \
+            libgrpc++-dev libgrpc-dev protobuf-compiler-grpc \
             libssl-dev
 
       - name: Configure CMake
@@ -274,7 +274,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake make g++-12 libprotobuf-dev protobuf-compiler \
             libboost-all-dev libgtest-dev libc-ares-dev pkg-config \
-            libgrpc++-dev libgrpc-dev protobuf-compiler-grpc libgrpc_cpp_plugin \
+            libgrpc++-dev libgrpc-dev protobuf-compiler-grpc \
             libssl-dev
 
       - name: Configure CMake
@@ -315,7 +315,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake make g++-12 libprotobuf-dev protobuf-compiler \
             libboost-all-dev libgtest-dev libc-ares-dev pkg-config \
-            libgrpc++-dev libgrpc-dev protobuf-compiler-grpc libgrpc_cpp_plugin \
+            libgrpc++-dev libgrpc-dev protobuf-compiler-grpc \
             libssl-dev
 
       - name: Configure CMake
