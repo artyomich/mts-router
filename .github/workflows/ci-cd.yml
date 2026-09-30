@@ -111,8 +111,8 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake g++-12 wget apt-transport-https gnupg
-          sudo apt-get install -y libboost-all-dev libgtest-dev libc-ares-dev pkg-config
+          sudo apt-get install -y cmake g++-12 make wget apt-transport-https gnupg
+          sudo apt-get install -y libboost-all-dev libc-ares-dev pkg-config
           sudo apt-get install -y libssl-dev zlib1g-dev libunwind-dev
 
       - name: Build and install protobuf from source
@@ -129,6 +129,16 @@ jobs:
           sudo make install
           sudo ldconfig
           echo "protobuf installed with CMake config files"
+
+      - name: Build and install gtest from source
+        run: |
+          cd /usr/src/gtest
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
+          echo "gtest installed"
 
       - name: Build and install gRPC from source
         run: |
