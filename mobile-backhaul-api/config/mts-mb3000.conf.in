@@ -1,0 +1,28 @@
+# MTS-MB-3000 Mobile Backhaul API Configuration
+# @CMAKE_CONFIG_DIR@/mts-mb3000.conf
+
+[server]
+port = 50051
+tls_enabled = false
+tls_cert = /etc/mts/certs/server.crt
+tls_key = /etc/mts/certs/server.key
+tls_ca = /etc/mts/certs/ca.crt
+
+[logging]
+level = info
+file = /var/log/mts-mb3000-api.log
+
+[mtls]
+enabled = true
+cert_file = /etc/mts/certs/client.crt
+key_file = /etc/mts/certs/client.key
+ca_file = /etc/mts/certs/ca.crt
+
+[telemetry]
+stream_interval_ms = 1000
+delta_encoding = true
+
+[hw]
+dpdk_socket = 0
+dpdk_mbufs = 8192
+dpdk_mbuf_size = 2048

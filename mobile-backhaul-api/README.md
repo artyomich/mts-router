@@ -1,39 +1,39 @@
-# MTS Residential Gateway API (MTS-RG-500)
+# MTS Mobile Backhaul API (MTS-MB-3000)
 
-gRPC API service for the MTS Residential Gateway based on MediaTek MT7981.
+gRPC API service for the MTS Mobile Backhaul router based on NXP S32G3.
 
 ## Overview
 
-The MTS-RG-500 Residential Gateway API provides management and telemetry interfaces for:
+The MTS-MB-3000 Mobile Backhaul API provides management and telemetry interfaces for:
 
-- **WiFi Management** - AP configuration, client management, WiFi 6 (MT76)
-- **VoIP (Asterisk)** - SIP accounts, call management, codecs
-- **IPTV** - Channel management, session control, EPG
-- **TR-069 (CWMP)** - Remote management, firmware upgrade
-- **GPON ONU** - GPON interface management (RTL960x)
-- **Device Health** - System monitoring and telemetry
+- **MPLS-TP Tunnel Management** - Create, modify, delete and monitor MPLS-TP tunnels
+- **Pseudowire (PW) Management** - Configure and monitor pseudowires
+- **PTP (Precision Time Protocol)** - Grandmaster clock configuration and monitoring
+- **Port Management** - Interface configuration and statistics
+- **DPDK Integration** - High-performance packet processing
+- **Device Health** - System health monitoring and telemetry
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                MTS-RG-500 API                         │
+│                  MTS-MB-3000 API                     │
 ├─────────────────────────────────────────────────────┤
 │  gRPC Service Layer                                  │
 │  ┌───────────┬───────────┬───────────┬───────────┐  │
-│  │ WiFi      │ VoIP      │ IPTV      │ TR-069    │  │
+│  │ MPLS-TP   │ PTP       │ Port      │ DPDK      │  │
 │  │ Service   │ Service   │ Service   │ Service   │  │
 │  └─────┬─────┴─────┬─────┴─────┬─────┴─────┬─────┘  │
 │        │           │           │           │         │
 │  ┌─────┴───────────┴───────────┴───────────┴─────┐  │
 │  │               HAL Layer                         │  │
-│  │  MT7981 WiFi    │  Asterisk   │  RTL960x ONU  │  │
+│  │  MPLS-TP Engine  │  PTP Engine  │  DPDK PMD    │  │
 │  └───────────────────────────────────────────────┘  │
 ├─────────────────────────────────────────────────────┤
-│              MT7981 Hardware                          │
+│              S32G3 Hardware                         │
 │  ┌───────────┬───────────┬───────────────────────┐  │
-│  │ ARM Core  │ WiFi 6    │  Ethernet Switch      │  │
-│  │ Cortex-A53│ (MT76)    │  (RTL960x)            │  │
+│  │ Ethernet  │ PTP HW    │  MPLS-TP Engine       │  │
+│  │ MACs      │ Engine    │  (Hardware)            │  │
 │  └───────────┴───────────┴───────────────────────┘  │
 └─────────────────────────────────────────────────────┘
 ```
@@ -49,66 +49,78 @@ make -j$(nproc)
 ## Running
 
 ```bash
-./mts-rg500-api --port=50054 --config=config/mts-rg500.conf
+./mts-mb3000-api --port=50051 --config=config/mts-mb3000.conf
 ```
 
 ## API Methods
 
-### WiFi
+### MPLS-TP Tunnels
 
 | Method | Description |
 |--------|-------------|
-| `GetWifiConfigs` | Get WiFi AP configurations |
-| `SetWifiConfig` | Configure WiFi AP |
-| `GetWifiClients` | Get connected WiFi clients |
+| `GetMplsTpTunnels` | Get MPLS-TP tunnel status |
+| `SetMplsTpTunnel` | Configure MPLS-TP tunnel |
+| `DeleteMplsTpTunnel` | Delete MPLS-TP tunnel |
 
-### VoIP
-
-| Method | Description |
-|--------|-------------|
-| `GetVoipAccounts` | Get VoIP accounts |
-| `SetVoipAccount` | Configure VoIP account |
-| `DeleteVoipAccount` | Delete VoIP account |
-| `GetVoipCalls` | Get active calls |
-
-### IPTV
+### MPLS-TP Pseudowires
 
 | Method | Description |
 |--------|-------------|
-| `GetIptvChannels` | Get IPTV channels |
-| `GetIptvSessions` | Get IPTV sessions |
-| `StartIptvSession` | Start IPTV session |
-| `StopIptvSession` | Stop IPTV session |
+| `GetMplsTpPws` | Get pseudowire status |
+| `SetMplsTpPw` | Configure pseudowire |
+| `DeleteMplsTpPw` | Delete pseudowire |
 
-### TR-069
+### MPLS-TP OAM
 
 | Method | Description |
 |--------|-------------|
-| `GetTr069Status` | Get TR-069 status |
-| `SetTr069Config` | Configure TR-069 |
-| `GetFirmwareStatus` | Get firmware status |
-| `TriggerFirmwareDownload` | Trigger firmware download |
+| `GetMplsTpOam` | Get OAM status |
+| `StartMplsTpOam` | Start OAM monitoring |
+| `StopMplsTpOam` | Stop OAM monitoring |
+
+### PTP
+
+| Method | Description |
+|--------|-------------|
+| `GetPtpClocks` | Get PTP clock status |
+| `SetPtpProfile` | Configure PTP profile |
+| `GetPtpProfile` | Get current PTP profile |
+
+### Ports
+
+| Method | Description |
+|--------|-------------|
+| `GetPortStatuses` | Get port status |
+| `SetPortMode` | Configure port mode |
+
+### DPDK
+
+| Method | Description |
+|--------|-------------|
+| `GetDpdkPortStats` | Get DPDK port statistics |
+| `SetDpdkPortConfig` | Configure DPDK port |
 
 ### Health
 
 | Method | Description |
 |--------|-------------|
 | `GetDeviceHealth` | Get device health |
+| `StreamPortStats` | Stream port statistics |
 | `StreamHealth` | Stream health data |
 
 ## Configuration
 
 ```ini
 [server]
-port = 50054
-tls_enabled = true
-tls_cert = /etc/mts/certs/server.crt
-tls_key = /etc/mts/certs/server.key
-tls_ca = /etc/mts/certs/ca.crt
+port = 50051
+tls_enabled = false
+tls_cert = ""
+tls_key = ""
+tls_ca = ""
 
 [logging]
 level = info
-file = /var/log/mts-rg500-api.log
+file = /var/log/mts-mb3000-api.log
 
 [mtls]
 enabled = true
@@ -119,35 +131,6 @@ ca_file = /etc/mts/certs/ca.crt
 [telemetry]
 stream_interval_ms = 1000
 delta_encoding = true
-
-[wifi]
-band_2g_ssid = MTS-Home-2G
-band_5g_ssid = MTS-Home-5G
-band_2g_channel = auto
-band_5g_channel = auto
-band_2g_mode = bgn
-band_5g_mode = a/n/ac/ax
-security = wpa3-sae
-
-[voip]
-enabled = true
-protocol = sip
-port = 5060
-tls_port = 5061
-codecs = g711a,g711u,g729,g722
-
-[iptv]
-enabled = true
-port = 5004
-protocol = igmp
-max_sessions = 8
-
-[tr069]
-enabled = true
-port = 7547
-https_port = 443
-acs_url = https://acs.provider.com
-periodic_interval = 3600
 ```
 
 ## Testing
@@ -157,12 +140,12 @@ periodic_interval = 3600
 ctest --output-on-failure
 
 # Run integration tests
-./scripts/test-residential.sh
+./scripts/test-mobile-backhaul.sh
 ```
 
 ## Protobuf Messages
 
-See [`proto/mts_residential.proto`](proto/mts_residential.proto) for full message definitions.
+See [`proto/mts_mobile_backhaul.proto`](proto/mts_mobile_backhaul.proto) for full message definitions.
 
 ## License
 

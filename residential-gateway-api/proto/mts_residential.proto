@@ -1,133 +1,143 @@
 syntax = "proto3";
 
-package mts.residential.v1;
+package mts.residential.gateway.v1;
 
 option cc_generic_services = false;
 
-// GPON ONU status
-message GponOnuStatus {
-    string onu_id = 1;
-    string status = 2; // online, offline, error
-    int32 power_level = 3;
-    int32 distance = 4;
-    string pon_port = 5;
-    uint32 vlan = 6;
-    uint64 rx_bytes = 7;
-    uint64 tx_bytes = 8;
-}
+// ============================================================
+// WiFi Messages
+// ============================================================
 
-// WiFi BSS status
-message WifiBssInfo {
-    string bss_id = 1;
+// WiFi AP configuration
+message WifiApConfig {
+    uint32 band = 1; // 2.4GHz=2, 5GHz=5
     string ssid = 2;
-    string band = 3; // 2.4ghz, 5ghz
-    uint32 channel = 4;
-    uint32 bandwidth = 5; // 20, 40, 80 MHz
-    string security = 6; // none, wep, wpa, wpa2, wpa3
-    string mode = 7; // ap, sta, monitor
-    string status = 8; // up, down, error
-    uint32 num_clients = 9;
-    double rx_bytes = 10;
-    double tx_bytes = 11;
-    double temperature = 12;
+    string channel = 3;
+    string mode = 4; // bgn, a/n/ac/ax
+    string bandwidth = 5; // 20/40, 20/40/80
+    string security = 6; // wpa3-sae, wpa2-psk, open
+    string psk = 7;
+    bool hidden_ssid = 8;
+    bool guest_network = 9;
+    uint32 max_clients = 10;
+    uint32 connected_clients = 11;
+    uint64 tx_bytes = 12;
+    uint64 rx_bytes = 13;
+    double signal_strength = 14;
+    double interference = 15;
 }
 
-// WiFi client
-message WifiClientInfo {
-    string client_id = 1;
-    string mac = 2;
+// WiFi client info
+message WifiClient {
+    uint32 client_id = 1;
+    string mac_address = 2;
     string ssid = 3;
-    string band = 4;
-    uint32 channel = 5;
-    int32 signal = 6; // dBm
-    uint32 rx_rate = 7; // Mbps
-    uint32 tx_rate = 8; // Mbps
-    double rx_bytes = 9;
-    double tx_bytes = 10;
-    bool connected = 11;
-    int64 last_seen = 12;
-    int64 connected_at = 13;
+    uint32 band = 4;
+    string signal_strength = 5;
+    uint32 data_rate_mbps = 6;
+    uint64 tx_bytes = 7;
+    uint64 rx_bytes = 8;
+    int64 connected_at = 9;
+    string ip_address = 10;
 }
 
-// VoIP status
-message VoipStatus {
-    string status = 1; // active, inactive, error
-    repeated VoipLine lines = 2;
+// ============================================================
+// VoIP Messages
+// ============================================================
+
+// VoIP account configuration
+message VoipAccount {
+    uint32 account_id = 1;
+    string username = 2;
+    string display_name = 3;
+    string registrar = 4;
+    string auth_username = 5;
+    string auth_password = 6;
+    string transport = 7; // udp, tcp, tls
+    uint32 port = 8;
+    string codec = 9; // g711a, g711u, g729, g722
+    bool enabled = 10;
+    string status = 11; // registered, unavailable, error
+    uint32 reregister_interval = 12;
 }
 
-message VoipLine {
-    uint32 line_id = 1;
-    string status = 2; // idle, ringing, active, busy
-    string caller_id = 3;
-    string callee_id = 4;
-    uint32 duration_seconds = 5;
-    string codec = 6; // g711, g729, opus
-    uint32 rtp_port = 7;
+// VoIP call status
+message VoipCall {
+    uint32 call_id = 1;
+    string caller = 2;
+    string callee = 3;
+    string status = 4; // dialing, ringing, active, held, ended
+    int64 started_at = 5;
+    int64 duration_seconds = 6;
+    string codec = 7;
+    double jitter_ms = 8;
+    double packet_loss_pct = 9;
+    double mos_score = 10;
 }
 
-// IPTV status
-message IptvStatus {
-    string status = 1; // active, inactive, error
-    uint32 active_channels = 2;
-    uint32 total_channels = 3;
-    double bandwidth_mbps = 4;
-    repeated IptvChannel channels = 5;
-}
+// ============================================================
+// IPTV Messages
+// ============================================================
 
+// IPTV channel
 message IptvChannel {
     uint32 channel_id = 1;
     string name = 2;
-    string multicast_ip = 3;
-    uint32 multicast_port = 4;
-    string status = 5; // active, inactive
-    uint32 viewers = 6;
+    uint32 number = 3;
+    string video_codec = 4; // h264, h265
+    uint32 resolution = 5; // 720, 1080, 4k
+    uint32 fps = 6;
+    string audio_codec = 7; // aac, mp2
+    string epg_id = 8;
+    uint64 viewers = 9;
 }
+
+// IPTV session
+message IptvSession {
+    uint32 session_id = 1;
+    string mac_address = 2;
+    string ip_address = 3;
+    uint32 channel_id = 4;
+    string status = 5; // active, inactive
+    uint64 rx_bytes = 6;
+    uint64 tx_bytes = 7;
+    int64 started_at = 8;
+}
+
+// ============================================================
+// TR-069 Messages
+// ============================================================
 
 // TR-069 status
 message Tr069Status {
-    string device_id = 1;
-    string url = 2;
-    bool enabled = 3;
-    uint32 polling_interval = 4;
-    int64 last_poll = 5;
-    int64 next_poll = 6;
-    string status = 7; // active, inactive, error
+    string status = 1; // active, inactive, error
+    string acs_url = 2;
+    uint32 acs_port = 3;
+    uint32 connection_requests = 4;
+    uint32 max_connections = 5;
+    uint32 active_sessions = 6;
+    int64 last_connection = 7;
+    int64 next_connection = 8;
 }
 
-// LAN config
-message LanConfig {
-    string subnet = 1;
-    string gateway = 2;
-    string dns_primary = 3;
-    string dns_secondary = 4;
-    bool dhcp_enabled = 5;
-    string dhcp_start = 6;
-    string dhcp_end = 7;
-    uint32 lease_time_hours = 8;
+// Firmware status
+message FirmwareStatus {
+    string firmware_url = 1;
+    string file_name = 2;
+    uint64 file_size = 3;
+    string file_type = 4;
+    string version = 5;
+    string status = 6; // downloading, downloading, verifying, installing, installed, failed
+    double progress_pct = 7;
+    int64 started_at = 8;
+    int64 completed_at = 9;
 }
 
-// Parental control
-message ParentalControl {
-    bool enabled = 1;
-    repeated ParentalRule rules = 2;
-}
+// ============================================================
+// Device Health Messages
+// ============================================================
 
-message ParentalRule {
-    string rule_id = 1;
-    string mac = 2;
-    string name = 3;
-    repeated string blocked_sites = 4;
-    repeated TimeRange active_hours = 5;
-}
-
-message TimeRange {
-    uint32 start_hour = 1;
-    uint32 start_min = 2;
-    uint32 end_hour = 3;
-    uint32 end_min = 4;
-}
-
-// Device health
+// Device health for residential gateway
 message DeviceHealth {
     string device_id = 1;
     string model = 2;
@@ -135,127 +145,182 @@ message DeviceHealth {
     double cpu_usage = 4;
     double memory_usage = 5;
     double temperature = 6;
-    string status = 7;
+    string status = 7; // healthy, degraded, critical
     uint64 uptime_seconds = 8;
+    uint64 packet_loss_pct = 9;
+    double latency_ms = 10;
+    uint64 wan_rx_bytes = 11;
+    uint64 wan_tx_bytes = 12;
+    uint64 lan_rx_bytes = 13;
+    uint64 lan_tx_bytes = 14;
+    uint64 wifi_rx_bytes = 15;
+    uint64 wifi_tx_bytes = 16;
 }
 
+// ============================================================
 // Responses
-message GponOnuStatusResponse {
-    GponOnuStatus status = 1;
+// ============================================================
+
+message WifiApConfigResponse {
+    repeated WifiApConfig aps = 1;
 }
 
-message WifiBssInfoResponse {
-    repeated WifiBssInfo bss = 1;
+message WifiClientResponse {
+    repeated WifiClient clients = 1;
 }
 
-message WifiClientInfoResponse {
-    repeated WifiClientInfo clients = 1;
+message VoipAccountResponse {
+    repeated VoipAccount accounts = 1;
 }
 
-message VoipStatusResponse {
-    VoipStatus voip = 1;
+message VoipCallResponse {
+    repeated VoipCall calls = 1;
 }
 
-message IptvStatusResponse {
-    IptvStatus iptv = 1;
+message IptvChannelResponse {
+    repeated IptvChannel channels = 1;
+}
+
+message IptvSessionResponse {
+    repeated IptvSession sessions = 1;
 }
 
 message Tr069StatusResponse {
-    Tr069Status tr069 = 1;
+    Tr069Status status = 1;
 }
 
-message LanConfigResponse {
-    LanConfig config = 1;
-}
-
-message ParentalControlResponse {
-    ParentalControl control = 1;
+message FirmwareStatusResponse {
+    FirmwareStatus firmware = 1;
 }
 
 message DeviceHealthResponse {
     DeviceHealth health = 1;
 }
 
-// Update WiFi
-message UpdateWifiRequest {
-    string bss_id = 1;
-    string ssid = 2;
-    uint32 channel = 3;
-    uint32 bandwidth = 4;
-    string security = 5;
-    string password = 6;
-    bool guest = 7;
-    bool hidden = 8;
+// ============================================================
+// Service Definition
+// ============================================================
+
+service MtsResidentialGateway {
+    // WiFi management
+    rpc GetWifiConfigs(GetWifiConfigsRequest) returns (WifiApConfigResponse);
+    rpc SetWifiConfig(WifiApConfig) returns (SetConfigResponse);
+    rpc GetWifiClients(GetWifiClientsRequest) returns (WifiClientResponse);
+    
+    // VoIP management
+    rpc GetVoipAccounts(GetVoipAccountsRequest) returns (VoipAccountResponse);
+    rpc SetVoipAccount(VoipAccount) returns (SetConfigResponse);
+    rpc DeleteVoipAccount(DeleteVoipAccountRequest) returns (DeleteResponse);
+    rpc GetVoipCalls(GetVoipCallsRequest) returns (VoipCallResponse);
+    
+    // IPTV management
+    rpc GetIptvChannels(GetIptvChannelsRequest) returns (IptvChannelResponse);
+    rpc GetIptvSessions(GetIptvSessionsRequest) returns (IptvSessionResponse);
+    rpc StartIptvSession(IptvSessionConfig) returns (IptvSessionConfigResponse);
+    rpc StopIptvSession(StopIptvSessionRequest) returns (DeleteResponse);
+    
+    // TR-069 management
+    rpc GetTr069Status(GetTr069StatusRequest) returns (Tr069StatusResponse);
+    rpc SetTr069Config(Tr069Config) returns (SetConfigResponse);
+    rpc GetFirmwareStatus(GetFirmwareStatusRequest) returns (FirmwareStatusResponse);
+    rpc TriggerFirmwareDownload(FirmwareDownloadRequest) returns (FirmwareDownloadResponse);
+    
+    // Device health
+    rpc GetDeviceHealth(GetDeviceHealthRequest) returns (DeviceHealthResponse);
+    
+    // Telemetry streaming
+    rpc StreamHealth(stream GetDeviceHealthRequest) returns (stream DeviceHealthResponse);
 }
 
-message UpdateWifiResponse {
+// ============================================================
+// Request Messages
+// ============================================================
+
+message GetWifiConfigsRequest {
+    uint32 band = 1;
+    bool all = 2;
+}
+
+message GetWifiClientsRequest {
+    uint32 band = 1;
+    bool all = 2;
+}
+
+message SetConfigResponse {
     bool success = 1;
     string message = 2;
 }
 
-// Update VoIP
-message UpdateVoipRequest {
-    uint32 line_id = 1;
-    string sip_server = 2;
-    uint32 sip_port = 3;
-    string username = 4;
-    string password = 5;
-    string codec = 6;
+message GetVoipAccountsRequest {
+    uint32 account_id = 1;
+    bool all = 2;
 }
 
-message UpdateVoipResponse {
+message DeleteVoipAccountRequest {
+    uint32 account_id = 1;
+}
+
+message GetVoipCallsRequest {
+    uint32 call_id = 1;
+    bool all = 2;
+}
+
+message GetIptvChannelsRequest {
+    uint32 channel_id = 1;
+    bool all = 2;
+}
+
+message GetIptvSessionsRequest {
+    bool all = 1;
+}
+
+message IptvSessionConfig {
+    uint32 session_id = 1;
+    string mac_address = 2;
+    uint32 channel_id = 3;
+}
+
+message IptvSessionConfigResponse {
     bool success = 1;
     string message = 2;
 }
 
-// Block/Unblock client
-message BlockClientRequest {
-    string client_id = 1;
+message StopIptvSessionRequest {
+    uint32 session_id = 1;
 }
 
-message BlockClientResponse {
+message GetTr069StatusRequest {
+    bool all = 1;
+}
+
+message Tr069Config {
+    string acs_url = 1;
+    uint32 acs_port = 2;
+    string username = 3;
+    string password = 4;
+    uint32 periodic_interval = 5;
+    bool periodic_enabled = 6;
+}
+
+message GetFirmwareStatusRequest {
+    bool all = 1;
+}
+
+message FirmwareDownloadRequest {
+    string url = 1;
+    string file_type = 2;
+}
+
+message FirmwareDownloadResponse {
     bool success = 1;
     string message = 2;
 }
 
-// MTS Residential Gateway Service
-service MtsResidentialService {
-    rpc GetGponStatus(Empty) returns (GponOnuStatusResponse);
-    rpc GetWifiStatus(Empty) returns (WifiBssInfoResponse);
-    rpc UpdateWifi(UpdateWifiRequest) returns (UpdateWifiResponse);
-    rpc GetWifiClients(Empty) returns (WifiClientInfoResponse);
-    rpc GetVoipStatus(Empty) returns (VoipStatusResponse);
-    rpc UpdateVoip(UpdateVoipRequest) returns (UpdateVoipResponse);
-    rpc GetIptvStatus(Empty) returns (IptvStatusResponse);
-    rpc GetTr069Status(Empty) returns (Tr069StatusResponse);
-    rpc GetLanConfig(Empty) returns (LanConfigResponse);
-    rpc GetParentalControl(Empty) returns (ParentalControlResponse);
-    rpc UpdateParentalControl(ParentalControl) returns (BlockClientResponse);
-    rpc BlockClient(BlockClientRequest) returns (BlockClientResponse);
-    rpc UnblockClient(BlockClientRequest) returns (BlockClientResponse);
-    rpc GetDeviceHealth(Empty) returns (DeviceHealthResponse);
-    rpc SubscribeTelemetry(TelemetrySubscription) returns (stream TelemetryData);
+message GetDeviceHealthRequest {
+    string device_id = 1;
 }
 
-message Empty {}
-
-message TelemetrySubscription {
-    repeated string paths = 1;
-    int64 sample_interval = 2;
-}
-
-message TelemetryData {
-    int64 timestamp = 1;
-    map<string, double> metrics = 2;
-    repeated PortStats ports = 3;
-}
-
-message PortStats {
-    string name = 1;
-    uint64 rx_bytes = 2;
-    uint64 tx_bytes = 3;
-    uint64 rx_packets = 4;
-    uint64 tx_packets = 5;
-    uint64 rx_errors = 6;
-    uint64 tx_errors = 7;
+message DeleteResponse {
+    bool success = 1;
+    string message = 2;
 }

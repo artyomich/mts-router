@@ -1,84 +1,79 @@
-cmake_minimum_required(VERSION 3.14)
-project(mts-mc5000-api VERSION 1.0.0 LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.16)
+project(mts-mc5000-api VERSION 1.0.0 LANGUAGES C CXX)
 
-# Suppress CMP0167 warning: The FindBoost module is removed.
-if(POLICY CMP0167)
-  cmake_policy(SET CMP0167 OLD)
-endif()
-
+set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Threads REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system filesystem)
-find_package(gRPC REQUIRED)
+# Compiler flags
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror -O2")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -O2")
 
-include(FindProtobuf)
+# Dependencies
 find_package(Protobuf REQUIRED)
+find_package(gRPC REQUIRED)
+find_package(Threads REQUIRED)
 
-include_directories(
-    ${PROJECT_SOURCE_DIR}/include
-    ${PROJECT_SOURCE_DIR}/proto
-    ${CMAKE_CURRENT_BINARY_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR}/grpc_generated
-    ${PROTOBUF_INCLUDE_DIR}
-    ${gRPC_INCLUDE_DIRS}
-    ${Boost_INCLUDE_DIRS}
-)
+# Include directories
+include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/include/hal)
+include_directories(${CMAKE_SOURCE_DIR}/include/service)
+include_directories(${PROTOBUF_INCLUDE_DIR})
+include_directories(${gRPC_INCLUDE_DIR})
 
-set(PROTO_SRC proto/mts_mobile_core.proto)
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_SRC})
+# Generated proto files
+set(PROTO_DIR "${CMAKE_SOURCE_DIR}/proto")
+set(GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
 
-# Find grpc_cpp_plugin
-find_program(GRPC_CPP_PLUGIN grpc_cpp_plugin PATHS /usr/bin /usr/local/bin)
-if(NOT GRPC_CPP_PLUGIN)
-  message(FATAL_ERROR "grpc_cpp_plugin not found")
-endif()
+# Generate protobuf and gRPC code
+protobuf_generate_cpp(GENERATED_SRCS GENERATED_HDRS ${PROTO_DIR}/mts_mobile_core.proto)
+grpc_generate_cpp(GENERATED_GRPC_SRCS GENERATED_GRPC_HDRS ${PROTO_DIR}/mts_mobile_core.proto)
 
-# Generate gRPC C++ code
-add_custom_command(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/grpc_generated/mts_mobile_core.grpc.pb.cc
-         ${CMAKE_CURRENT_BINARY_DIR}/grpc_generated/mts_mobile_core.grpc.pb.h
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/grpc_generated
-  COMMAND ${PROTOBUF_PROTOC_EXECUTABLE}
-  ARGS --grpc_out=${CMAKE_CURRENT_BINARY_DIR}/grpc_generated
-       --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN}
-       --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/proto
-       mts_mobile_core.proto
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${PROTO_SRC}
-  COMMENT "Generating gRPC C++ code"
-)
-
-set(GRPC_SRCS ${CMAKE_CURRENT_BINARY_DIR}/grpc_generated/mts_mobile_core.grpc.pb.cc)
-set(GRPC_HDRS ${CMAKE_CURRENT_BINARY_DIR}/grpc_generated/mts_mobile_core.grpc.pb.h)
-
+# Source files
 set(SOURCES
-    src/hal/upf_hal.cpp
-    src/hal/sm_hal.cpp
-    src/hal/pfcp_hal.cpp
-    src/hal/gtp_hal.cpp
-    src/service/mobile_core_service.cpp
-    src/upf/session_manager.cpp
-    src/smf/session_controller.cpp
-    src/pfcp/pfcp_handler.cpp
-    src/gtp/gtp_tunnel.cpp
     src/main.cpp
-    ${PROTO_SRCS}
-    ${GRPC_SRCS}
+    src/service/mc_service.cpp
+    hal/mc_hal.cpp
+    hal/mc_upf.cpp
+    hal/mc_smf.cpp
+    hal/mc_pfcp.cpp
+    hal/mc_gtp.cpp
+    ${GENERATED_SRCS}
+    ${GENERATED_GRPC_SRCS}
 )
 
-add_executable(mts-mc5000-server ${SOURCES})
+# Headers
+set(HEADERS
+    include/hal/mc_hal.h
+    include/hal/mc_upf.h
+    include/hal/mc_smf.h
+    include/hal/mc_pfcp.h
+    include/hal/mc_gtp.h
+    include/service/mc_service.h
+)
 
-target_link_libraries(mts-mc5000-server
-    protobuf::libprotobuf
-    gRPC::grpc++
-    gRPC::grpc++_reflection
+# Build executable
+add_executable(mts-mc5000-api ${SOURCES})
+
+# Link libraries
+target_link_libraries(mts-mc5000-api
+    ${PROTOBUF_LIBRARIES}
+    ${gRPC_LIBRARIES}
     pthread
-    ${Boost_LIBRARIES}
 )
-
-# Enable reflection
-target_compile_definitions(mts-mc5000-server PRIVATE GRPC_ENABLE_FORK_SUPPORT)
 
 # Install
-install(TARGETS mts-mc5000-server DESTINATION bin)
+install(TARGETS mts-mc5000-api DESTINATION bin)
+install(FILES ${HEADERS} DESTINATION include/mts-mc5000)
+
+# Tests
+enable_testing()
+add_subdirectory(tests)
+
+# Configuration
+configure_file(config/mts-mc5000.conf.in config/mts-mc5000.conf @ONLY)
+
+message(STATUS "MTS Mobile Core API configured:")
+message(STATUS "  Version: ${PROJECT_VERSION}")
+message(STATUS "  Protobuf: ${PROTOBUF_VERSION}")
+message(STATUS "  gRPC: ${gRPC_VERSION}")

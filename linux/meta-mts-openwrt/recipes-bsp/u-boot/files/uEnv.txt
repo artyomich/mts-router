@@ -1,0 +1,44 @@
+# uEnv.txt - U-Boot environment variables for MTS Router devices
+# This file is loaded by U-Boot to configure boot parameters
+
+# Boot configuration
+bootdelay=3
+bootfile="boot.scr"
+
+# Kernel boot arguments
+kernel_addr_r=0x4000000
+ramdisk_addr_r=0x5000000
+fdt_addr_r=0x6000000
+
+# Boot command
+bootcmd=run findfdt; run envboot; run bootserial; run bootmmc; run bootnet
+
+# Device tree
+findfdt=if test $fdtfile = undefined; then if test $board_name = mts-rg500; then setenv fdtfile mts-rg500.dtb; elif test $board_name = mts-er1000; then setenv fdtfile mts-er1000.dtb; elif test $board_name = mts-olt2000; then setenv fdtfile mts-olt2000.dtb; fi; fi
+
+# Environment storage
+envboot=if test -e mmc ${mmcdev}:1 env.txt; then fatload mmc ${mmcdev}:1 ${env_addr} env.txt; env import -t ${env_addr} ${filesize}; fi
+
+# Serial console
+bootserial=setenv bootargs console=${console},${baudrate}; booti ${kernel_addr_r} ${ramdisk_addr_r} ${fdt_addr_r}
+
+# MMC boot
+bootmmc=if mmc dev ${mmcdev}; then if fatload mmc ${mmcdev}:1 ${kernel_addr_r} boot/Image; then if fatload mmc ${mmcdev}:1 ${ramdisk_addr_r} boot/initramfs.cpio.gz; then if fatload mmc ${mmcdev}:1 ${fdt_addr_r} boot/${fdtfile}; then booti ${kernel_addr_r} ${ramdisk_addr_r} ${fdt_addr_r}; fi; fi; fi; fi
+
+# Network boot
+bootnet=setenv ipaddr ${ethaddr}; dhcp; tftpboot ${kernel_addr_r} boot/Image; tftpboot ${ramdisk_addr_r} boot/initramfs.cpio.gz; tftpboot ${fdt_addr_r} boot/${fdtfile}; booti ${kernel_addr_r} ${ramdisk_addr_r} ${fdt_addr_r}
+
+# Console settings
+console=ttymxc0,115200
+baudrate=115200
+
+# Boot counter for recovery
+boot_count=0
+boot_fail_count=0
+
+# Recovery mode
+boot_recovery=if test ${boot_count} -gt 3; then setenv boot_recovery 1; fi
+
+# Firmware update
+fw_update=if test -e mmc ${mmcdev}:1 fw_update.img; then fatload mmc ${mmcdev}:1 ${kernel_addr_r} fw_update.img; run fw_apply; fi
+fw_apply=if test ${boot_bank} = A; then setenv boot_bank B; else setenv boot_bank A; fi; setenv boot_count 0; saveenv; reset

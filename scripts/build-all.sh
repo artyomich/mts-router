@@ -118,7 +118,7 @@ build_all() {
     fi
     
     # Mobile Backhaul (MTS-MB-3000)
-    if build_device "mts-mb3000" "${PROJECT_DIR}/mts-mb3000-api" "${PROJECT_DIR}/scripts/build-mobile-backhaul.sh"; then
+    if build_device "mts-mb3000" "${PROJECT_DIR}/mobile-backhaul-api" "${PROJECT_DIR}/scripts/build-mobile-backhaul.sh"; then
         :
     else
         failed=$((failed + 1))

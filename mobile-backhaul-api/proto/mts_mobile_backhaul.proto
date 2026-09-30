@@ -1,0 +1,369 @@
+syntax = "proto3";
+
+package mts.mobile.backhaul.v1;
+
+option cc_generic_services = false;
+
+// ============================================================
+// MPLS-TP Messages
+// ============================================================
+
+// MPLS-TP Tunnel status
+message MplsTpTunnel {
+    uint32 tunnel_id = 1;
+    string name = 2;
+    string ingress_port = 3;
+    string egress_port = 4;
+    uint32 label = 5;
+    uint32 next_label = 6;
+    string next_hop = 7;
+    string status = 8; // active, inactive, error
+    uint64 rx_packets = 9;
+    uint64 tx_packets = 10;
+    uint64 rx_bytes = 11;
+    uint64 tx_bytes = 12;
+    uint64 rx_errors = 13;
+    uint64 tx_errors = 14;
+    uint64 rx_drops = 15;
+    uint64 tx_drops = 16;
+}
+
+// MPLS-TP PW (Pseudowire) status
+message MplsTpPw {
+    uint32 pw_id = 1;
+    string name = 2;
+    string peer_ip = 3;
+    uint32 local_label = 4;
+    uint32 remote_label = 5;
+    string encapsulation = 6; // vlan, gtp, eth
+    string status = 7; // up, down, initializing
+    uint64 rx_packets = 8;
+    uint64 tx_packets = 9;
+    uint64 rx_bytes = 10;
+    uint64 tx_bytes = 11;
+}
+
+// MPLS-TP OAM status
+message MplsTpOam {
+    uint32 oam_id = 1;
+    string type = 2; // circuity, endpoint, bgw
+    string target = 3;
+    string status = 4; // active, inactive, error
+    uint64 failures = 5;
+    uint64 intervals = 6;
+    double failure_rate = 7;
+}
+
+// ============================================================
+// PTP (Precision Time Protocol) Messages
+// ============================================================
+
+// PTP clock status
+message PtpClock {
+    uint32 clock_id = 1;
+    string clock_identity = 2;
+    string domain = 3;
+    string priority1 = 4;
+    string priority2 = 5;
+    string class_value = 6;
+    string clock_type = 7; // master, slave, boundary, transparent
+    string status = 8; // active, inactive, error
+    double offset_from_master_ns = 9;
+    uint64 num_steps_removed = 10;
+    uint64 log_sync_interval = 11;
+}
+
+// PTP profile
+message PtpProfile {
+    string profile_name = 1; // G.8265.1, G.8275.1, E.812
+    uint32 domain_number = 2;
+    uint32 priority1 = 3;
+    uint32 priority2 = 4;
+    uint32 max_steps = 5;
+    uint32 clock_class = 6;
+    uint32 clock_type = 7;
+    uint32 utc_offset = 8;
+}
+
+// ============================================================
+// Port/Interface Messages
+// ============================================================
+
+// Port status for mobile backhaul
+message PortStatus {
+    string port_id = 1;
+    string name = 2;
+    string type = 3; // sfp, sfp+, qsfp, ethernet
+    uint32 speed_mbps = 4;
+    string status = 5; // up, down, error
+    string mode = 6; // mpls-tp, ethernet, hybrid
+    uint64 rx_bytes = 7;
+    uint64 tx_bytes = 8;
+    uint64 rx_packets = 9;
+    uint64 tx_packets = 10;
+    uint64 rx_errors = 11;
+    uint64 tx_errors = 12;
+    uint64 rx_drops = 13;
+    uint64 tx_drops = 14;
+    double rx_power_dbm = 15;
+    double tx_power_dbm = 16;
+    double temperature_c = 17;
+}
+
+// ============================================================
+// DPDK Messages
+// ============================================================
+
+// DPDK port configuration
+message DpdkPortConfig {
+    uint32 port_id = 1;
+    uint32 num_mbufs = 2;
+    uint32 mbuf_size = 3;
+    uint32 num_rx_queues = 4;
+    uint32 num_tx_queues = 5;
+    uint32 rx_desc_len = 6;
+    uint32 tx_desc_len = 7;
+    string rss_hash_key = 8;
+    bool enable_rss = 9;
+}
+
+// DPDK port stats
+message DpdkPortStats {
+    uint32 port_id = 1;
+    uint64 packets_processed = 2;
+    uint64 packets_dropped = 3;
+    uint64 bytes_processed = 4;
+    uint64 errors = 5;
+    uint64 bursts = 6;
+    double throughput_mbps = 7;
+    double cpu_usage = 8;
+}
+
+// ============================================================
+// Device Health Messages
+// ============================================================
+
+// Device health for mobile backhaul
+message DeviceHealth {
+    string device_id = 1;
+    string model = 2;
+    string firmware = 3;
+    double cpu_usage = 4;
+    double memory_usage = 5;
+    double temperature = 6;
+    string status = 7; // healthy, degraded, critical
+    uint64 uptime_seconds = 8;
+    uint64 packet_loss_pct = 9;
+    double latency_ms = 10;
+}
+
+// ============================================================
+// Responses
+// ============================================================
+
+message MplsTpTunnelResponse {
+    repeated MplsTpTunnel tunnels = 1;
+}
+
+message MplsTpPwResponse {
+    repeated MplsTpPw pseudowires = 1;
+}
+
+message MplsTpOamResponse {
+    repeated MplsTpOam oams = 1;
+}
+
+message PtpClockResponse {
+    repeated PtpClock clocks = 1;
+}
+
+message PtpProfileResponse {
+    PtpProfile profile = 1;
+}
+
+message PortStatusResponse {
+    repeated PortStatus ports = 1;
+}
+
+message DpdkPortStatsResponse {
+    repeated DpdkPortStats stats = 1;
+}
+
+message DeviceHealthResponse {
+    DeviceHealth health = 1;
+}
+
+// ============================================================
+// Service Definition
+// ============================================================
+
+service MtsMobileBackhaul {
+    // MPLS-TP Tunnel management
+    rpc GetMplsTpTunnels(GetMplsTpTunnelsRequest) returns (MplsTpTunnelResponse);
+    rpc SetMplsTpTunnel(MplsTpTunnelConfig) returns (MplsTpTunnelConfigResponse);
+    rpc DeleteMplsTpTunnel(MplsTpTunnelDeleteRequest) returns (DeleteResponse);
+    
+    // MPLS-TP PW management
+    rpc GetMplsTpPws(GetMplsTpPwsRequest) returns (MplsTpPwResponse);
+    rpc SetMplsTpPw(MplsTpPwConfig) returns (MplsTpPwConfigResponse);
+    rpc DeleteMplsTpPw(MplsTpPwDeleteRequest) returns (DeleteResponse);
+    
+    // MPLS-TP OAM
+    rpc GetMplsTpOam(GetMplsTpOamRequest) returns (MplsTpOamResponse);
+    rpc StartMplsTpOam(MplsTpOamConfig) returns (MplsTpOamConfigResponse);
+    rpc StopMplsTpOam(MplsTpOamStopRequest) returns (DeleteResponse);
+    
+    // PTP management
+    rpc GetPtpClocks(GetPtpClocksRequest) returns (PtpClockResponse);
+    rpc SetPtpProfile(PtpProfileConfig) returns (PtpProfileConfigResponse);
+    rpc GetPtpProfile(GetPtpProfileRequest) returns (PtpProfileResponse);
+    
+    // Port management
+    rpc GetPortStatuses(GetPortStatusesRequest) returns (PortStatusResponse);
+    rpc SetPortMode(PortModeConfig) returns (PortModeConfigResponse);
+    
+    // DPDK management
+    rpc GetDpdkPortStats(GetDpdkPortStatsRequest) returns (DpdkPortStatsResponse);
+    rpc SetDpdkPortConfig(DpdkPortConfig) returns (DpdkPortConfigResponse);
+    
+    // Device health
+    rpc GetDeviceHealth(GetDeviceHealthRequest) returns (DeviceHealthResponse);
+    
+    // Telemetry streaming
+    rpc StreamPortStats(stream GetPortStatusesRequest) returns (stream PortStatusResponse);
+    rpc StreamHealth(stream GetDeviceHealthRequest) returns (stream DeviceHealthResponse);
+}
+
+// ============================================================
+// Request Messages
+// ============================================================
+
+message GetMplsTpTunnelsRequest {
+    uint32 tunnel_id = 1;
+    string name = 2;
+    bool all = 3;
+}
+
+message MplsTpTunnelConfig {
+    uint32 tunnel_id = 1;
+    string name = 2;
+    string ingress_port = 3;
+    string egress_port = 4;
+    uint32 label = 5;
+    uint32 next_label = 6;
+    string next_hop = 7;
+}
+
+message MplsTpTunnelConfigResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message MplsTpTunnelDeleteRequest {
+    uint32 tunnel_id = 1;
+}
+
+message MplsTpPwConfig {
+    uint32 pw_id = 1;
+    string name = 2;
+    string peer_ip = 3;
+    uint32 local_label = 4;
+    uint32 remote_label = 5;
+    string encapsulation = 6;
+}
+
+message MplsTpPwConfigResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message MplsTpPwDeleteRequest {
+    uint32 pw_id = 1;
+}
+
+message GetMplsTpPwsRequest {
+    uint32 pw_id = 1;
+    string name = 2;
+    bool all = 3;
+}
+
+message MplsTpOamConfig {
+    uint32 oam_id = 1;
+    string type = 2;
+    string target = 3;
+    uint32 interval_ms = 4;
+}
+
+message MplsTpOamConfigResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message MplsTpOamStopRequest {
+    uint32 oam_id = 1;
+}
+
+message GetMplsTpOamRequest {
+    uint32 oam_id = 1;
+    string type = 2;
+    bool all = 3;
+}
+
+message GetPtpClocksRequest {
+    uint32 clock_id = 1;
+    bool all = 2;
+}
+
+message PtpProfileConfig {
+    string profile_name = 1;
+    uint32 domain_number = 2;
+    uint32 priority1 = 3;
+    uint32 priority2 = 4;
+    uint32 max_steps = 5;
+    uint32 clock_class = 6;
+    uint32 clock_type = 7;
+    uint32 utc_offset = 8;
+}
+
+message PtpProfileConfigResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message GetPtpProfileRequest {
+    uint32 domain_number = 1;
+}
+
+message GetPortStatusesRequest {
+    string port_id = 1;
+    bool all = 2;
+}
+
+message PortModeConfig {
+    string port_id = 1;
+    string mode = 2; // mpls-tp, ethernet, hybrid
+}
+
+message PortModeConfigResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message GetDpdkPortStatsRequest {
+    uint32 port_id = 1;
+    bool all = 2;
+}
+
+message DpdkPortConfigResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message GetDeviceHealthRequest {
+    string device_id = 1;
+}
+
+message DeleteResponse {
+    bool success = 1;
+    string message = 2;
+}

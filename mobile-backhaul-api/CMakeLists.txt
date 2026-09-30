@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(mts-olt2000-api VERSION 1.0.0 LANGUAGES C CXX)
+project(mts-mb3000-api VERSION 1.0.0 LANGUAGES C CXX)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -26,54 +26,52 @@ set(PROTO_DIR "${CMAKE_SOURCE_DIR}/proto")
 set(GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
 
 # Generate protobuf and gRPC code
-protobuf_generate_cpp(GENERATED_SRCS GENERATED_HDRS ${PROTO_DIR}/mts_olt_gpon.proto)
-grpc_generate_cpp(GENERATED_GRPC_SRCS GENERATED_GRPC_HDRS ${PROTO_DIR}/mts_olt_gpon.proto)
+protobuf_generate_cpp(GENERATED_SRCS GENERATED_HDRS ${PROTO_DIR}/mts_mobile_backhaul.proto)
+grpc_generate_cpp(GENERATED_GRPC_SRCS GENERATED_GRPC_HDRS ${PROTO_DIR}/mts_mobile_backhaul.proto)
 
 # Source files
 set(SOURCES
     src/main.cpp
-    src/service/olt_service.cpp
-    hal/olt_hal.cpp
-    hal/olt_gpon.cpp
-    hal/olt_omci.cpp
-    hal/olt_wdm.cpp
-    hal/olt_tr069.cpp
+    src/service/mbs_service.cpp
+    hal/mbs_hal.cpp
+    hal/mbs_mpls_tp.cpp
+    hal/mbs_ptp.cpp
+    hal/mbs_dpdk.cpp
     ${GENERATED_SRCS}
     ${GENERATED_GRPC_SRCS}
 )
 
 # Headers
 set(HEADERS
-    include/hal/olt_hal.h
-    include/hal/olt_gpon.h
-    include/hal/olt_omci.h
-    include/hal/olt_wdm.h
-    include/hal/olt_tr069.h
-    include/service/olt_service.h
+    include/hal/mbs_hal.h
+    include/hal/mbs_mpls_tp.h
+    include/hal/mbs_ptp.h
+    include/hal/mbs_dpdk.h
+    include/service/mbs_service.h
 )
 
 # Build executable
-add_executable(mts-olt2000-api ${SOURCES})
+add_executable(mts-mb3000-api ${SOURCES})
 
 # Link libraries
-target_link_libraries(mts-olt2000-api
+target_link_libraries(mts-mb3000-api
     ${PROTOBUF_LIBRARIES}
     ${gRPC_LIBRARIES}
     pthread
 )
 
 # Install
-install(TARGETS mts-olt2000-api DESTINATION bin)
-install(FILES ${HEADERS} DESTINATION include/mts-olt2000)
+install(TARGETS mts-mb3000-api DESTINATION bin)
+install(FILES ${HEADERS} DESTINATION include/mts-mb3000)
 
 # Tests
 enable_testing()
 add_subdirectory(tests)
 
 # Configuration
-configure_file(config/mts-olt2000.conf.in config/mts-olt2000.conf @ONLY)
+configure_file(config/mts-mb3000.conf.in config/mts-mb3000.conf @ONLY)
 
-message(STATUS "MTS OLT GPON API configured:")
+message(STATUS "MTS Mobile Backhaul API configured:")
 message(STATUS "  Version: ${PROJECT_VERSION}")
 message(STATUS "  Protobuf: ${PROTOBUF_VERSION}")
 message(STATUS "  gRPC: ${gRPC_VERSION}")

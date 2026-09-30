@@ -1,0 +1,61 @@
+# MTS-OLT-2000 OLT GPON API Configuration
+# @CMAKE_CONFIG_DIR@/mts-olt2000.conf
+
+[server]
+port = 50053
+tls_enabled = true
+tls_cert = /etc/mts/certs/server.crt
+tls_key = /etc/mts/certs/server.key
+tls_ca = /etc/mts/certs/ca.crt
+
+[logging]
+level = info
+file = /var/log/mts-olt2000-api.log
+
+[mtls]
+enabled = true
+cert_file = /etc/mts/certs/client.crt
+key_file = /etc/mts/certs/client.key
+ca_file = /etc/mts/certs/ca.crt
+
+[telemetry]
+stream_interval_ms = 1000
+delta_encoding = true
+
+[hw]
+tofino_socket = 0
+max_gpon_ports = 8
+max_onu_per_port = 128
+
+[gpon]
+max_ports = 8
+max_onu = 128
+tx_power_min = -40
+tx_power_max = 60
+mtu = 1500
+
+[omci]
+enabled = true
+max_sessions = 1024
+event_buffer_size = 4096
+
+[tr069]
+enabled = true
+port = 7547
+https_port = 443
+interval_sec = 60
+max_connections = 10
+cwmp_username = admin
+acs_url = https://acs.provider.com
+acs_port = 443
+periodic_interval = 3600
+periodic_interval_enabled = false
+
+[wdm]
+max_channels = 4
+monitor_interval_ms = 1000
+
+[p4]
+pipeline_dir = /etc/mts/p4
+default_pipeline = mts-gpon.p4info.pb
+load_on_start = true

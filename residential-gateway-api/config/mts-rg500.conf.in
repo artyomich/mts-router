@@ -1,0 +1,84 @@
+# MTS-RG-500 Residential Gateway API Configuration
+# @CMAKE_CONFIG_DIR@/mts-rg500.conf
+
+[server]
+port = 50054
+tls_enabled = true
+tls_cert = /etc/mts/certs/server.crt
+tls_key = /etc/mts/certs/server.key
+tls_ca = /etc/mts/certs/ca.crt
+
+[logging]
+level = info
+file = /var/log/mts-rg500-api.log
+
+[mtls]
+enabled = true
+cert_file = /etc/mts/certs/client.crt
+key_file = /etc/mts/certs/client.key
+ca_file = /etc/mts/certs/ca.crt
+
+[telemetry]
+stream_interval_ms = 1000
+delta_encoding = true
+
+[wifi]
+band_2g_ssid = MTS-Home-2G
+band_5g_ssid = MTS-Home-5G
+band_2g_channel = auto
+band_5g_channel = auto
+band_2g_mode = bgn
+band_5g_mode = a/n/ac/ax
+band_2g_bandwidth = 20/40
+band_5g_bandwidth = 20/40/80
+security = wpa3-sae
+hidden_ssid = false
+guest_network_enabled = true
+max_clients_per_band = 32
+
+[voip]
+enabled = true
+protocol = sip
+port = 5060
+tls_port = 5061
+codecs = g711a,g711u,g729,g722
+registrar = sip.mts-router.local
+reg_interval = 3600
+transport = udp
+max_accounts = 4
+
+[iptv]
+enabled = true
+port = 5004
+protocol = igmp
+max_sessions = 8
+buffer_size = 4096
+cache_enabled = true
+cache_dir = /var/cache/iptv
+epg_update_interval = 3600
+
+[tr069]
+enabled = true
+port = 7547
+https_port = 443
+acs_url = https://acs.provider.com
+acs_port = 443
+username = admin
+periodic_interval = 3600
+periodic_enabled = false
+max_connections = 10
+auto_firmware_upgrade = true
+firmware_url = https://firmware.mts-router.local
+
+[gpon]
+enabled = true
+max_ports = 1
+max_onu = 64
+tx_power_min = -40
+tx_power_max = 60
+mtu = 1500
+
+[hw]
+mt7981_socket = 0
+dpdk_mbufs = 4096
+dpdk_mbuf_size = 2048
