@@ -1,0 +1,355 @@
+# MTS Router Integration Test Topology
+# Описание сетевой топологии для end-to-end тестирования
+
+topology:
+  name: "mts-router-integration"
+  version: "1.0"
+  
+  # Host network bridge для соединения устройств
+  host_network:
+    bridge_name: "mts-integration-bridge"
+    subnet: "10.0.0.0/24"
+    gateway: "10.0.0.1"
+    
+  devices:
+    core_router:
+      name: "mts-cr9000"
+      image: "build/images/mts-cr9000/mts-core-router-image.ext4"
+      ip: "10.0.0.1"
+      arch: "x86_64"
+      qemu_opts:
+        machine: "q35"
+        cpu: "host"
+        memory: "4096"
+        cores: "4"
+      roles:
+        - bgp
+        - mpls
+        - srv6
+        - interface: eth0
+          ip: "10.0.0.1/24"
+      services:
+        gRPC:
+          port: 50051
+          protocol: "grpc"
+        SSH:
+          port: 22
+          protocol: "ssh"
+        BGP:
+          port: 179
+          protocol: "tcp"
+          asn: 65001
+        REST_API:
+          port: 8080
+          protocol: "http"
+          
+    mobile_core:
+      name: "mts-mc5000"
+      image: "build/images/mts-mc5000/mts-mobile-core-image.ext4"
+      ip: "10.0.0.2"
+      arch: "aarch64"
+      qemu_opts:
+        machine: "virt"
+        cpu: "cortex-a72"
+        memory: "4096"
+        cores: "4"
+      roles:
+        - upf
+        - smf
+        - amf
+        - pcf
+        - interface: eth0
+          ip: "10.0.0.2/24"
+      services:
+        gRPC:
+          port: 50052
+          protocol: "grpc"
+        SSH:
+          port: 22
+          protocol: "ssh"
+        UPF:
+          port: 8805
+          protocol: "gtp"
+        K3s:
+          port: 6443
+          protocol: "https"
+          
+    mobile_backhaul:
+      name: "mts-mb3000"
+      image: "build/images/mts-mb3000/rootfs.cpio.gz"
+      ip: "10.0.0.3"
+      arch: "aarch64"
+      qemu_opts:
+        machine: "virt"
+        cpu: "cortex-a72"
+        memory: "2048"
+        cores: "2"
+      roles:
+        - mpls-tp
+        - ptp-grandmaster
+        - interface: eth0
+          ip: "10.0.0.3/24"
+      services:
+        gRPC:
+          port: 50053
+          protocol: "grpc"
+        SSH:
+          port: 22
+          protocol: "ssh"
+        PTP:
+          port: 319
+          protocol: "udp"
+        MPLS_TP:
+          port: 0
+          protocol: "raw"
+          
+    olt_gpon:
+      name: "mts-olt2000"
+      image: "build/images/mts-olt2000/openwrt-armsr-generic-squashfs-combined.img"
+      ip: "10.0.0.4"
+      arch: "arm64"
+      qemu_opts:
+        machine: "virt"
+        cpu: "cortex-a72"
+        memory: "2048"
+        cores: "2"
+      roles:
+        - ont-mgmt
+        - tr069
+        - interface: eth0
+          ip: "10.0.0.4/24"
+      services:
+        gRPC:
+          port: 50054
+          protocol: "grpc"
+        SSH:
+          port: 22
+          protocol: "ssh"
+        TR069:
+          port: 7547
+          protocol: "http"
+        OMCI:
+          port: 49152
+          protocol: "udp"
+          
+    enterprise:
+      name: "mts-er1000"
+      image: "build/images/mts-er1000/openwrt-freescale-generic-squashfs-combined.img"
+      ip: "10.0.0.5"
+      arch: "arm64"
+      qemu_opts:
+        machine: "virt"
+        cpu: "cortex-a72"
+        memory: "2048"
+        cores: "2"
+      roles:
+        - sdwan
+        - vip
+        - interface: eth0
+          ip: "10.0.0.5/24"
+      services:
+        gRPC:
+          port: 50055
+          protocol: "grpc"
+        SSH:
+          port: 22
+          protocol: "ssh"
+        BIRD:
+          port: 0
+          protocol: "bgp"
+        IPSEC:
+          port: 4500
+          protocol: "udp"
+          
+    residential:
+      name: "mts-rg500"
+      image: "build/images/mts-rg500/openwrt-mediatek-mt7981-generic-squashfs-combined.img"
+      ip: "10.0.0.6"
+      arch: "arm64"
+      qemu_opts:
+        machine: "virt"
+        cpu: "cortex-a53"
+        memory: "1024"
+        cores: "2"
+      roles:
+        - dhcp-server
+        - wifi
+        - voip
+        - iptv
+        - interface: eth0
+          ip: "10.0.0.6/24"
+        - interface: wlan0
+          ip: "192.168.1.1/24"
+      services:
+        gRPC:
+          port: 50056
+          protocol: "grpc"
+        SSH:
+          port: 22
+          protocol: "ssh"
+        DHCP:
+          port: 67
+          protocol: "udp"
+        TR069:
+          port: 7547
+          protocol: "http"
+        Asterisk:
+          port: 5060
+          protocol: "sip"
+        IPTV:
+          port: 5004
+          protocol: "igmp"
+
+# Ссылки между устройствами
+links:
+  - name: "cr9000-mc5000"
+    from: "core_router:eth0"
+    to: "mobile_core:eth0"
+    type: "direct"
+    
+  - name: "cr9000-mb3000"
+    from: "core_router:eth0"
+    to: "mobile_backhaul:eth0"
+    type: "direct"
+    
+  - name: "cr9000-olt2000"
+    from: "core_router:eth0"
+    to: "olt_gpon:eth0"
+    type: "direct"
+    
+  - name: "cr9000-er1000"
+    from: "core_router:eth0"
+    to: "enterprise:eth0"
+    type: "direct"
+    
+  - name: "cr9000-rg500"
+    from: "core_router:eth0"
+    to: "residential:eth0"
+    type: "direct"
+
+# Тестовые сценарии
+test_scenarios:
+  - name: "bgpe_e2e"
+    description: "BGP end-to-end между Core Router и Enterprise"
+    devices: ["core_router", "enterprise"]
+    steps:
+      - type: "configure_bgp"
+        device: "core_router"
+        params:
+          asn: 65001
+          neighbor: "10.0.0.5"
+          prefix: "192.168.0.0/16"
+      - type: "configure_bgp"
+        device: "enterprise"
+        params:
+          asn: 65002
+          neighbor: "10.0.0.1"
+          prefix: "10.0.0.0/24"
+      - type: "verify_bgp_peer"
+        device: "core_router"
+        expected: "Established"
+      - type: "verify_route"
+        device: "core_router"
+        expected_prefix: "10.0.0.0/24"
+        
+  - name: "mpls_label_switching"
+    description: "MPLS label switching через Core Router"
+    devices: ["core_router", "mobile_backhaul"]
+    steps:
+      - type: "configure_mpls"
+        device: "core_router"
+        params:
+          enabled: true
+          ldp: true
+      - type: "configure_mpls_tp"
+        device: "mobile_backhaul"
+        params:
+          enabled: true
+          pwe: true
+      - type: "verify_label"
+        device: "core_router"
+        expected_labels: "> 0"
+        
+  - name: "srv6_policy"
+    description: "SRv6 policy от Core Router к Mobile Core"
+    devices: ["core_router", "mobile_core"]
+    steps:
+      - type: "configure_srv6"
+        device: "core_router"
+        params:
+          sid: "2001:db8::1"
+          endpoint: "10.0.0.2"
+      - type: "verify_srv6"
+        device: "core_router"
+        expected: "policy_active"
+        
+  - name: "ptp_sync"
+    description: "PTP синхронизация от Mobile Backhaul grandmaster"
+    devices: ["mobile_backhaul", "core_router"]
+    steps:
+      - type: "configure_ptp"
+        device: "mobile_backhaul"
+        params:
+          mode: "grandmaster"
+          profile: "telecom"
+      - type: "start_ptp_client"
+        device: "core_router"
+        params:
+          mode: "slave"
+      - type: "verify_offset"
+        device: "core_router"
+        expected_offset_us: 1
+        
+  - name: "tr069_provisioning"
+    description: "TR-069 provisioning OLT GPON"
+    devices: ["olt_gpon"]
+    steps:
+      - type: "configure_cwmp"
+        device: "olt_gpon"
+        params:
+          acs_url: "http://10.0.0.1:7547"
+          period_enable: true
+      - type: "verify_registration"
+        device: "olt_gpon"
+        expected: "registered"
+        
+  - name: "voip_call"
+    description: "VoIP звонок через Residential Gateway"
+    devices: ["residential"]
+    steps:
+      - type: "configure_asterisk"
+        device: "residential"
+        params:
+          sip_port: 5060
+          extensions:
+            - number: "100"
+              type: "sip"
+            - number: "101"
+              type: "sip"
+      - type: "originate_call"
+        device: "residential"
+        params:
+          from: "100"
+          to: "101"
+      - type: "verify_call"
+        device: "residential"
+        expected: "answered"
+        
+  - name: "iptv_multicast"
+    description: "IPTV multicast через Residential Gateway"
+    devices: ["residential"]
+    steps:
+      - type: "configure_igmp"
+        device: "residential"
+        params:
+          proxy: true
+          multicast_range: "239.0.0.0/8"
+      - type: "join_multicast"
+        device: "residential"
+        params:
+          group: "239.1.1.1"
+          port: 5004
+      - type: "verify_stream"
+        device: "residential"
+        expected: "streaming"
+        min_bitrate_kbps: 10000

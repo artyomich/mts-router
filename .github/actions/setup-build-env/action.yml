@@ -1,0 +1,146 @@
+name: 'Setup MTS Router Build Environment'
+description: 'Initialize Yocto, Buildroot, and OpenWrt build environments with caching'
+
+inputs:
+  target:
+    description: 'Build target (yocto, buildroot, openwrt, all)'
+    required: true
+    default: 'all'
+  clean:
+    description: 'Clean build cache before building'
+    required: false
+    default: 'false'
+
+outputs:
+  build-dir:
+    description: 'Build directory path'
+    value: ${{ steps.setup.outputs.build-dir }}
+  artifacts-dir:
+    description: 'Artifacts directory path'
+    value: ${{ steps.setup.outputs.artifacts-dir }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout project
+      uses: actions/checkout@v4
+
+    - name: Setup build directories
+      id: setup
+      shell: bash
+      run: |
+        BUILD_DIR="${GITHUB_WORKSPACE}/build"
+        ARTIFACTS_DIR="${BUILD_DIR}/images"
+        YOCTO_WORK="${BUILD_DIR}/yocto-work"
+        BUILDROOT_WORK="${BUILD_DIR}/buildroot-work"
+        OPENWRT_WORK="${BUILD_DIR}/openwrt-work"
+        mkdir -p "${ARTIFACTS_DIR}"
+        mkdir -p "${YOCTO_WORK}/build"
+        mkdir -p "${BUILDROOT_WORK}/build"
+        mkdir -p "${OPENWRT_WORK}/build"
+        echo "build-dir=${BUILD_DIR}" >> "$GITHUB_OUTPUT"
+        echo "artifacts-dir=${ARTIFACTS_DIR}" >> "$GITHUB_OUTPUT"
+
+    - name: Cache Yocto dependencies
+      if: inputs.target == 'yocto' || inputs.target == 'all'
+      uses: actions/cache@v4
+      with:
+        path: |
+          build/yocto-work/poky
+          build/yocto-work/meta-openembedded
+          build/yocto-work/meta-virtualization
+          build/yocto-work/meta-kubernetes
+        key: yocto-deps-${{ runner.os }}-${{ hashFiles('linux/meta-mts/**/*') }}
+        restore-keys: |
+          yocto-deps-${{ runner.os }}-
+
+    - name: Cache Yocto sstate
+      if: inputs.target == 'yocto' || inputs.target == 'all'
+      uses: actions/cache@v4
+      with:
+        path: |
+          build/yocto-work/build/*/tmp/sstate-cache
+          build/yocto-work/build/*/tmp/work
+        key: yocto-sstate-${{ github.sha }}
+        restore-keys: |
+          yocto-sstate-
+
+    - name: Cache Buildroot downloads
+      if: inputs.target == 'buildroot' || inputs.target == 'all'
+      uses: actions/cache@v4
+      with:
+        path: |
+          build/buildroot-work/buildroot
+          build/buildroot-work/build/dl
+        key: buildroot-deps-${{ runner.os }}-${{ hashFiles('linux/buildroot/**/*') }}
+        restore-keys: |
+          buildroot-deps-${{ runner.os }}-
+
+    - name: Cache OpenWrt downloads
+      if: inputs.target == 'openwrt' || inputs.target == 'all'
+      uses: actions/cache@v4
+      with:
+        path: |
+          build/openwrt-work/openwrt
+          build/openwrt-work/openwrt/dl
+        key: openwrt-deps-${{ runner.os }}-${{ hashFiles('linux/meta-mts-openwrt/**/*') }}
+        restore-keys: |
+          openwrt-deps-${{ runner.os }}-
+
+    - name: Install build dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential git curl wget python3 python3-pip flex bison bc libssl-dev libelf-dev qemu-system-arm qemu-system-mips qemu-utils ccache ninja-build meson pkg-config libglib2.0-dev libpixman-1-dev device-tree-compiler u-boot-tools xz-utils zip unzip rsync dos2unix fakeroot diffstat make gawk sed gawk python3-dev perl texinfo chrpath cpio jq dpdk-tools
+        echo "Dependencies installed successfully"
+
+    - name: Initialize Yocto environment
+      if: inputs.target == 'yocto' || inputs.target == 'all'
+      shell: bash
+      run: |
+        if [ "${{ inputs.clean }}" = "true" ]; then
+          rm -rf build/yocto-work/poky build/yocto-work/meta-openembedded
+        fi
+        chmod +x scripts/init-yocto-env.sh
+        ./scripts/init-yocto-env.sh
+
+    - name: Initialize Buildroot environment
+      if: inputs.target == 'buildroot' || inputs.target == 'all'
+      shell: bash
+      run: |
+        if [ "${{ inputs.clean }}" = "true" ]; then
+          rm -rf build/buildroot-work/buildroot
+        fi
+        chmod +x scripts/init-buildroot.sh
+        ./scripts/init-buildroot.sh
+
+    - name: Initialize OpenWrt environment
+      if: inputs.target == 'openwrt' || inputs.target == 'all'
+      shell: bash
+      run: |
+        if [ "${{ inputs.clean }}" = "true" ]; then
+          rm -rf build/openwrt-work/openwrt
+        fi
+        chmod +x scripts/init-openwrt-sdk.sh
+        ./scripts/init-openwrt-sdk.sh
+
+    - name: Verify build environment
+      shell: bash
+      run: |
+        echo "=== Build Environment Verification ==="
+        if [ -d "build/yocto-work/poky" ]; then
+          echo "[OK] Yocto poky directory exists"
+        else
+          echo "[SKIP] Yocto not initialized"
+        fi
+        if [ -d "build/buildroot-work/buildroot" ]; then
+          echo "[OK] Buildroot directory exists"
+        else
+          echo "[SKIP] Buildroot not initialized"
+        fi
+        if [ -d "build/openwrt-work/openwrt" ]; then
+          echo "[OK] OpenWrt directory exists"
+        else
+          echo "[SKIP] OpenWrt not initialized"
+        fi
+        echo "=== Environment verification complete ==="
