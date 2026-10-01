@@ -1,88 +1,592 @@
 /*
- * Device Tree for MTS-RG-500 Residential Gateway
- * MediaTek MT7981 + Realtek RTL960x
+ * device-tree.dts — Device Tree for MTS-RG-500 Residential Gateway
+ *
+ * SoC: MediaTek MT7981 (Helio X30)
+ * Features:
+ *   - Dual-core ARM Cortex-A53 @ 2.0GHz
+ *   - WiFi 6 (MT76) dual-band 2.4GHz + 5GHz
+ *   - 4x Gigabit Ethernet ports
+ *   - GPON PHY (RTL960x)
+ *   - USB 2.0/3.0
+ *   - PCIe
+ *   - SDMMC
+ *   - ADC, GPIO, UART, I2C, SPI
  */
 
 /dts-v1/;
-/include/ "mediatek/mt7981.dtsi"
-/include/ "realtek/rtl960x.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/mtk,mt6577-pinfunc.h>
+#include <dt-bindings/clock/mt7981-clk.h>
 
 / {
-    model = "MTS-RG-500 Residential Gateway";
-    compatible = "mts,rg500", "mediatek,mt7981";
+    model = "MTS Routers MTS-RG-500 Residential Gateway";
+    compatible = "mts,mts-rg500", "mediatek,mt7981";
+
+    aliases {
+        serial0 = &uart0;
+        ethernet0 = &gmac0;
+        ethernet1 = &gmac1;
+        wifi0 = &wifi0;
+        wifi1 = &wifi1;
+        sdcard0 = &sdmmc;
+    };
 
     chosen {
-        bootargs = "console=ttyS0,115200n8 root=/dev/mtdblock2 rw";
-        stdout-path = "serial:0";
+        stdout-path = "serial0:115200n8";
+        bootargs = "console=ttyS0,115200n8 earlycon=uart8250,mmio32,0x11002000 root=/dev/mtdblock3 rootfstype=squashfs,fuse ext4 rw rootwait";
     };
 
     memory {
-        reg = <0x00000000 0x00000000 0x00000000 0x00200000>; /* 2MB base */
+        device_type = "memory";
+        reg = <0x40000000 0x20000000>; /* 512MB DDR */
     };
 
-    /* SoC */
-    mt7981: cpu@0 {
-        compatible = "mediatek,mt7981";
-        num-cores = <4>;
-        architecture = "arm64";
-        clock-frequency = <2000000000>;
-        status = "okay";
-    };
+    reserved-memory {
+        #address-cells = <2>;
+        #size-cells = <2>;
+        ranges;
 
-    /* WiFi 6 */
-    &wifi {
-        status = "okay";
-        band-2ghz = <1>;
-        band-5ghz = <1>;
-        max-clients = <64>;
-    };
+        /* TEE OS reserved memory */
+        tee_mem: tee@4a000000 {
+            reg = <0x0 0x4a000000 0x0 0x01000000>; /* 16MB */
+            no-map;
+        };
 
-    /* GPON PHY */
-    gpon-phy {
-        compatible = "realtek,rtl960x-gpon";
-        reg = <0x00000000 0x00001000>;
-        interrupts = <0 42 4>;
-        num-ports = <1>;
-        max-onu = <128>;
-        status = "okay";
-    };
+        /* FWK memory */
+        fwk_mem: fwk@4b000000 {
+            reg = <0x0 0x4b000000 0x0 0x00100000>; /* 1MB */
+            no-map;
+        };
 
-    /* Ethernet ports */
-    &eth {
-        status = "okay";
-        num-ports = <4>;
-        max-speed = <1000000000>;
-    };
-
-    /* USB */
-    &usb {
-        status = "okay";
-        num-ports = <1>;
-        max-speed = <480000000>;
-    };
-
-    /* VoIP */
-    &voip {
-        status = "okay";
-        num-ports = <1>;
-        codec = "g711,g729,opus";
-    };
-
-    /* NAND Flash */
-    &nand {
-        status = "okay";
-        bus-width = <8>;
-        max-frequency = <20000000>;
-    };
-
-    /* I2C for management */
-    &i2c_bmc {
-        status = "okay";
-        clock-frequency = <100000>;
-
-        power@40 {
-            compatible = "pmbus,power";
-            reg = <0x40>;
+        /* DMA coherent memory */
+        dma_mem: dma@4b100000 {
+            reg = <0x0 0x4b100000 0x0 0x00F00000>; /* 15MB */
+            no-map;
         };
     };
+
+    /* GPIO LEDs */
+    leds {
+        compatible = "gpio-leds";
+        pwr_led: led-0 {
+            label = "mts-rg500:green:pwr";
+            gpios = <&pio MT7981_GPIO_MODE_GPIO, 55, GPIO_ACTIVE_LOW>;
+            default-state = "on";
+        };
+        wan_led: led-1 {
+            label = "mts-rg500:green:wan";
+            gpios = <&pio MT7981_GPIO_MODE_GPIO, 56, GPIO_ACTIVE_LOW>;
+        };
+        wlan2g_led: led-2 {
+            label = "mts-rg500:green:wlan2g";
+            gpios = <&pio MT7981_GPIO_MODE_GPIO, 57, GPIO_ACTIVE_LOW>;
+        };
+        wlan5g_led: led-3 {
+            label = "mts-rg500:green:wlan5g";
+            gpios = <&pio MT7981_GPIO_MODE_GPIO, 58, GPIO_ACTIVE_LOW>;
+        };
+        gpon_led: led-4 {
+            label = "mts-rg500:green:gpon";
+            gpios = <&pio MT7981_GPIO_MODE_GPIO, 59, GPIO_ACTIVE_LOW>;
+        };
+        fault_led: led-5 {
+            label = "mts-rg500:red:fault";
+            gpios = <&pio MT7981_GPIO_MODE_GPIO, 60, GPIO_ACTIVE_LOW>;
+        };
+    };
+
+    /* GPIO Buttons */
+    buttons {
+        compatible = "gpio-keys";
+        reset_btn: button-0 {
+            label = "Reset";
+            gpios = <&pio MT7981_GPIO_MODE_GPIO, 61, GPIO_ACTIVE_LOW>;
+            interrupt-parent = <&pio>;
+            interrupts = <61 IRQ_TYPE_EDGE_FALLING>;
+            debounce-interval = <60>;
+            wakeup-source;
+        };
+        wps_btn: button-1 {
+            label = "WPS";
+            gpios = <&pio MT7981_GPIO_MODE_GPIO, 62, GPIO_ACTIVE_LOW>;
+            interrupt-parent = <&pio>;
+            interrupts = <62 IRQ_TYPE_EDGE_FALLING>;
+            debounce-interval = <60>;
+            wakeup-source;
+        };
+    };
+
+    /* Power regulator for GPON PHY */
+    vcc_gpon: regulator-0 {
+        compatible = "regulator-fixed";
+        regulator-name = "VCC_GPON";
+        regulator-min-microvolt = <3300000>;
+        regulator-max-microvolt = <3300000>;
+        gpio = <&pio MT7981_GPIO_MODE_GPIO, 30, GPIO_ACTIVE_HIGH>;
+        enable-active-high;
+        regulator-boot-on;
+        regulator-always-on;
+    };
+
+    /* WiFi RF front-end regulators */
+    vdda25_wifi: regulator-wifi-25 {
+        compatible = "regulator-fixed";
+        regulator-name = "VDDA25_WIFI";
+        regulator-min-microvolt = <2500000>;
+        regulator-max-microvolt = <2500000>;
+        gpio = <&pio MT7981_GPIO_MODE_GPIO, 31, GPIO_ACTIVE_HIGH>;
+        regulator-boot-on;
+        regulator-always-on;
+    };
+
+    vdda30_wifi: regulator-wifi-30 {
+        compatible = "regulator-fixed";
+        regulator-name = "VDDA30_WIFI";
+        regulator-min-microvolt = <3000000>;
+        regulator-max-microvolt = <3000000>;
+        gpio = <&pio MT7981_GPIO_MODE_GPIO, 32, GPIO_ACTIVE_HIGH>;
+        regulator-boot-on;
+        regulator-always-on;
+    };
+
+    /* GPON reset regulator */
+    vcc_gpon_reset: regulator-gpon-reset {
+        compatible = "regulator-fixed";
+        regulator-name = "VCC_GPON_RESET";
+        regulator-min-microvolt = <3300000>;
+        regulator-max-microvolt = <3300000>;
+        gpio = <&pio MT7981_GPIO_MODE_GPIO, 33, GPIO_ACTIVE_HIGH>;
+        enable-active-high;
+    };
+
+    /* UART0 console */
+    uart0: serial@11002000 {
+        compatible = "mediatek,mt7981-uart", "mediatek,mt6577-uart";
+        reg = <0x11002000 0x1000>;
+        interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_LOW>;
+        status = "okay";
+    };
+
+    /* Watchdog */
+    watchdog: watchdog@1100f000 {
+        compatible = "mediatek,mt7981-wdt", "mediatek,mt6577-wdt";
+        reg = <0x1100f000 0x1000>;
+        interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_LOW>;
+    };
+
+    /* Clocks */
+    clocks {
+        xtal: xtal {
+            compatible = "fixed-clock";
+            #clock-cells = <0>;
+            clock-frequency = <40000000>;
+            clock-output-names = "xtal";
+        };
+    };
+
+    /* APSoC clocks */
+    apmixedsys: apmixedsys@10000000 {
+        compatible = "mediatek,mt7981-apmixedsys";
+        reg = <0x10000000 0x1000>;
+        #clock-cells = <1>;
+        clock-names = "xtal";
+        clocks = <&xtal>;
+        clock-output-names = "clk26m", "main", "img", "ipc_bus",
+                             "ipc_bus2", "mm", "unk1", "peri",
+                             "dmach", "unk2", "dmactrl",
+                             "unk3", "unk4", "unk5", "unk6",
+                             "unk7", "unk8", "unk9", "unk10",
+                             "unk11", "unk12", "unk13", "unk14",
+                             "unk15", "unk16", "unk17", "unk18",
+                             "unk19", "unk20", "unk21", "unk22",
+                             "unk23", "unk24", "unk25", "unk26",
+                             "unk27", "unk28", "unk29", "unk30",
+                             "unk31", "unk32", "unk33", "unk34",
+                             "unk35", "unk36", "unk37", "unk38",
+                             "unk39", "unk40", "unk41", "unk42",
+                             "unk43", "unk44", "unk45", "unk46",
+                             "unk47", "unk48", "unk49", "unk50",
+                             "unk51", "unk52", "unk53", "unk54",
+                             "unk55", "unk56", "unk57", "unk58",
+                             "unk59", "unk60", "unk61", "unk62",
+                             "unk63", "unk64", "unk65", "unk66",
+                             "unk67", "unk68", "unk69", "unk70",
+                             "unk71", "unk72", "unk73", "unk74",
+                             "unk75", "unk76", "unk77", "unk78",
+                             "unk79", "unk80", "unk81", "unk82",
+                             "unk83", "unk84", "unk85", "unk86",
+                             "unk87", "unk88", "unk89", "unk90",
+                             "unk91", "unk92", "unk93", "unk94",
+                             "unk95", "unk96", "unk97", "unk98",
+                             "unk99", "unk100", "unk101", "unk102",
+                             "unk103", "unk104", "unk105", "unk106",
+                             "unk107", "unk108", "unk109", "unk110",
+                             "unk111", "unk112", "unk113", "unk114",
+                             "unk115", "unk116", "unk117", "unk118",
+                             "unk119", "unk120", "unk121", "unk122",
+                             "unk123", "unk124", "unk125", "unk126",
+                             "unk127", "unk128";
+    };
+};
+
+/* ==================== GPIO Controller ==================== */
+
+&pio {
+    status = "okay";
+};
+
+/* ==================== UART ==================== */
+
+&uart0 {
+    status = "okay";
+};
+
+/* ==================== SPI Flash ==================== */
+
+&spi0 {
+    status = "okay";
+    m25p80@0 {
+        compatible = "jedec,spi-nor";
+        reg = <0>;
+        spi-max-frequency = <40000000>;
+        spi-tx-buswidth = <1>;
+        spi-rx-buswidth = <4>;
+
+        partitions {
+            compatible = "fixed-partitions";
+            #address-cells = <1>;
+            #size-cells = <1>;
+
+            partition@0 {
+                label = "SBL1";
+                reg = <0x0 0x40000>;
+                read-only;
+            };
+            partition@40000 {
+                label = "MIB";
+                reg = <0x40000 0x40000>;
+                read-only;
+            };
+            partition@80000 {
+                label = "FIP";
+                reg = <0x80000 0x200000>;
+                read-only;
+            };
+            partition@280000 {
+                label = "u-boot-env";
+                reg = <0x280000 0x80000>;
+                read-only;
+            };
+            factory@300000 {
+                label = "factory";
+                reg = <0x300000 0x80000>;
+                read-only;
+            };
+            firmware: partition@380000 {
+                label = "firmware";
+                reg = <0x380000 0x7C80000>;
+            };
+        };
+    };
+};
+
+/* ==================== GMAC (Ethernet) ==================== */
+
+&gmac0 {
+    device_type = "network";
+    status = "okay";
+    mtd-mac-address = <&factory 0x0>;
+    nvmem-cells = <&macaddr_gmac0>;
+    nvmem-cell-names = "mac-address";
+
+    fixed-link {
+        speed = <1000>;
+        full-duplex;
+        pause;
+    };
+};
+
+&gmac1 {
+    device_type = "network";
+    status = "okay";
+    mtd-mac-address = <&factory 0x6>;
+    nvmem-cells = <&macaddr_gmac1>;
+    nvmem-cell-names = "mac-address";
+
+    fixed-link {
+        speed = <1000>;
+        full-duplex;
+        pause;
+    };
+};
+
+/* ==================== WiFi ==================== */
+
+&wifi0 {
+    status = "okay";
+    mediatek {
+        mcm-status = <1>;
+        ip = <0x40060000 0x10000000>;
+        ip_eu = <0x40060000 0x10000000>;
+        eeprom = <0>;
+        rf = "rf0";
+        rf_reg1 = <5>;
+        ant_sel_fem = <0>;
+        ant_sel_pwr = <1>;
+        lna_gain_2g = <0>;
+        lna_gain_5g = <0>;
+        tx_bb_pw_2g = <3>;
+        tx_bb_pw_5g = <3>;
+        tx_ic_2g = <15>;
+        tx_ic_5g = <15>;
+        tx_i2c_offset = <0>;
+        tx_i2c_bw = <0>;
+        tx_power_2g_0 = <0>;
+        tx_power_2g_1 = <0>;
+        tx_power_2g_2 = <0>;
+        tx_power_2g_3 = <0>;
+        tx_power_2g_4 = <0>;
+        tx_power_2g_5 = <0>;
+        tx_power_2g_6 = <0>;
+        tx_power_2g_7 = <0>;
+        tx_power_5g_0 = <0>;
+        tx_power_5g_1 = <0>;
+        tx_power_5g_2 = <0>;
+        tx_power_5g_3 = <0>;
+        tx_power_5g_4 = <0>;
+        tx_power_5g_5 = <0>;
+        tx_power_5g_6 = <0>;
+        tx_power_5g_7 = <0>;
+        ddr_con_sim = <0>;
+        freq = <5>;
+        agc_rfe_mode = <0>;
+        txagc_2g = <7>;
+        txagc_5gl = <11>;
+        txagc_5gm = <11>;
+        txagc_5gh = <11>;
+        bw = <0>;
+        dot11rac = <0>;
+        dot11h = <0>;
+        dfs = <0>;
+        amsdu = <1>;
+        vht_ra_txbf = <1>;
+        wmm = <1>;
+        ack_cntr = <0>;
+        frag_thresh = <0>;
+        rts_thresh = <0>;
+        dot1d = <0>;
+        apsd = <0>;
+        dot11s = <0>;
+        wds = <0>;
+        sgi = <1>;
+        chsw_min = <0>;
+        chsw_max = <10>;
+        ch_monitor = <0>;
+        bt = <0>;
+        bt_ch_offset = <0>;
+        bt_wl_ch_diff = <0>;
+        bt_wl_max_interf = <0>;
+        bt_bt_max_interf = <0>;
+        wpa2pkc = <0>;
+        wl2sta = <0>;
+        ipq = <0>;
+        dot11h_dfs_pri = <0>;
+        fast_chip = <1>;
+        fast_crypto = <1>;
+        kspace = <1024>;
+        uapsd = <0>;
+        ven_tlv_sw = <0>;
+        force_ht_sc = <0>;
+        tpc = <0>;
+        tpc_rpt_egid = <0>;
+        tpc_max_pwr = <0>;
+        tpc_min_pwr = <0>;
+        tpc_th = <0>;
+        tpc_th2 = <0>;
+        tpc_aat = <0>;
+        rf_ant_sel = <0>;
+        rf_temp = <0>;
+        rf_th = <0>;
+        rf_min_pwr = <0>;
+        rf_vga_up = <0>;
+        rf_vga_down = <0>;
+        rf_agc_rfe = <0>;
+        rf_bw = <0>;
+        rf_agc_band = <0>;
+        rf_agc_mode = <0>;
+        rf_tx_bb_pw = <0>;
+        rf_tx_ic = <0>;
+        rf_tx_i_offset = <0>;
+        rf_tx_i_bw = <0>;
+        rf_tx_agc_2g = <0>;
+        rf_tx_agc_5g_l = <0>;
+        rf_tx_agc_5g_m = <0>;
+        rf_tx_agc_5g_h = <0>;
+        rf_tx_power_2g_0 = <0>;
+        rf_tx_power_2g_1 = <0>;
+        rf_tx_power_2g_2 = <0>;
+        rf_tx_power_2g_3 = <0>;
+        rf_tx_power_2g_4 = <0>;
+        rf_tx_power_2g_5 = <0>;
+        rf_tx_power_2g_6 = <0>;
+        rf_tx_power_2g_7 = <0>;
+        rf_tx_power_5g_l_0 = <0>;
+        rf_tx_power_5g_l_1 = <0>;
+        rf_tx_power_5g_l_2 = <0>;
+        rf_tx_power_5g_l_3 = <0>;
+        rf_tx_power_5g_l_4 = <0>;
+        rf_tx_power_5g_l_5 = <0>;
+        rf_tx_power_5g_l_6 = <0>;
+        rf_tx_power_5g_l_7 = <0>;
+        rf_tx_power_5g_m_0 = <0>;
+        rf_tx_power_5g_m_1 = <0>;
+        rf_tx_power_5g_m_2 = <0>;
+        rf_tx_power_5g_m_3 = <0>;
+        rf_tx_power_5g_m_4 = <0>;
+        rf_tx_power_5g_m_5 = <0>;
+        rf_tx_power_5g_m_6 = <0>;
+        rf_tx_power_5g_m_7 = <0>;
+        rf_tx_power_5g_h_0 = <0>;
+        rf_tx_power_5g_h_1 = <0>;
+        rf_tx_power_5g_h_2 = <0>;
+        rf_tx_power_5g_h_3 = <0>;
+        rf_tx_power_5g_h_4 = <0>;
+        rf_tx_power_5g_h_5 = <0>;
+        rf_tx_power_5g_h_6 = <0>;
+        rf_tx_power_5g_h_7 = <0>;
+        rf_dd_resist = <0>;
+        rf_dd_pwr = <0>;
+        rf_dd_i = <0>;
+        rf_dd_q = <0>;
+        rf_dd_iqdiff = <0>;
+        rf_dd_iqdiff_pwr = <0>;
+        rf_dd_offset = <0>;
+        rf_dd_offset_pwr = <0>;
+        rf_dd_offset_i = <0>;
+        rf_dd_offset_q = <0>;
+        rf_dd_offset_iqdiff = <0>;
+        rf_dd_offset_iqdiff_pwr = <0>;
+    };
+};
+
+&wifi1 {
+    status = "okay";
+    mediatek {
+        mcm-status = <1>;
+        ip = <0x40060000 0x10000000>;
+        ip_eu = <0x40060000 0x10000000>;
+        eeprom = <0>;
+        rf = "rf0";
+        ant_sel_fem = <0>;
+        ant_sel_pwr = <1>;
+        lna_gain_2g = <0>;
+        lna_gain_5g = <0>;
+        tx_bb_pw_2g = <3>;
+        tx_bb_pw_5g = <3>;
+        tx_ic_2g = <15>;
+        tx_ic_5g = <15>;
+        tx_i2c_offset = <0>;
+        tx_i2c_bw = <0>;
+        tx_power_2g_0 = <0>;
+        tx_power_5g_0 = <0>;
+        ddr_con_sim = <0>;
+        fast_chip = <1>;
+        fast_crypto = <1>;
+        kspace = <1024>;
+    };
+};
+
+/* ==================== SDMMC (microSD) ==================== */
+
+&sdmmc {
+    status = "okay";
+    max-frequency = <50000000>;
+    bus-width = <4>;
+    cap-sd-highspeed;
+    disable-wp;
+    vmmc-supply = <&vdda25_wifi>;
+    vqmmc-supply = <&vdda30_wifi>;
+    mtkuw-sd = <0>;
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
+    };
+};
+
+/* ==================== I2C ==================== */
+
+&i2c0 {
+    status = "okay";
+    clock-frequency = <100000>;
+    pinctrl-names = "default";
+    pinctrl-0 = <&i2c0_pins>;
+
+    /* GPON PHY (RTL960x) on I2C bus */
+    gpon_phy: rtl960x@40 {
+        compatible = "realtek,rtl960x";
+        reg = <0x40>;
+        vcc-supply = <&vcc_gpon>;
+        reset-gpios = <&pio MT7981_GPIO_MODE_GPIO, 33, GPIO_ACTIVE_LOW>;
+        status = "okay";
+    };
+};
+
+&i2c1 {
+    status = "disabled";
+};
+
+/* ==================== PCIe ==================== */
+
+&pcie0 {
+    status = "okay";
+    mediatek,pci;
+
+    pcie@0,0 {
+        reg = <0x00000000 0 0 0 0>;
+        #address-cells = <3>;
+        #size-cells = <2>;
+        ranges;
+
+        /* USB3.0 device */
+        usb@0,0 {
+            compatible = "generic-dwc3";
+            reg = <0x00000000 0 0 0 0>;
+        };
+    };
+};
+
+&pcie1 {
+    status = "disabled";
+};
+
+/* ==================== USB ==================== */
+
+&usb0 {
+    status = "okay";
+    dr_mode = "otg";
+    usb-role-switch;
+};
+
+/* ==================== NVMEM (MAC addresses) ==================== */
+
+&factory {
+    compatible = "nvmem-cell-utils";
+    #address-cells = <1>;
+    #size-cells = <1>;
+
+    macaddr_gmac0: macaddr@0 {
+        reg = <0x0 0x6>;
+    };
+    macaddr_gmac1: macaddr@6 {
+        reg = <0x6 0x6>;
+    };
+};
+
+/* ==================== Pinctrl ==================== */
+
+&i2c0_pins {
+    function = "i2c";
+    group = "i2c0_0";
 };

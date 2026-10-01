@@ -1,142 +1,203 @@
-# MTS-ER-1000 — Трассировка платы (Main Board)
+# Board Trace: MTS-ER-1000 Enterprise Router
 
-## 1. Архитектура платы
+## Overview
+
+MTS-ER-1000 Enterprise Router для корпоративного сегмента (SD-WAN, IPsec, FRRouting)
+на базе NXP S32G + Broadcom TomTom ASIC.
+
+## Hardware Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                      MTS-ER-1000 MAIN BOARD                         │
-├─────────────────────────────────────────────────────────────────────┤
-│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    │
-│  │ NXP      │    │ NXP      │    │ Broadcom │    │ NXP      │    │
-│  │ S32G3    │    │ S32G3    │    │ TomTom   │    │ S32G3    │    │
-│  │ (CTRL)   │    │ (CTRL)   │    │ (ASIC)   │    │ (MGMT)   │    │
-│  └────┬─────┘    └────┬─────┘    └────┬─────┘    └────┬─────┘    │
-│       │               │               │               │            │
-│  ┌────▼───────────────▼───────────────▼───────────────▼─────┐     │
-│  │              DDR4 128 MB + EEPROM 24C64                   │     │
-│  └────┬─────────────────────────────────────────────────────┘     │
-│       │                                                            │
-│  ┌────▼─────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐        │
-│  │ Fan      │  │ Power    │  │ BMC      │  │ SD Card  │        │
-│  │ Ctrl     │  │ Mgmt     │  │ AST2600  │  │ eMMC     │        │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘        │
-└─────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│                      MTS-ER-1000 MAIN BOARD                               │
+│                                                                            │
+│  ┌──────────────────────┐  ┌──────────────────────────┐                   │
+│  │  NXP S32G            │  │  Broadcom TomTom ASIC    │                   │
+│  │  (Cortex-A53 x4)     │  │  (TRI-QUAD forwarding)   │                   │
+│  │  @ 1.8GHz            │  │                          │                   │
+│  │                      │  │  ┌────────────────────┐  │                   │
+│  │  DDR4-2666           │  │  │ 12x 10G SerDes     │  │                   │
+│  │  1GB ECC             │  │  │ 4x 25G SerDes      │  │                   │
+│  │  @ 2666MT/s          │  │  │ 8x 1G RGMII        │  │                   │
+│  │                      │  │  │ Hardware IPsec     │  │                   │
+│  │  eTPU x2             │  │  │ TCAM 128K entries  │  │                   │
+│  │  FlexCAN x4          │  │  │ BFD/ECMP hardware  │  │                   │
+│  │  USB 3.0 / 2.0       │  │  │ SRv6 engine        │  │                   │
+│  └──────────┬───────────┘  └──────────────────────────┘                   │
+│             │  PCIe / I2C / MDIO                                          │
+│             │                                                               │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐            │
+│  │  EEPROM      │  │  Crystal     │  │  Power               │            │
+│  │  24AA02E64   │  │  125MHz      │  │  TPS54020            │            │
+│  │  I2C addr    │  │  TCXO        │  │  5V → 5V/3.3V/1.0V │            │
+│  └──────────────┘  └──────────────┘  └──────────────────────┘            │
+│                                                                            │
+│  ┌────────────────────────────────────────────────────────────────────┐    │
+│  │                    Port Panel                                      │    │
+│  │                                                                    │    │
+│  │  SFP+1  SFP+2  SFP+3  SFP+4  SFP+5  SFP+6                       │    │
+│  │  SFP+7  SFP+8  RJ45-1  RJ45-2  RJ45-3  RJ45-4                    │    │
+│  │    │      │      │      │      │      │      │      │             │    │
+│  │    └───────┴──────┴──────┴──────┴──────┴──────┴──────┘            │    │
+│  │                    │                                                │    │
+│  │            TomTom ASIC Ports                                       │    │
+│  └────────────────────────────────────────────────────────────────────┘    │
+│                                                                            │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐            │
+│  │  TPM 2.0     │  │  Thermal     │  │  Management          │            │
+│  │  Infineon    │  │  NXP TMP461  │  │  USB Console         │            │
+│  │  I2F75       │  │  I2C addr    │  │  RJ45 MGMT           │            │
+│  └──────────────┘  └──────────────┘  └──────────────────────┘            │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## 2. PCIe трассировка
+## PCIe Tracing
 
-### 2.1 S32G3 ↔ TomTom ASIC (PCIe Gen3 x8)
+### S32G ↔ TomTom Connection
 
-| Lane | S32G3 Pin | TomTom Pin | Impedance | Length |
-|------|-----------|------------|-----------|--------|
-| PCIe 0 Lane 0 | K12A1 | L23 | 85Ω | < 15 mm |
-| PCIe 0 Lane 1 | K12A2 | L24 | 85Ω | < 15 mm |
-| PCIe 0 Lane 2 | K12A3 | L25 | 85Ω | < 15 mm |
-| PCIe 0 Lane 3 | K12A4 | L26 | 85Ω | < 15 mm |
-| PCIe 0 Lane 4 | K12A5 | L27 | 85Ω | < 15 mm |
-| PCIe 0 Lane 5 | K12A6 | L28 | 85Ω | < 15 mm |
-| PCIe 0 Lane 6 | K12A7 | L29 | 85Ω | < 15 mm |
-| PCIe 0 Lane 7 | K12A8 | L30 | 85Ω | < 15 mm |
+```
+NXP S32G PCIe Root Complex
+│
+├── Lane 0-3 (x4) → TomTom ASIC (PCIe Gen3)
+│   │
+│   ├── Signal: PCIe_TX_P[0:3]
+│   ├── Signal: PCIe_TX_N[0:3]
+│   ├── Signal: PCIe_RX_P[0:3]
+│   ├── Signal: PCIe_RX_N[0:3]
+│   ├── Signal: PCIe_REF_CLK_P (100MHz)
+│   ├── Signal: PCIe_REF_CLK_N (100MHz)
+│   ├── Signal: PCIe_PERST_N
+│   ├── Impedance: 100Ω differential
+│   ├── Length: < 0.5 inch (direct)
+│   ├── Termination: 100Ω diff on PCB
+│   └── Speed: PCIe Gen3 x4 = 16 Gbps
+│
+└── Reserved lanes (unused)
+    ├── PCIe_EXT_TX_P/N[0:15]
+    └── PCIe_EXT_RX_P/N[0:15]
+```
 
-### 2.2 S32G3 ↔ BMC (PCIe Gen2 x2)
+## MDIO Tracing (S32G ↔ TomTom)
 
-| Lane | S32G3 Pin | BMC Pin | Impedance | Length |
-|------|-----------|---------|-----------|--------|
-| PCIe 1 Lane 0 | K13A1 | M10 | 85Ω | < 10 mm |
-| PCIe 1 Lane 1 | K13A2 | M11 | 85Ω | < 10 mm |
+```
+S32G MDIO0
+│
+├── MDIO0_SDA → TomTom ASIC (MDIO Slave)
+├── MDIO0_SCLK → TomTom ASIC
+├── MDIO1_SDA → TomTom ASIC (backup)
+└── MDIO1_SCLK → TomTom ASIC
+```
 
-## 3. DDR4 трассировка
+## DDR4 Tracing
 
-### 3.1 Memory channels
+### Memory Layout
 
-| Channel | DQ Pins | Address Pins | CLK | Length |
-|---------|---------|-------------|-----|--------|
-| CH0 | A1-A8 | B1-B4 | C1 | < 5 mm |
-| CH1 | A9-A16 | B5-B8 | C2 | < 5 mm |
+```
+S32G Memory Controller
+│
+├── Channel 0 (single channel DDR4)
+│   ├── DQ[0:15]     →  U14 (Micron MT52L256M32D1DI)
+│   ├── Address/Command [0:17]
+│   ├── Clock P/N    →  U14 CLK
+│   ├── VDD          →  1.2V
+│   ├── VDDQ         →  1.2V
+│   ├── VPP          →  1.8V (VREFCA)
+│   ├── Impedance: 40Ω single-ended
+│   ├── Timing: tRC=55ns, tRAS=33ns
+│   └── Length: < 0.5 inch skew
+│
+└── ECC bits (8 extra)
+    ├── DQ[16:23]    →  U14 ECC
+    └── VDD          →  1.2V
+```
 
-### 3.2 DDR4 timing
+## I2C Tracing
 
-| Parameter | Value |
-|-----------|-------|
-| **Frequency** | 1600 MT/s |
-| **VDD** | 1.2 V |
-| **VDDQ** | 1.2 V |
-| **Impedance** | 40Ω single-ended |
-| **Length match** | < 0.5 mm |
+### Management Bus
 
-## 4. Ethernet port трассировка
+```
+S32G I2C0 (BMC)
+│
+├── SDA0 → EEPROM 24AA02E64 (addr 0x50)
+├── SCL0 → EEPROM
+├── SDA0 → Thermal TMP461 (addr 0x4C)
+├── SCL0 → Thermal
+├── SDA0 → TomTom ASIC (addr 0x58)
+├── SCL0 → TomTom
+├── SDA0 → TPM 2.0 I2F75 (addr 0x5A)
+├── SCL0 → TPM
+├── SDA0 → PSU Controller (addr 0x34)
+└── SCL0 → PSU
+```
 
-### 4.1 TomTom ↔ RJ45/SFP connectors
+## Power Sequence
 
-| Port | TomTom Pin | Connector | Type | Length |
-|------|------------|-----------|------|--------|
-| GE 1 | M14A1 | X1 | RJ45 1G | < 50 mm |
-| GE 2 | M14A2 | X2 | RJ45 1G | < 50 mm |
-| GE 3 | M14A3 | X3 | RJ45 1G | < 50 mm |
-| GE 4 | M14A4 | X4 | RJ45 1G | < 50 mm |
-| WAN 1 | N15A1 | Y1 | SFP+ 10G | < 100 mm |
-| WAN 2 | N15A2 | Y2 | SFP+ 10G | < 100 mm |
+```
+1. 5V EXT (from external PSU)
+   │
+   ├── Powers 5V rail
+   └── Powers RJ45 magnetics
+   │
+2. 3.3V AUX (TPS54020, always on)
+   │
+   ├── Powers EEPROM
+   ├── Powers I/O
+   └── Powers PCIe refclk
+   │
+3. 1.0V CORE (NXP PMIC, enabled by BMC)
+   │
+   ├── Powers S32G core
+   └── Powers TomTom core
+   │
+4. 1.2V DDR (NXP PMIC, enabled by BMC)
+   │
+   └── Powers DDR4 VDD/VDDQ
+   │
+5. PCIe PERST# (deasserted by BMC)
+   │
+   └── TomTom ASIC initializes
+```
 
-### 4.2 RJ45 differential pair routing
+## Signal Integrity Notes
 
-| Signal | TomTom Pin | RJ45 Pin | Impedance | Length Match |
-|--------|------------|----------|-----------|-------------|
-| TX_P | P16A1 | J1-1 | 100Ω diff | < 2 mm |
-| TX_N | P16A2 | J1-2 | 100Ω diff | < 2 mm |
-| RX_P | P17A1 | J1-3 | 100Ω diff | < 2 mm |
-| RX_N | P17A2 | J1-4 | 100Ω diff | < 2 mm |
+1. **PCIe**: All lanes length-matched within 5 mils, 100Ω differential impedance
+2. **DDR4**: All DQ lines matched within 15 mils, 40Ω single-ended
+3. **Reference clocks**: 125MHz TCXO, ±10ppm stability
+4. **Power planes**: 6-layer minimum, split analog/digital
+5. **Via stubs**: Back-drilled for PCIe > 5 Gbps
+6. **Termination**: On-die termination (ODT) enabled for DDR4
+7. **SerDes**: Controlled impedance for 10G/25G differential pairs
 
-## 5. I2C трассировка
+## Clock Distribution
 
-### 5.1 S32G3 ↔ All devices
+```
+125MHz TCXO (Abracon ABM8-125.0MHz)
+│
+├── Output 1 → S32G REFCLK0
+├── Output 2 → S32G REFCLK1
+├── Output 3 → TomTom ASIC REFCLK (125MHz)
+└── Output 4 → Reserved
+```
 
-| Signal | S32G3 Pin | Target | Pull-up | Resistor |
-|--------|-----------|--------|---------|----------|
-| I2C0_SDA | K14A1 | TomTom/EEPROM | 2.2kΩ | R1-R2 |
-| I2C0_SCL | K14A2 | TomTom/EEPROM | 2.2kΩ | R1-R2 |
-| I2C1_SDA | K15A1 | Fan/PSU | 2.2kΩ | R3 |
-| I2C1_SCL | K15A2 | Fan/PSU | 2.2kΩ | R3 |
+## Port Mapping
 
-## 6. Clock трассировка
+| Port | Type | Speed | Description |
+|------|------|-------|-------------|
+| SFP+1-8 | SFP+ | 10G | 8x 10G SFP+ ports |
+| RJ45-1-4 | RJ45 | 1G | 4x Gigabit Ethernet |
+| MGMT | RJ45 | 1G | Management |
+| CONSOLE | USB | 12M | Console |
 
-### 6.1 Reference clocks
+## BOM Highlights
 
-| Clock | Source | Fan-out | Amplitude | Length |
-|-------|--------|---------|-----------|--------|
-| 125 MHz REF | TomTom | 4 outputs | 800mVpp | < 50 mm |
-| 25 MHz REF | TomTom | 2 outputs | 800mVpp | < 50 mm |
-| 50 MHz SYS | BMC | 2 outputs | 1.8V | < 50 mm |
-
-## 7. SD/eMMC трассировка
-
-### 7.1 SDIO interface
-
-| Signal | S32G3 Pin | eMMC Pin | Type | Length |
-|--------|-----------|----------|------|--------|
-| SD_CLK | K16A1 | E1 | 1.8V | < 10 mm |
-| SD_CMD | K16A2 | E2 | 1.8V | < 10 mm |
-| SD_DAT0 | K16A3 | E3 | 1.8V | < 10 mm |
-| SD_DAT1 | K16A4 | E4 | 1.8V | < 10 mm |
-| SD_DAT2 | K16A5 | E5 | 1.8V | < 10 mm |
-| SD_DAT3 | K16A6 | E6 | 1.8V | < 10 mm |
-
-## 8. Power delivery
-
-### 8.1 Power rails
-
-| Rail | Voltage | Current | Regulator | Location |
-|------|---------|---------|-----------|----------|
-| VCCINT | 0.95V | 6A | TI TPS546D2A | S32G3 |
-| VCCDDRO | 0.95V | 3A | TI TPS546D2A | DDR4 |
-| VCC AUX | 3.3V | 2A | ON Semi NCP3031 | Edge |
-| VBAT | 3.3V | 100mA | MCP1825 | BMC area |
-
-### 8.2 Power sequencing
-
-| Step | Rail | Voltage | Ramp Time | Enable |
-|------|------|---------|-----------|--------|
-| 1 | VCC AUX | 3.3V | 1ms | PWR_GOOD |
-| 2 | VBAT | 3.3V | 0.5ms | PWR_GOOD |
-| 3 | VCCINT | 0.95V | 2ms | VCC AUX OK |
-| 4 | VCCDDRO | 0.95V | 2ms | VCCINT OK |
-| 5 | RESET# | — | — | All rails OK |
+| Component | Part | Qty | Supplier |
+|-----------|------|-----|----------|
+| S32G | NXP S32G274A | 1 | DigiKey |
+| TomTom | Broadcom BCM56840 | 1 | Avnet |
+| DDR4 | Micron MT52L256M32D1DI | 1 | Mouser |
+| EEPROM | Microchip 24AA02E64 | 1 | DigiKey |
+| PMIC | NXP FXOS5807 | 1 | Avnet |
+| Thermal | NXP TMP461 | 1 | DigiKey |
+| TPM | Infineon I2F75 | 1 | Mouser |
+| TCXO | Abracon ABM8-125.0MHz | 1 | DigiKey |
+| Power IC | TI TPS54020 | 2 | Mouser |

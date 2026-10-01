@@ -1,244 +1,359 @@
 /*
- * rtl960x_gpon.c — GPON port management for residential gateway
+ * rtl960x_gpon.c — GPON PHY driver for Realtek RTL960x
  *
- * MTS-RG-500 Residential Gateway — Упрощенный драйвер GPON ONU
+ * MTS-RG-500 Residential Gateway — Драйвер GPON PHY
+ * Управление GPON оптическим модулем через I2C/SMBus
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/platform_device.h>
-#include <linux/io.h>
-#include <linux/interrupt.h>
+#include <linux/i2c.h>
 #include <linux/mutex.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
+#include <linux/slab.h>
+#include <linux/delay.h>
+#include <linux/of.h>
 
 #include "rtl960x_gpon.h"
 
-#define DRIVER_VERSION "1.0.0-rg"
-#define DRIVER_NAME "rtl960x_gpon_rg"
+#define DRIVER_NAME "rtl960x-gpon"
+#define DRIVER_VERSION "1.0.0"
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("MTS Router Project");
-MODULE_DESCRIPTION("RTL960x GPON driver for residential gateway");
-MODULE_VERSION(DRIVER_VERSION);
+/* RTL960x register map */
+#define RTL960X_REG_SYS_CTRL    0x00
+#define RTL960X_REG_SYS_STATUS  0x01
+#define RTL960X_REG_GPON_CTRL   0x10
+#define RTL960X_REG_GPON_STATUS 0x11
+#define RTL960X_REG_TX_POWER    0x20
+#define RTL960X_REG_RX_SENS     0x21
+#define RTL960X_REG_TEMPERATURE 0x30
+#define RTL960X_REG_VCC         0x31
+#define RTL960X_REG_TX_BIAS     0x32
+#define RTL960X_REG_ONU_TABLE   0x40
+#define RTL960X_REG_OMCI_CTRL   0x50
+#define RTL960X_REG_OMCI_STATUS 0x51
 
-/* Module parameters */
-static int max_ports = RG_GPON_MAX_PORTS;
-module_param(max_ports, int, 0444);
-MODULE_PARM_DESC(max_ports, "Maximum number of GPON ports");
+/* Device state */
+static struct rtl960x_gpon_status gpon_status;
+static struct mutex rtl960x_lock;
+static struct i2c_client *rtl960x_i2c_client;
 
-static int debug_level = 1;
-module_param(debug_level, int, 0644);
-MODULE_PARM_DESC(debug_level, "Debug level (0=off, 1=error, 2=info, 3=debug)");
+/* ==================== I2C Register Access ==================== */
 
-#define rg_gpon_dbg(fmt, ...) \
-    do { if (debug_level >= 3) pr_debug(fmt, ##__VA_ARGS__); } while (0)
-
-#define rg_gpon_info(fmt, ...) \
-    do { if (debug_level >= 2) pr_info(fmt, ##__VA_ARGS__); } while (0)
-
-#define rg_gpon_err(fmt, ...) \
-    do { if (debug_level >= 1) pr_err(fmt, ##__VA_ARGS__); } while (0)
-
-/* ==================== Port Management ==================== */
-
-static struct rg_gpon_port_cfg gpon_ports[RG_GPON_MAX_PORTS];
-static DEFINE_MUTEX(gpon_mutex);
-
-static int rg_gpon_validate_mac(const uint8_t *mac)
-{
-    /* Check for multicast or broadcast */
-    if (mac[0] & 0x01)
-        return -EINVAL;
-    /* Check for unicast zero MAC */
-    if (mac[0] == 0 && mac[1] == 0 && mac[2] == 0 &&
-        mac[3] == 0 && mac[4] == 0 && mac[5] == 0)
-        return -EINVAL;
-    return 0;
-}
-
-int rg_gpon_port_configure(uint32_t port_id, const struct rg_gpon_port_cfg *cfg)
+static int rtl960x_i2c_read(struct i2c_client *client, uint8_t reg, uint8_t *value)
 {
     int ret;
 
-    if (port_id >= RG_GPON_MAX_PORTS)
+    if (!client || !value)
         return -EINVAL;
 
-    mutex_lock(&gpon_mutex);
+    ret = i2c_smbus_read_byte_data(client, reg);
+    if (ret < 0)
+        return ret;
 
-    /* Validate MAC address */
-    if (cfg->mac[0] || cfg->mac[1] || cfg->mac[2] ||
-        cfg->mac[3] || cfg->mac[4] || cfg->mac[5]) {
-        ret = rg_gpon_validate_mac(cfg->mac);
-        if (ret) {
-            rg_gpon_err("Invalid MAC address on port %u\n", port_id);
-            mutex_unlock(&gpon_mutex);
-            return ret;
-        }
+    *value = (uint8_t)ret;
+    return 0;
+}
+
+static int rtl960x_i2c_write(struct i2c_client *client, uint8_t reg, uint8_t value)
+{
+    if (!client)
+        return -EINVAL;
+
+    return i2c_smbus_write_byte_data(client, reg, value);
+}
+
+static int rtl960x_i2c_read_word(struct i2c_client *client, uint8_t reg, uint16_t *value)
+{
+    int ret;
+
+    if (!client || !value)
+        return -EINVAL;
+
+    ret = i2c_smbus_read_word_data(client, reg);
+    if (ret < 0)
+        return ret;
+
+    *value = (uint16_t)ret;
+    return 0;
+}
+
+/* ==================== GPON Initialization ==================== */
+
+int rtl960x_gpon_init(void)
+{
+    mutex_init(&rtl960x_lock);
+    memset(&gpon_status, 0, sizeof(gpon_status));
+    gpon_status.state = RTL960X_GPON_STATE_INIT;
+
+    pr_info("RTL960x GPON driver initialized (version %s)\n", DRIVER_VERSION);
+    return 0;
+}
+
+void rtl960x_gpon_exit(void)
+{
+    mutex_lock(&rtl960x_lock);
+    gpon_status.state = RTL960X_GPON_STATE_OFF;
+    mutex_unlock(&rtl960x_lock);
+
+    pr_info("RTL960x GPON driver exited\n");
+}
+
+/* ==================== GPON Probe/Remove ==================== */
+
+int rtl960x_gpon_probe(struct i2c_client *client)
+{
+    int ret;
+    uint8_t reg_val;
+
+    if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
+        pr_err("RTL960x: I2C SMBus byte data not supported\n");
+        return -EIO;
     }
 
-    /* Copy configuration */
-    memcpy(&gpon_ports[port_id], cfg, sizeof(struct rg_gpon_port_cfg));
-    gpon_ports[port_id].status = RG_GPON_PORT_UP;
+    /* Check device presence */
+    ret = rtl960x_i2c_read(client, RTL960X_REG_SYS_STATUS, &reg_val);
+    if (ret) {
+        pr_err("RTL960x: I2C read failed (reg 0x%02x)\n", RTL960X_REG_SYS_STATUS);
+        return ret;
+    }
 
-    rg_gpon_info("Port %u configured: mode=%u vlan=%u\n",
-                 port_id, cfg->mode, cfg->vlan_id);
+    rtl960x_i2c_client = client;
 
-    mutex_unlock(&gpon_mutex);
+    /* Reset GPON controller */
+    rtl960x_i2c_write(client, RTL960X_REG_SYS_CTRL, 0x01);
+    msleep(100);
+
+    /* Initialize status */
+    memset(&gpon_status, 0, sizeof(gpon_status));
+    gpon_status.state = RTL960X_GPON_STATE_INIT;
+    gpon_status.pon_id = 0;
+
+    pr_info("RTL960x GPON probe successful\n");
     return 0;
 }
-EXPORT_SYMBOL(rg_gpon_port_configure);
 
-int rg_gpon_port_get_status(uint32_t port_id, struct rg_gpon_port_cfg *cfg)
+int rtl960x_gpon_remove(struct i2c_client *client)
 {
-    if (port_id >= RG_GPON_MAX_PORTS)
+    rtl960x_gpon_exit();
+    rtl960x_i2c_client = NULL;
+    return 0;
+}
+
+/* ==================== GPON Configuration ==================== */
+
+int rtl960x_gpon_get_config(struct rtl960x_gpon_config *cfg)
+{
+    uint8_t reg_val;
+
+    if (!cfg)
         return -EINVAL;
 
-    mutex_lock(&gpon_mutex);
-    memcpy(cfg, &gpon_ports[port_id], sizeof(struct rg_gpon_port_cfg));
-    mutex_unlock(&gpon_mutex);
+    mutex_lock(&rtl960x_lock);
+
+    /* Read current configuration from device */
+    rtl960x_i2c_read(rtl960x_i2c_client, RTL960X_REG_TX_POWER, &reg_val);
+    cfg->tx_power = reg_val;
+
+    rtl960x_i2c_read(rtl960x_i2c_client, RTL960X_REG_RX_SENS, &reg_val);
+    cfg->rx_sensitivity = reg_val;
+
+    /* Default values */
+    cfg->pon_id = 0;
+    cfg->wavelength = 1490;
+    cfg->split_ratio = 128;
+    cfg->max_distance = 20;
+    cfg->omci_version = 1;
+    cfg->auto_reconnect = 1;
+    cfg->reconnect_delay = 30;
+
+    mutex_unlock(&rtl960x_lock);
     return 0;
 }
-EXPORT_SYMBOL(rg_gpon_port_get_status);
 
-int rg_gpon_port_enable(uint32_t port_id)
+int rtl960x_gpon_set_config(const struct rtl960x_gpon_config *cfg)
 {
-    if (port_id >= RG_GPON_MAX_PORTS)
+    if (!cfg)
         return -EINVAL;
 
-    mutex_lock(&gpon_mutex);
-    gpon_ports[port_id].status = RG_GPON_PORT_UP;
-    rg_gpon_info("Port %u enabled\n", port_id);
-    mutex_unlock(&gpon_mutex);
+    mutex_lock(&rtl960x_lock);
+
+    /* Write configuration to device */
+    rtl960x_i2c_write(rtl960x_i2c_client, RTL960X_REG_TX_POWER, cfg->tx_power);
+    rtl960x_i2c_write(rtl960x_i2c_client, RTL960X_REG_RX_SENS, cfg->rx_sensitivity);
+
+    mutex_unlock(&rtl960x_lock);
     return 0;
 }
-EXPORT_SYMBOL(rg_gpon_port_enable);
 
-int rg_gpon_port_disable(uint32_t port_id)
+/* ==================== GPON Status ==================== */
+
+int rtl960x_gpon_get_status(struct rtl960x_gpon_status *status)
 {
-    if (port_id >= RG_GPON_MAX_PORTS)
+    uint8_t reg_val;
+    uint16_t word_val;
+
+    if (!status)
         return -EINVAL;
 
-    mutex_lock(&gpon_mutex);
-    gpon_ports[port_id].status = RG_GPON_PORT_DOWN;
-    rg_gpon_info("Port %u disabled\n", port_id);
-    mutex_unlock(&gpon_mutex);
+    mutex_lock(&rtl960x_lock);
+
+    /* Read status from device */
+    rtl960x_i2c_read(rtl960x_i2c_client, RTL960X_REG_GPON_STATUS, &reg_val);
+    status->state = reg_val;
+
+    rtl960x_i2c_read(rtl960x_i2c_client, RTL960X_REG_TEMPERATURE, &reg_val);
+    status->temperature = reg_val * 100;
+
+    rtl960x_i2c_read_word(rtl960x_i2c_client, RTL960X_REG_VCC, &word_val);
+    status->vcc = word_val;
+
+    rtl960x_i2c_read(rtl960x_i2c_client, RTL960X_REG_TX_BIAS, &reg_val);
+    status->tx_bias = reg_val;
+
+    /* Copy static status */
+    status->pon_id = gpon_status.pon_id;
+    status->num_onu = gpon_status.num_onu;
+    status->num_active_onu = gpon_status.num_active_onu;
+    status->las_di_status = gpon_status.las_di_status;
+    status->uptime = gpon_status.uptime;
+    status->crc_errors = gpon_status.crc_errors;
+    status->frame_errors = gpon_status.frame_errors;
+
+    mutex_unlock(&rtl960x_lock);
     return 0;
 }
-EXPORT_SYMBOL(rg_gpon_port_disable);
 
 /* ==================== ONU Management ==================== */
 
-int rg_gpon_get_onu_list(uint32_t port_id, struct rg_onu_info *onus,
-                         uint32_t max_onus, uint32_t *count)
+int rtl960x_gpon_get_onu(uint32_t index, struct rtl960x_onu_info *onu)
 {
-    if (port_id >= RG_GPON_MAX_PORTS)
-        return -EINVAL;
-    if (!onus || !count)
+    if (!onu || index >= RTL960X_MAX_ONU)
         return -EINVAL;
 
-    /* In residential mode, typically 0-2 ONUs connected */
-    *count = 0;
-    rg_gpon_dbg("Querying ONU list for port %u\n", port_id);
+    mutex_lock(&rtl960x_lock);
+
+    /* Read ONU data from device table */
+    /* TODO: Implement actual I2C read for ONU table */
+    pr_info("RTL960x: Getting ONU %u\n", index);
+
+    mutex_unlock(&rtl960x_lock);
     return 0;
 }
-EXPORT_SYMBOL(rg_gpon_get_onu_list);
 
-int rg_gpon_set_vlan(uint32_t port_id, uint32_t mode, uint32_t vlan_id)
+int rtl960x_gpon_set_onu_state(uint32_t index, uint32_t state)
 {
-    if (port_id >= RG_GPON_MAX_PORTS)
-        return -EINVAL;
-    if (mode > 4)
-        return -EINVAL;
-
-    mutex_lock(&gpon_mutex);
-    gpon_ports[port_id].vlan_mode = mode;
-    gpon_ports[port_id].vlan_id = vlan_id;
-    rg_gpon_info("Port %u VLAN: mode=%u id=%u\n", port_id, mode, vlan_id);
-    mutex_unlock(&gpon_mutex);
-    return 0;
-}
-EXPORT_SYMBOL(rg_gpon_set_vlan);
-
-int rg_gpon_get_power_monitor(uint32_t port_id, int32_t *rx_power, int32_t *tx_power)
-{
-    if (port_id >= RG_GPON_MAX_PORTS)
+    if (index >= RTL960X_MAX_ONU)
         return -EINVAL;
 
-    /* Return simulated power levels for residential use */
-    if (rx_power)
-        *rx_power = -250; /* -25.0 dBm */
-    if (tx_power)
-        *tx_power = +100; /* +10.0 dBm */
+    mutex_lock(&rtl960x_lock);
+
+    /* Set ONU state via I2C */
+    /* TODO: Implement actual I2C write */
+    pr_info("RTL960x: Setting ONU %u state %u\n", index, state);
+
+    mutex_unlock(&rtl960x_lock);
     return 0;
 }
-EXPORT_SYMBOL(rg_gpon_get_power_monitor);
 
-/* ==================== Event Callbacks ==================== */
-
-static rg_gpon_port_event_cb port_event_cb;
-static void *port_event_priv;
-static rg_gpon_onu_event_cb onu_event_cb;
-static void *onu_event_priv;
-
-int rg_gpon_register_port_event_cb(rg_gpon_port_event_cb cb, void *priv)
+int rtl960x_gpon_get_onu_count(void)
 {
-    mutex_lock(&gpon_mutex);
-    port_event_cb = cb;
-    port_event_priv = priv;
-    mutex_unlock(&gpon_mutex);
-    return 0;
+    mutex_lock(&rtl960x_lock);
+    uint32_t count = gpon_status.num_onu;
+    mutex_unlock(&rtl960x_lock);
+    return count;
 }
-EXPORT_SYMBOL(rg_gpon_register_port_event_cb);
 
-int rg_gpon_register_onu_event_cb(rg_gpon_onu_event_cb cb, void *priv)
+/* ==================== GPON Control ==================== */
+
+int rtl960x_gpon_reset(void)
 {
-    mutex_lock(&gpon_mutex);
-    onu_event_cb = cb;
-    onu_event_priv = priv;
-    mutex_unlock(&gpon_mutex);
+    mutex_lock(&rtl960x_lock);
+
+    /* Send reset command to device */
+    rtl960x_i2c_write(rtl960x_i2c_client, RTL960X_REG_SYS_CTRL, 0x02);
+    msleep(500);
+
+    mutex_unlock(&rtl960x_lock);
     return 0;
 }
-EXPORT_SYMBOL(rg_gpon_register_onu_event_cb);
 
-/* ==================== Init/Exit ==================== */
-
-int rg_gpon_port_init(void)
+int rtl960x_gpon_reboot(void)
 {
-    int i;
+    mutex_lock(&rtl960x_lock);
 
-    rg_gpon_info("Initializing RTL960x GPON driver v%s\n", DRIVER_VERSION);
+    /* Reboot GPON PHY */
+    rtl960x_i2c_write(rtl960x_i2c_client, RTL960X_REG_SYS_CTRL, 0x03);
 
-    mutex_lock(&gpon_mutex);
-    for (i = 0; i < RG_GPON_MAX_PORTS; i++) {
-        memset(&gpon_ports[i], 0, sizeof(struct rg_gpon_port_cfg));
-        gpon_ports[i].status = RG_GPON_PORT_DOWN;
-        snprintf(gpon_ports[i].name, sizeof(gpon_ports[i].name),
-                 "gpon-%d", i);
-    }
-    mutex_unlock(&gpon_mutex);
-
-    rg_gpon_info("GPON driver initialized with %d ports\n", max_ports);
+    mutex_unlock(&rtl960x_lock);
     return 0;
 }
-EXPORT_SYMBOL(rg_gpon_port_init);
 
-int rg_gpon_port_exit(void)
+int rtl960x_gpon_read_reg(uint32_t reg, uint32_t *value)
 {
-    int i;
+    uint8_t val;
+    int ret;
 
-    mutex_lock(&gpon_mutex);
-    for (i = 0; i < RG_GPON_MAX_PORTS; i++) {
-        gpon_ports[i].status = RG_GPON_PORT_DOWN;
-    }
-    mutex_unlock(&gpon_mutex);
+    if (!value || reg > 0xFF)
+        return -EINVAL;
 
-    rg_gpon_info("GPON driver unloaded\n");
+    ret = rtl960x_i2c_read(rtl960x_i2c_client, (uint8_t)reg, &val);
+    if (ret)
+        return ret;
+
+    *value = val;
     return 0;
 }
-EXPORT_SYMBOL(rg_gpon_port_exit);
 
-module_init(rg_gpon_port_init);
-module_exit(rg_gpon_port_exit);
+int rtl960x_gpon_write_reg(uint32_t reg, uint32_t value)
+{
+    if (reg > 0xFF)
+        return -EINVAL;
+
+    return rtl960x_i2c_write(rtl960x_i2c_client, (uint8_t)reg, (uint8_t)value);
+}
+
+/* ==================== I2C Driver ==================== */
+
+static const struct i2c_device_id rtl960x_id[] = {
+    { "rtl960x-gpon", 0 },
+    { }
+};
+MODULE_DEVICE_TABLE(i2c, rtl960x_id);
+
+static struct i2c_driver rtl960x_gpon_driver = {
+    .driver = {
+        .name = DRIVER_NAME,
+        .owner = THIS_MODULE,
+    },
+    .probe = rtl960x_gpon_probe,
+    .remove = rtl960x_gpon_remove,
+    .id_table = rtl960x_id,
+};
+
+/* ==================== Module ==================== */
+
+static int __init rtl960x_gpon_init_module(void)
+{
+    int ret;
+
+    ret = rtl960x_gpon_init();
+    if (ret)
+        return ret;
+
+    return i2c_add_driver(&rtl960x_gpon_driver);
+}
+
+static void __exit rtl960x_gpon_exit_module(void)
+{
+    i2c_del_driver(&rtl960x_gpon_driver);
+    rtl960x_gpon_exit();
+}
+
+module_init(rtl960x_gpon_init_module);
+module_exit(rtl960x_gpon_exit_module);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("MTS Router Team");
+MODULE_DESCRIPTION("Realtek RTL960x GPON PHY Driver for MTS Router");
+MODULE_VERSION(DRIVER_VERSION);

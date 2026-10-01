@@ -1,159 +1,251 @@
-# MTS-OLT-2000 — Трассировка платы (Main Board)
+# Board Trace: MTS-OLT-2000 GPON OLT
 
-## 1. Архитектура платы
+## Overview
+
+MTS-OLT-2000 GPON OLT для массового развертывания GPON инфраструктуры МТС
+на базе Intel Tofino 2 + AMD EPYC + Realtek RTL960x.
+
+## Hardware Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                       MTS-OLT-2000 MAIN BOARD                       │
-├─────────────────────────────────────────────────────────────────────┤
-│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    │
-│  │ Intel    │    │ AMD      │    │ Intel    │    │ Intel    │    │
-│  │ Tofino 2 │    │ EPYC     │    │ Tofino 2 │    │ Tofino 2 │    │
-│  │ (FWD)    │    │ 3000     │    │ (CTRL)   │    │ (MGMT)   │    │
-│  └────┬─────┘    └────┬─────┘    └────┬─────┘    └────┬─────┘    │
-│       │               │               │               │            │
-│  ┌────▼───────────────▼───────────────▼───────────────▼─────┐     │
-│  │              Realtek RTL960x GPON Line Interface         │     │
-│  │              192x ONU / OMCI / WDM Management            │     │
-│  └────┬─────────────────────────────────────────────────────┘     │
-│       │                                                            │
-│  ┌────▼─────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐        │
-│  │ DDR4     │  │ EEPROM   │  │ Fan      │  │ Power    │        │
-│  │ 128 GB   │  │ 24C64    │  │ Ctrl     │  │ Mgmt     │        │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘        │
-└─────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                       MTS-OLT-2000 MAIN BOARD                               │
+│                                                                              │
+│  ┌──────────────┐    ┌──────────────────────────────┐    ┌──────────────┐  │
+│  │  AMD EPYC    │    │    Intel Tofino 2 BFN128     │    │   DDR5       │  │
+│  │  7002 Series │    │    (Silicon Packet Processor)│    │  4x 32GB     │  │
+│  │  32-Core     │    │    16nm PCIe 3.0             │    │  5120MT/s    │  │
+│  │  @ 2.6GHz    │    │                              │    │  (1TB total)   │  │
+│  │              │    │   ┌────────────────────────┐ │    │              │  │
+│  │  PCIe Gen4   │───►│   │ 192x 10G/25G MAC Ports │ │    │  DDR5-5120   │  │
+│  │  x64 total   │    │   │ 64x 100G MAC Ports     │ │    │  Samsung     │  │
+│  │              │    │   │ P4 Programmable Pipeline│ │    │  M471A4     │  │
+│  │  DDR5 ECC    │    │   └────────────────────────┘ │    │  K3F6         │  │
+│  │  4x channels │    │         │                    │    │                │  │
+│  └──────────────┘    │    ┌────────────────────────┐ │    └──────────────┘  │
+│                      │    │  AMD FP5 BMC           │ │                     │
+│                      │    │  (AST2600)             │ │    ┌──────────────┐ │
+│                      │    │  IPMI 2.0              │ │    │  NVMe SSD    │ │
+│                      │    └────────────────────────┘ │    │  1TB         │ │
+│                      │         │                      │    │  Samsung     │ │
+│                      │    ┌────────────────────────┐ │    │  PM9A3        │ │
+│                      │    │  Realtek RTL960x       │ │    │  ZT1TL        │ │
+│                      │    │  GPON PHY Controller   │ │    └──────────────┘ │
+│                      │    │  OMCI Management       │ │                     │
+│                      │    │  TR-069 Agent          │ │    ┌──────────────┐ │
+│                      │    │  128x ONU management   │ │    │  PSU         │ │
+│                      │    └────────────────────────┘ │    │  350W        │ │
+│                      │                                │    └──────────────┘ │
+│                      └────────────────────────────────┘                     │
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────┐  │
+│  │                    32x GPON Ports (1:128 split)                        │  │
+│  │                                                                        │  │
+│  │  PON0    PON1    PON2    PON3    PON4    PON5    PON6    PON7        │  │
+│  │  PON8    PON9    PON10   PON11   PON12   PON13   PON14   PON15       │  │
+│  │  PON16   PON17   PON18   PON19   PON20   PON21   PON22   PON23       │  │
+│  │  PON24   PON25   PON26   PON27   PON28   PON29   PON30   PON31       │  │
+│  │    │       │       │       │       │       │       │       │          │  │
+│  │    └───────┴───────┴───────┴───────┴───────┴───────┴───────┘          │  │
+│  │                    │                                                    │  │
+│  │            RTL960x GPON PHY Controller                                 │  │
+│  └────────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────┐  │
+│  │                    4x 100G Uplink Ports                                │  │
+│  │                                                                        │  │
+│  │  QSFP0   QSFP1   QSFP2   QSFP3                                        │  │
+│  │    │       │       │       │                                           │  │
+│  │    └───────┴───────┴───────┘                                           │  │
+│  │                    │                                                    │  │
+│  │            Tofino 2 MAC Ports                                          │  │
+│  └────────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## 2. PCIe трассировка
+## PCIe Tracing
 
-### 2.1 CPU ↔ Tofino 2 (4x PCIe Gen4 x16)
+### CPU ↔ Tofino 2 Connection
 
-| Lane | CPU Pin | Tofino Pin | Impedance | Length |
-|------|---------|------------|-----------|--------|
-| PCIe 0 Lane 0 | J12A1 | K23 | 50Ω | < 15 mm |
-| PCIe 0 Lane 1 | J12A2 | K24 | 50Ω | < 15 mm |
-| PCIe 0 Lane 2 | J12A3 | K25 | 50Ω | < 15 mm |
-| PCIe 0 Lane 3 | J12A4 | K26 | 50Ω | < 15 mm |
-| PCIe 0 Lane 4 | J12A5 | K27 | 50Ω | < 15 mm |
-| PCIe 0 Lane 5 | J12A6 | K28 | 50Ω | < 15 mm |
-| PCIe 0 Lane 6 | J12A7 | K29 | 50Ω | < 15 mm |
-| PCIe 0 Lane 7 | J12A8 | K30 | 50Ω | < 15 mm |
-| PCIe 0 Lane 8 | J12B1 | K31 | 50Ω | < 15 mm |
-| PCIe 0 Lane 9 | J12B2 | K32 | 50Ω | < 15 mm |
-| PCIe 0 Lane 10 | J12B3 | K33 | 50Ω | < 15 mm |
-| PCIe 0 Lane 11 | J12B4 | K34 | 50Ω | < 15 mm |
-| PCIe 0 Lane 12 | J12B5 | K35 | 50Ω | < 15 mm |
-| PCIe 0 Lane 13 | J12B6 | K36 | 50Ω | < 15 mm |
-| PCIe 0 Lane 14 | J12B7 | K37 | 50Ω | < 15 mm |
-| PCIe 0 Lane 15 | J12B8 | K38 | 50Ω | < 15 mm |
+```
+AMD EPYC 7002 (PCIe Root Complex)
+│
+├── Lane 0-15  →  Tofino 2 BFN128 Slot 0 (x16)
+│   │
+│   ├── Signal: PCIe_P0A_TX_P[0:15]
+│   ├── Signal: PCIe_P0A_TX_N[0:15]
+│   ├── Signal: PCIe_P0A_RX_P[0:15]
+│   ├── Signal: PCIe_P0A_RX_N[0:15]
+│   ├── Signal: PCIe_P0A_REF_CLK_P
+│   ├── Signal: PCIe_P0A_REF_CLK_N
+│   ├── Signal: PCIe_P0A_PERST_N
+│   ├── Impedance: 100Ω differential
+│   ├── Length: < 1 inch (direct)
+│   └── Termination: 100Ω diff on PCB
+│
+├── Lane 16-31 →  Tofino 2 BFN128 Slot 0 (x16, continued)
+│   ├── Signal: PCIe_P0B_TX_P[0:15]
+│   ├── Signal: PCIe_P0B_TX_N[0:15]
+│   ├── Signal: PCIe_P0B_RX_P[0:15]
+│   ├── Signal: PCIe_P0B_RX_N[0:15]
+│   ├── Impedance: 100Ω differential
+│   └── Length: < 1 inch
+│
+├── Lane 32-47 →  NVMe SSD (M.2 Key M)
+│   ├── Signal: PCIe_M2_TX_P[0:15]
+│   ├── Signal: PCIe_M2_TX_N[0:15]
+│   ├── Signal: PCIe_M2_RX_P[0:15]
+│   ├── Signal: PCIe_M2_RX_N[0:15]
+│   ├── Impedance: 100Ω differential
+│   └── Length: < 2 inch (M.2 form factor)
+│
+└── Lane 48-63 →  BMC (PCIe Gen3 x1)
+    ├── Signal: PCIe_BMC_TX_P/N
+    ├── Signal: PCIe_BMC_RX_P/N
+    ├── Impedance: 100Ω differential
+    └── Length: < 2 inch
+```
 
-### 2.2 CPU ↔ RTL960x (PCIe Gen3 x4)
+## I2C Tracing
 
-| Lane | CPU Pin | RTL960x Pin | Impedance | Length |
-|------|---------|-------------|-----------|--------|
-| PCIe 1 Lane 0 | L15A1 | M20 | 85Ω | < 20 mm |
-| PCIe 1 Lane 1 | L15A2 | M21 | 85Ω | < 20 mm |
-| PCIe 1 Lane 2 | L15A3 | M22 | 85Ω | < 20 mm |
-| PCIe 1 Lane 3 | L15A4 | M23 | 85Ω | < 20 mm |
+### GPON PHY Management Bus
 
-### 2.3 CPU ↔ BMC (PCIe Gen3 x4)
+```
+Tofino 2 GPIO (via I2C mux)
+│
+├── SDA → RTL960x GPON PHY (addr 0x40/0x41)
+├── SCL → RTL960x
+├── SDA → EEPROM 24AA02E64 (addr 0x50)
+├── SCL → EEPROM
+├── SDA → Thermal Sensor TI TMP468 (addr 0x4C)
+├── SCL → Thermal
+├── SDA → BMC (AST2600, addr 0x30)
+├── SCL → BMC
+├── SDA → PSU Controller (addr 0x34)
+└── SCL → PSU
+```
 
-| Lane | CPU Pin | BMC Pin | Impedance | Length |
-|------|---------|---------|-----------|--------|
-| PCIe 2 Lane 0 | N18A1 | P10 | 50Ω | < 10 mm |
-| PCIe 2 Lane 1 | N18A2 | P11 | 50Ω | < 10 mm |
-| PCIe 2 Lane 2 | N18A3 | P12 | 50Ω | < 10 mm |
-| PCIe 2 Lane 3 | N18A4 | P13 | 50Ω | < 10 mm |
+## DDR5 Tracing
 
-## 3. DDR4 трассировка
+### Memory Channel Layout
 
-### 3.1 Memory channels
+```
+AMD EPYC 7002 Memory Controller
+│
+├── Channel 0 (DIMM0)
+│   ├── DQ[0:63]     →  U5 (Samsung M471A4)
+│   ├── Address/Command [0:11]
+│   ├── Clock P/N    →  U5 CLK
+│   ├── VDD/PDB      →  1.1V
+│   ├── VDDQ/PDQ     →  1.1V
+│   ├── Impedance: 40Ω single-ended
+│   └── Timing: tRC=67.5ns, tRAS=36ns
+│
+├── Channel 1 (DIMM1)
+│   ├── DQ[0:63]     →  U7 (Samsung M471A4)
+│   ├── Timing: same as Ch0
+│   └── Length matched: < 0.5 inch skew
+│
+├── Channel 2 (DIMM2)
+│   ├── DQ[0:63]     →  U9 (Samsung M471A4)
+│   └── Timing: same as Ch0
+│
+└── Channel 3 (DIMM3)
+    ├── DQ[0:63]     →  U11 (Samsung M471A4)
+    └── Timing: same as Ch0
+```
 
-| Channel | DQ Pins | Address Pins | CLK | Length |
-|---------|---------|-------------|-----|--------|
-| CH0 | A1-A8 | B1-B4 | C1 | < 5 mm |
-| CH1 | A9-A16 | B5-B8 | C2 | < 5 mm |
-| CH2 | A17-A24 | B9-B12 | C3 | < 5 mm |
-| CH3 | A25-A32 | B13-B16 | C4 | < 5 mm |
+## Power Sequence
 
-### 3.2 DDR4 timing
+```
+1. 3.3V AUX (always on from PSU)
+   │
+   ├── Powers BMC standby
+   ├── Powers EEPROM
+   └── Powers RTC
+   │
+2. 3.3V MAIN (enabled by BMC)
+   │
+   ├── Powers DDR VDD/PDQ
+   ├── Powers I/O
+   └── Powers PCIe refclk
+   │
+3. VCC_CORE (1.0V, enabled by BMC)
+   │
+   ├── Powers EPYC core
+   └── Powers Tofino 2 core
+   │
+4. VCC_DDR (1.1V, enabled by BMC)
+   │
+   └── Powers DDR VDDQ
+   │
+5. VCC_GPON (3.3V, enabled by PMIC)
+   │
+   ├── Powers RTL960x core
+   ├── Powers PON lasers
+   └── Powers RF output
+   │
+6. PCIe PERST# (deasserted by BMC)
+   │
+   ├── Tofino 2 initializes
+   └── NVMe powers on
+```
 
-| Parameter | Value |
-|-----------|-------|
-| **Frequency** | 2400 MT/s |
-| **VDD** | 1.2 V |
-| **VDDQ** | 1.2 V |
-| **Impedance** | 40Ω single-ended |
-| **Length match** | < 0.5 mm |
+## GPON Optical Layout
 
-## 4. GPON трассировка
+```
+RTL960x GPON Controller
+│
+├── TX1490 (1490nm laser) → splitter → 128x ONU
+│   ├── Power: 0 to +5 dBm
+│   ├── Wavelength: 1490nm ± 10nm
+│   └── Safety: Class 1 laser (IEC 60825)
+│
+├── RX1310 (1310nm receiver) ← ONU ←
+│   ├── Sensitivity: -28 dBm
+│   ├── Wavelength: 1310nm ± 60nm
+│   └── OMCI management channel
+│
+├── TX1550 (RF upstream) → splitter → RF upstream
+│   ├── Center freq: 1550MHz
+│   ├── RFoG channel
+│   └── CATV overlay
+│
+└── RX850 (management)
+    ├── OMCI messages
+    ├── TR-069 data
+    └── SNMP traps
+```
 
-### 4.1 RTL960x ↔ WDM multiplexer
+## Signal Integrity Notes
 
-| Signal | RTL960x Pin | WDM Pin | Type | Length |
-|--------|-------------|---------|------|--------|
-| TX1 | N14A1 | W1-TX1 | LVDS | < 30 mm |
-| TX2 | N14A2 | W1-TX2 | LVDS | < 30 mm |
-| RX1 | N15A1 | W1-RX1 | LVDS | < 30 mm |
-| RX2 | N15A2 | W1-RX2 | LVDS | < 30 mm |
+1. **PCIe**: All lanes length-matched within 5 mils, 100Ω differential impedance
+2. **DDR5**: All DQ lines matched within 20 mils, 40Ω single-ended
+3. **Reference clocks**: 100MHz, length-matched within 5 mils
+4. **Optical paths**: Controlled impedance for laser drivers
+5. **Power planes**: 8-layer minimum, split analog/digital/optical
+6. **Via stubs**: Back-drilled for PCIe > 5 Gbps
+7. **Termination**: On-die termination (ODT) enabled for PCIe/DDR
 
-### 4.2 RTL960x ↔ ONU connectors (192 ports)
+## BOM Highlights
 
-| Group | Pins | ONU Range | Connector Type |
-|-------|------|-----------|----------------|
-| Group 1 | O1-O48 | ONU 1-48 | SC/APC x4 |
-| Group 2 | O49-O96 | ONU 49-96 | SC/APC x4 |
-| Group 3 | O97-O144 | ONU 97-144 | SC/APC x4 |
-| Group 4 | O145-O192 | ONU 145-192 | SC/APC x4 |
+| Component | Part | Qty | Supplier |
+|-----------|------|-----|----------|
+| Tofino 2 | Intel BFN128 | 1 | Intel Direct |
+| EPYC | AMD EPYC 7002 Series | 1 | Arrow |
+| RTL960x | Realtek RTL960x | 1 | DigiKey |
+| DDR5 | Samsung M471A4K43CB1-CTD | 4 | Mouser |
+| BMC | ASPEED AST2600 | 1 | Avnet |
+| NVMe | Samsung PM9A3 1TB | 1 | Mouser |
+| EEPROM | Microchip 24AA02E64 | 1 | DigiKey |
+| Thermal | TI TMP468 | 1 | Avnet |
+| PSU | Delta Electronics 350W | 1 | Mouser |
 
-## 5. 10G uplink трассировка
+## Port Mapping
 
-### 5.1 Tofino 2 ↔ QSFP+ connectors
-
-| Port | Tofino Pin | Connector | Type | Length |
-|------|------------|-----------|------|--------|
-| Uplink 0 | K20A1 | Z1 | QSFP+ 10G | < 100 mm |
-| Uplink 1 | K20A2 | Z2 | QSFP+ 10G | < 100 mm |
-| Uplink 2 | K20A3 | Z3 | QSFP+ 10G | < 100 mm |
-| Uplink 3 | K20A4 | Z4 | QSFP+ 10G | < 100 mm |
-
-## 6. I2C трассировка
-
-### 6.1 CPU ↔ All devices
-
-| Signal | CPU Pin | Target | Pull-up | Resistor |
-|--------|---------|--------|---------|----------|
-| I2C_SDA | N16A1 | RTL960x/EEPROM/PSU | 4.7kΩ | R1-R3 |
-| I2C_SCL | N16A2 | RTL960x/EEPROM/PSU | 4.7kΩ | R1-R3 |
-| SMB_ALERT | N16A3 | PSU/Fan | 4.7kΩ | R4 |
-
-## 7. Clock трассировка
-
-### 7.1 Reference clocks
-
-| Clock | Source | Fan-out | Amplitude | Length |
-|-------|--------|---------|-----------|--------|
-| 125 MHz REF | Tofino 2 | 4 outputs | 800mVpp | < 50 mm |
-| 25 MHz REF | Tofino 2 | 2 outputs | 800mVpp | < 50 mm |
-| 1588 PTP | Tofino 2 | 2 outputs | 1.8V | < 50 mm |
-
-## 8. Power delivery
-
-### 8.1 Power rails
-
-| Rail | Voltage | Current | Regulator | Location |
-|------|---------|---------|-----------|----------|
-| VCCINT | 0.8V | 80A | TI TPS546D2A | Tofino 2 |
-| VCCDDRO | 0.8V | 20A | TI TPS546D2A | DDR4 |
-| VCC AUX | 3.3V | 10A | ON Semi NCP3031 | Edge |
-| VBAT | 3.3V | 100mA | MCP1825 | BMC area |
-
-### 8.2 Power sequencing
-
-| Step | Rail | Voltage | Ramp Time | Enable |
-|------|------|---------|-----------|--------|
-| 1 | VCC AUX | 3.3V | 1ms | PWR_GOOD |
-| 2 | VBAT | 3.3V | 0.5ms | PWR_GOOD |
-| 3 | VCCINT | 0.8V | 2ms | VCC AUX OK |
-| 4 | VCCDDRO | 0.8V | 2ms | VCCINT OK |
-| 5 | PCIe PERST# | — | — | All rails OK |
+| Port | Type | Speed | Description |
+|------|------|-------|-------------|
+| PON0-31 | GPON SC/APC | 2.5G/1.25G | 32 GPON ports (1:128 split) |
+| QSFP0-3 | QSFP28 | 100G | 4 uplink ports |
+| MGMT | RJ45 | 1G | Management |
+| USB | USB3.0 | 5Gbps | Service port |

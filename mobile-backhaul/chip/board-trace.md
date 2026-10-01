@@ -1,135 +1,215 @@
-# MTS-MB-3000 — Трассировка платы (Main Board)
+# Board Trace: MTS-MB-3000 Mobile Backhaul
 
-## 1. Архитектура платы
+## Overview
+
+MTS-MB-3000 Mobile Backhaul Router for 5G small cell backhaul (MPLS-TP, PTP, SyncE)
+на базе NXP S32G3 + Marvell 88Q5242.
+
+## Hardware Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                      MTS-MB-3000 MAIN BOARD                        │
-├─────────────────────────────────────────────────────────────────────┤
-│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    │
-│  │ NXP      │    │ NXP      │    │ NXP      │    │ NXP      │    │
-│  │ S32G3    │    │ S32G3    │    │ S32G3    │    │ S32G3    │    │
-│  │ (CORE)   │    │ (CORE)   │    │ (CORE)   │    │ (CORE)   │    │
-│  └────┬─────┘    └────┬─────┘    └────┬─────┘    └────┬─────┘    │
-│       │               │               │               │            │
-│  ┌────▼───────────────▼───────────────▼───────────────▼─────┐     │
-│  │              Marvell 88Q5242 10-Port Switch               │     │
-│  │              8x 10G SFP+ / 2x 100G QSFP+                  │     │
-│  └────┬─────────────────────────────────────────────────────┘     │
-│       │                                                            │
-│  ┌────▼─────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐        │
-│  │ DDR4     │  │ EEPROM   │  │ Fan      │  │ Power    │        │
-│  │ 256 MB   │  │ 24C64    │  │ Ctrl     │  │ Mgmt     │        │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘        │
-└─────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│                       MTS-MB-3000 MAIN BOARD                              │
+│                                                                            │
+│  ┌──────────────────────────┐  ┌──────────────────────────┐               │
+│  │  NXP S32G3               │  │  Marvell 88Q5242         │               │
+│  │  (Cortex-A53 x4)         │  │  6-Port 10G Ethernet     │               │
+│  │  @ 1.8GHz                │  │  Switch                   │               │
+│  │                          │  │                           │               │
+│  │  DDR4-3200               │  │  QSFP28 x2 (10G each)   │               │
+│  │  2GB ECC                 │  │  SFP+ x4 (10G each)     │               │
+│  │  @ 3200MT/s              │  │  SFP x8 (1G each)       │               │
+│  │                          │  │                           │               │
+│  │  CAN-FD x2               │  │  MDIO management         │               │
+│  │  FlexCAN x4              │  │  PTP transparent clock   │               │
+│  │  eTPU x2                 │  │                           │               │
+│  │  Ethernet MAC x4         │  │  QSFP0 ── 10G uplink    │               │
+│  │  USB 3.0 / 2.0           │  │  QSFP1 ── 10G uplink    │               │
+│  │  PCIe 3.0                │  │  SFP+2-5 ── 10G ports   │               │
+│  └──────────┬───────────────┘  │  SFP6-7 ── 1G ports     │               │
+│             │                   └──────────────────────────┘               │
+│             │ I2C / MDIO / PCIe                                  ┌────────┴────────┐
+│             │                                                                    │ 10G PHYs     │
+│             │                                                                    │ 88Q5242      │
+│             └────────────────────────────────────────────────────────────────────┘                │
+│                                                                                                  │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  ┌─────────────────────────────┐ │
+│  │  EEPROM      │  │  Crystal     │  │  Power               │  │  Thermal                   │ │
+│  │  24AA02E64   │  │  125MHz      │  │  TPS54020            │  │  NXP TMP461                │ │
+│  │  I2C addr    │  │  TCXO        │  │  5V → 5V/3.3V/1.0V │  │  I2C addr 0x4C             │ │
+│  └──────────────┘  └──────────────┘  └──────────────────────┘  └─────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## 2. PCIe трассировка
+## PCIe Tracing
 
-### 2.1 S32G3 ↔ 88Q5242 Switch (PCIe Gen3 x4)
+### S32G3 ↔ 88Q5242 Connection
 
-| Lane | S32G3 Pin | Switch Pin | Impedance | Length |
-|------|-----------|------------|-----------|--------|
-| PCIe 0 Lane 0 | K12A1 | L23 | 85Ω | < 15 mm |
-| PCIe 0 Lane 1 | K12A2 | L24 | 85Ω | < 15 mm |
-| PCIe 0 Lane 2 | K12A3 | L25 | 85Ω | < 15 mm |
-| PCIe 0 Lane 3 | K12A4 | L26 | 85Ω | < 15 mm |
+```
+NXP S32G3 PCIe Root Complex
+│
+├── Lane 0-3 (x4) → 88Q5242 (PCIe Gen3)
+│   │
+│   ├── Signal: PCIe_TX_P[0:3]
+│   ├── Signal: PCIe_TX_N[0:3]
+│   ├── Signal: PCIe_RX_P[0:3]
+│   ├── Signal: PCIe_RX_N[0:3]
+│   ├── Signal: PCIe_REF_CLK_P (100MHz)
+│   ├── Signal: PCIe_REF_CLK_N (100MHz)
+│   ├── Signal: PCIe_PERST_N
+│   ├── Impedance: 100Ω differential
+│   ├── Length: < 0.5 inch (direct)
+│   ├── Termination: 100Ω diff on PCB
+│   └── Speed: PCIe Gen3 x4 = 16 Gbps
+│
+└── Reserved lanes (unused)
+    ├── PCIe_EXT_TX_P/N[0:15]
+    └── PCIe_EXT_RX_P/N[0:15]
+```
 
-### 2.2 S32G3 ↔ BMC (PCIe Gen2 x2)
+## MDIO Tracing (S32G3 ↔ 88Q5242)
 
-| Lane | S32G3 Pin | BMC Pin | Impedance | Length |
-|------|-----------|---------|-----------|--------|
-| PCIe 1 Lane 0 | K13A1 | M10 | 85Ω | < 10 mm |
-| PCIe 1 Lane 1 | K13A2 | M11 | 85Ω | < 10 mm |
+```
+S32G3 MDIO0
+│
+├── MDIO0_SDA → 88Q5242 MDC_MDIO (pin 1)
+├── MDIO0_SCLK → 88Q5242 MDC_MDIO (pin 2)
+├── MDIO1_SDA → 88Q5242 MDC_MDIO (pin 3)
+└── MDIO1_SCLK → 88Q5242 MDC_MDIO (pin 4)
+```
 
-## 3. DDR4 трассировка
+## DDR4 Tracing
 
-### 3.1 Memory channels
+### Memory Layout
 
-| Channel | DQ Pins | Address Pins | CLK | Length |
-|---------|---------|-------------|-----|--------|
-| CH0 | A1-A8 | B1-B4 | C1 | < 5 mm |
-| CH1 | A9-A16 | B5-B8 | C2 | < 5 mm |
+```
+S32G3 Memory Controller
+│
+├── Channel 0 (single channel DDR4)
+│   ├── DQ[0:15]     →  U14 (Micron MT52L256)
+│   ├── Address/Command [0:17]
+│   ├── Clock P/N    →  U14 CLK
+│   ├── VDD          →  1.2V
+│   ├── VDDQ         →  1.2V
+│   ├── VPP          →  1.8V (VREFCA)
+│   ├── Impedance: 40Ω single-ended
+│   ├── Timing: tRC=55ns, tRAS=33ns
+│   └── Length: < 0.5 inch skew
+│
+└── ECC bits (8 extra)
+    ├── DQ[16:23]    →  U14 ECC
+    └── VDD          →  1.2V
+```
 
-### 3.2 DDR4 timing
+### DDR4 Timing Parameters
 
-| Parameter | Value |
-|-----------|-------|
-| **Frequency** | 1866 MT/s |
-| **VDD** | 1.2 V |
-| **VDDQ** | 1.2 V |
-| **Impedance** | 40Ω single-ended |
-| **Length match** | < 0.5 mm |
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| fCLK | 1600 MHz | Memory clock frequency |
+| tRC | 55 ns | Row to Column delay |
+| tRAS | 33 ns | Active to Precharge |
+| tRCD | 13.75 ns | Row to Column delay |
+| tWR | 15 ns | Write Recovery |
+| tRP | 13.75 ns | Row Precharge |
+| tRRD | 4.6875 ns | Row to Row delay |
+| tFAW | 25 ns | Four Activate Window |
+| Impedance | 40Ω | Single-ended |
 
-## 4. Ethernet port трассировка
+## I2C Tracing
 
-### 4.1 88Q5242 ↔ SFP+ connectors (10G ports)
+### Management Bus
 
-| Port | Switch Pin | Connector | Type | Length |
-|------|------------|-----------|------|--------|
-| Port 0 | M14A1 | X1 | SFP+ 10G | < 150 mm |
-| Port 1 | M14A2 | X2 | SFP+ 10G | < 150 mm |
-| Port 2 | M14A3 | X3 | SFP+ 10G | < 150 mm |
-| Port 3 | M14A4 | X4 | SFP+ 10G | < 150 mm |
-| Port 4 | M14A5 | X5 | SFP+ 10G | < 150 mm |
-| Port 5 | M14A6 | X6 | SFP+ 10G | < 150 mm |
-| Port 6 | M14A7 | X7 | SFP+ 10G | < 150 mm |
-| Port 7 | M14A8 | X8 | SFP+ 10G | < 150 mm |
+```
+S32G3 I2C0 (BMC)
+│
+├── SDA0 → EEPROM 24AA02E64 (addr 0x50)
+├── SCL0 → EEPROM
+├── SDA0 → Thermal TMP461 (addr 0x4C)
+├── SCL0 → Thermal
+├── SDA0 → 88Q5242 MDIO (addr 0x58)
+├── SCL0 → 88Q5242
+└── SDA0 → RTC (NXP PCF85063, addr 0x51)
+    └── SCL0 → RTC
+```
 
-### 4.2 88Q5242 ↔ QSFP+ connectors (100G uplink)
+## Power Sequence
 
-| Port | Switch Pin | Connector | Type | Length |
-|------|------------|-----------|------|--------|
-| Port 8 | N15A1 | Y1 | QSFP+ 100G | < 100 mm |
-| Port 9 | N15A2 | Y2 | QSFP+ 100G | < 100 mm |
+```
+1. 5V EXT (from external PSU)
+   │
+   ├── Powers 5V rail
+   └── Powers RJ45 magnetics
+   │
+2. 3.3V AUX (TPS54020, always on)
+   │
+   ├── Powers EEPROM
+   ├── Powers I/O
+   └── Powers PCIe refclk
+   │
+3. 5V_SW (TPS54020, enabled by PMIC)
+   │
+   ├── Powers SFP modules
+   └── Powers QSFP modules
+   │
+4. 1.0V CORE (NXP PMIC, enabled by BMC)
+   │
+   ├── Powers S32G3 core
+   └── Powers 88Q5242 core
+   │
+5. 1.2V DDR (NXP PMIC, enabled by BMC)
+   │
+   └── Powers DDR4 VDD/VDDQ
+   │
+6. PCIe PERST# (deasserted by BMC)
+   │
+   └── 88Q5242 initializes
+```
 
-### 4.3 Ethernet differential pair routing
+## Signal Integrity Notes
 
-| Signal | Switch Pin | Connector Pin | Impedance | Length Match |
-|--------|------------|---------------|-----------|-------------|
-| TX_P | P16A1 | X1-TX1P | 100Ω diff | < 3 mm |
-| TX_N | P16A2 | X1-TX1N | 100Ω diff | < 3 mm |
-| RX_P | P17A1 | X1-RX1P | 100Ω diff | < 3 mm |
-| RX_N | P17A2 | X1-RX1N | 100Ω diff | < 3 mm |
+1. **PCIe**: All lanes length-matched within 5 mils, 100Ω differential impedance
+2. **DDR4**: All DQ lines matched within 15 mils, 40Ω single-ended
+3. **Reference clocks**: 125MHz TCXO, ±10ppm stability
+4. **Power planes**: 6-layer minimum, split analog/digital
+5. **Via stubs**: Back-drilled for PCIe > 5 Gbps
+6. **Termination**: On-die termination (ODT) enabled for DDR4
+7. **SFP/QSFP**: Controlled impedance traces for 10G PAM3
 
-## 5. I2C трассировка
+## Clock Distribution
 
-### 5.1 S32G3 ↔ All devices
+```
+125MHz TCXO (Abracon ABM8-125.0MHz)
+│
+├── Output 1 → S32G3 REFCLK0
+├── Output 2 → S32G3 REFCLK1
+├── Output 3 → 88Q5242 REFCLK (125MHz)
+├── Output 4 → SFP+ clock reference
+└── Output 5 → QSFP clock reference
+```
 
-| Signal | S32G3 Pin | Target | Pull-up | Resistor |
-|--------|-----------|--------|---------|----------|
-| I2C0_SDA | K14A1 | 88Q5242/EEPROM | 2.2kΩ | R1-R2 |
-| I2C0_SCL | K14A2 | 88Q5242/EEPROM | 2.2kΩ | R1-R2 |
-| I2C1_SDA | K15A1 | Fan/PSU | 2.2kΩ | R3 |
-| I2C1_SCL | K15A2 | Fan/PSU | 2.2kΩ | R3 |
+## BOM Highlights
 
-## 6. PTP/1588 трассировка
+| Component | Part | Qty | Supplier |
+|-----------|------|-----|----------|
+| S32G3 | NXP S32G396RVM | 1 | DigiKey |
+| 88Q5242 | Marvell 88Q5242-B0 | 1 | Avnet |
+| DDR4 | Micron MT52L256M32D1DI | 1 | Mouser |
+| EEPROM | Microchip 24AA02E64 | 1 | DigiKey |
+| PMIC | NXP FXOS5807 | 1 | Avnet |
+| Thermal | NXP TMP461 | 1 | DigiKey |
+| RTC | NXP PCF85063 | 1 | Mouser |
+| TCXO | Abracon ABM8-125.0MHz | 1 | DigiKey |
+| Power IC | TI TPS54020 | 2 | Mouser |
 
-### 6.1 PTP clock distribution
+## Port Mapping
 
-| Signal | Source | Target | Type | Length |
-|--------|--------|--------|------|--------|
-| PTP_CLK | 88Q5242 | S32G3 | LVDS | < 10 mm |
-| PTP_CLK_N | 88Q5242 | S32G3 | LVDS | < 10 mm |
-| PTP_TS | 88Q5242 | S32G3 | LVDS | < 10 mm |
-
-## 7. Power delivery
-
-### 7.1 Power rails
-
-| Rail | Voltage | Current | Regulator | Location |
-|------|---------|---------|-----------|----------|
-| VCCINT | 0.95V | 8A | TI TPS546D2A | S32G3 |
-| VCCDDRO | 0.95V | 4A | TI TPS546D2A | DDR4 |
-| VCC AUX | 3.3V | 3A | ON Semi NCP3031 | Edge |
-| VBAT | 3.3V | 100mA | MCP1825 | BMC area |
-
-### 7.2 Power sequencing
-
-| Step | Rail | Voltage | Ramp Time | Enable |
-|------|------|---------|-----------|--------|
-| 1 | VCC AUX | 3.3V | 1ms | PWR_GOOD |
-| 2 | VBAT | 3.3V | 0.5ms | PWR_GOOD |
-| 3 | VCCINT | 0.95V | 2ms | VCC AUX OK |
-| 4 | VCCDDRO | 0.95V | 2ms | VCCINT OK |
-| 5 | RESET# | — | — | All rails OK |
+| Port | Type | Speed | PHY | Description |
+|------|------|-------|-----|-------------|
+| QSFP0 | QSFP28 | 10G/40G | 88Q5242 Port 0 | Uplink A |
+| QSFP1 | QSFP28 | 10G/40G | 88Q5242 Port 1 | Uplink B |
+| SFP+2 | SFP+ | 10G | 88Q5242 Port 2 | Backhaul 1 |
+| SFP+3 | SFP+ | 10G | 88Q5242 Port 3 | Backhaul 2 |
+| SFP+4 | SFP+ | 10G | 88Q5242 Port 4 | Backhaul 3 |
+| SFP+5 | SFP+ | 10G | 88Q5242 Port 5 | Backhaul 4 |
+| SFP6 | SFP | 1G | 88Q5242 Port 6 | Management |
+| SFP7 | SFP | 1G | 88Q5242 Port 7 | Spare |
