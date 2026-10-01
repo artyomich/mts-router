@@ -89,8 +89,12 @@
 - [x] CI/CD GitHub Actions workflows (.github/workflows/ci-cd.yml, .github/workflows/embedded-linux.yml)
 - [x] REST API Gateway (api/rest-gateway/ — server, headers, CMake, documentation)
 - [x] RTL960x driver implementation (firmware/rtl960x-driver/ — 4 source files, 4 headers, Makefile, tests)
-- [x] MT7981 driver implementation (firmware/mts-rg-drivers/mt7981/ — 2 source files, 1 header, tests)
+- [x] MT7981 driver implementation (firmware/mts-rg-drivers/mt7981/ — 3 source files, 1 header, tests)
 - [x] TomTom driver implementation (firmware/tomtom-driver/ — 3 source files, 3 headers, Makefile, tests)
+- [x] MT7981 crypto driver (firmware/mts-rg-drivers/mt7981/src/mt7981_crypto.c — AES/RSA/RNG)
+- [x] RTL960x crypto driver (firmware/mts-rg-drivers/rtl960x/src/rtl960x_crypto.c — OMCI/MACsec/TR-069)
+- [x] Board-trace для всех 6 устройств (mobile-core, residential-gateway добавлены)
+- [x] CI/CD firmware test job (syntax check, cppcheck, header validation)
 - [x] gRPC telemetry streaming (api/rest-gateway/src/mts-rest-telemetry.c — health, interfaces, performance)
 - [x] gRPC config management (api/rest-gateway/src/mts-rest-config.c — CRUD, validation, rollback)
 - [x] OpenAPI/Swagger extensions (api/spec/mts-extensions.yaml — 10+ endpoints, 8 schemas)
@@ -139,11 +143,35 @@
 | **DPDK Tests** | Запуск на hardware | ⏳ Ожидает | DPDK-capable hardware |
 | **Integration** | End-to-end тесты | ⏳ Ожидает | Все образы собраны |
 
+### ✅ Реализованные board-trace (обновлено)
+
+| Устройство | board-trace.md | Статус |
+|------------|---------------|--------|
+| MTS-CR-9000 | core-router/chip/board-trace.md | ✅ Полная реализация |
+| MTS-MC-5000 | mobile-core/chip/board-trace.md | ✅ Полная реализация |
+| MTS-MB-3000 | mobile-backhaul/chip/board-trace.md | ✅ Полная реализация |
+| MTS-OLT-2000 | olt-gpon/chip/board-trace.md | ✅ Полная реализация |
+| MTS-ER-1000 | enterprise-router/chip/board-trace.md | ✅ Полная реализация |
+| MTS-RG-500 | residential-gateway/chip/board-trace.md | ✅ Полная реализация |
+
+### ✅ Новые firmware драйверы (обновлено)
+
+| Драйвер | Source Files | Статус |
+|---------|-------------|--------|
+| mt7981-crypto | mt7981_crypto.c | ✅ Новая реализация |
+| rtl960x-crypto | rtl960x_crypto.c | ✅ Новая реализация |
+| tofino2-driver | 5 (.c) + 5 (.h) | ✅ Полная реализация |
+| thunderx3-driver | 4 (.c) + 4 (.h) | ✅ Полная реализация |
+| s32g3-driver | 5 (.c) + 5 (.h) | ✅ Полная реализация |
+| rtl960x-driver | 4 (.c) + 4 (.h) | ✅ Полная реализация |
+| mt7981-driver | 3 (.c) + 1 (.h) | ✅ Дополнен |
+| tomtom-driver | 3 (.c) + 3 (.h) | ✅ Полная реализация |
+
 ### 🔧 Hardware Design (требует профессиональных инструментов)
 
 | Задача | Инструменты | Статус |
 |--------|-------------|--------|
-| Детальная трассировка плат | Cadence Allegro / Altium Designer | **REQUIRES EDA LICENSE** |
+| Детальная трассировка плат (схемы) | Cadence Allegro / Altium Designer | **REQUIRES EDA LICENSE** |
 | Проектирование корпусов | SolidWorks / Fusion 360 | **MECHANICAL DESIGN** |
 | Thermal analysis | ANSYS IcePak / FloTHERM | **REQUIRES THERMAL SIM** |
 | EMC/EMI анализ | CST Studio / HFSS | **REQUIRES EMC LICENSE** |

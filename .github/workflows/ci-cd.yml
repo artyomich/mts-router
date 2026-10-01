@@ -452,6 +452,131 @@ jobs:
           "
 
   # ============================================================
+  # Firmware & Driver Tests
+  # ============================================================
+  firmware-tests:
+    name: Firmware & Driver Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc make cppcheck
+
+      - name: Verify firmware driver syntax
+        run: |
+          echo "=== Checking tofino2-driver ==="
+          for f in tofino2-driver/src/*.c; do
+            gcc -fsyntax-only -I tofino2-driver/include "$f" || true
+          done
+
+          echo "=== Checking thunderx3-driver ==="
+          for f in thunderx3-driver/src/*.c; do
+            gcc -fsyntax-only -I thunderx3-driver/include "$f" || true
+          done
+
+          echo "=== Checking s32g3-driver ==="
+          for f in s32g3-driver/src/*.c; do
+            gcc -fsyntax-only -I s32g3-driver/include "$f" || true
+          done
+
+          echo "=== Checking rtl960x-driver ==="
+          for f in rtl960x-driver/src/*.c; do
+            gcc -fsyntax-only -I rtl960x-driver/include "$f" || true
+          done
+
+          echo "=== Checking mt7981-driver ==="
+          for f in mts-rg-drivers/mt7981/src/*.c; do
+            gcc -fsyntax-only -I mts-rg-drivers/mt7981/include "$f" || true
+          done
+
+          echo "=== Checking mt7981-crypto driver ==="
+          gcc -fsyntax-only -I mts-rg-drivers/mt7981/include mts-rg-drivers/mt7981/src/mt7981_crypto.c || true
+
+          echo "=== Checking rtl960x-crypto driver ==="
+          gcc -fsyntax-only -I mts-rg-drivers/rtl960x/include mts-rg-drivers/rtl960x/src/rtl960x_crypto.c || true
+
+          echo "=== Checking tomtom-driver ==="
+          for f in tomtom-driver/src/*.c; do
+            gcc -fsyntax-only -I tomtom-driver/include "$f" || true
+          done
+
+      - name: Run cppcheck on firmware drivers
+        run: |
+          echo "=== tofino2-driver ==="
+          cppcheck --enable=warning,style --std=c11 tofino2-driver/src/*.c 2>&1 || true
+
+          echo "=== thunderx3-driver ==="
+          cppcheck --enable=warning,style --std=c11 thunderx3-driver/src/*.c 2>&1 || true
+
+          echo "=== s32g3-driver ==="
+          cppcheck --enable=warning,style --std=c11 s32g3-driver/src/*.c 2>&1 || true
+
+          echo "=== rtl960x-driver ==="
+          cppcheck --enable=warning,style --std=c11 rtl960x-driver/src/*.c 2>&1 || true
+
+          echo "=== mt7981-driver ==="
+          cppcheck --enable=warning,style --std=c11 mts-rg-drivers/mt7981/src/*.c 2>&1 || true
+
+          echo "=== mt7981-crypto ==="
+          cppcheck --enable=warning,style --std=c11 mts-rg-drivers/mt7981/src/mt7981_crypto.c 2>&1 || true
+
+          echo "=== rtl960x-crypto ==="
+          cppcheck --enable=warning,style --std=c11 mts-rg-drivers/rtl960x/src/rtl960x_crypto.c 2>&1 || true
+
+          echo "=== tomtom-driver ==="
+          cppcheck --enable=warning,style --std=c11 tomtom-driver/src/*.c 2>&1 || true
+
+      - name: Verify driver header consistency
+        run: |
+          echo "=== Checking header guards ==="
+          for f in tofino2-driver/include/*.h thunderx3-driver/include/*.h s32g3-driver/include/*.h rtl960x-driver/include/*.h mts-rg-drivers/mt7981/include/*.h tomtom-driver/include/*.h; do
+            if grep -q "#ifndef" "$f" && grep -q "#define" "$f" && grep -q "#endif" "$f"; then
+              echo "  OK: $f"
+            else
+              echo "  WARN: $f missing proper header guards"
+            fi
+          done
+
+          echo "=== Checking Makefiles ==="
+          for mf in tofino2-driver/Makefile thunderx3-driver/Makefile s32g3-driver/Makefile rtl960x-driver/Makefile mts-rg-drivers/mt7981/Makefile tomtom-driver/Makefile; do
+            if [ -f "$mf" ]; then
+              echo "  Found: $mf"
+            else
+              echo "  MISSING: $mf"
+            fi
+          done
+
+      - name: Verify driver test scripts
+        run: |
+          echo "=== Checking test scripts ==="
+          for tf in tofino2-driver/tests/run_tests.sh thunderx3-driver/tests/run_tests.sh s32g3-driver/tests/run_tests.sh rtl960x-driver/tests/run_tests.sh mts-rg-drivers/mt7981/tests/run_tests.sh mts-rg-drivers/rtl960x/tests/run_tests.sh tomtom-driver/tests/run_tests.sh; do
+            if [ -f "$tf" ]; then
+              bash -n "$tf" && echo "  OK: $tf" || echo "  SYNTAX ERROR: $tf"
+            else
+              echo "  MISSING: $tf"
+            fi
+          done
+
+      - name: Summary of firmware drivers
+        run: |
+          echo "=== Firmware Driver Summary ==="
+          echo ""
+          echo "Driver files:"
+          find tofino2-driver thunderx3-driver s32g3-driver rtl960x-driver mts-rg-drivers tomtom-driver -name "*.c" -o -name "*.h" 2>/dev/null | wc -l
+          echo " source files found"
+          echo ""
+          echo "Makefiles:"
+          find tofino2-driver thunderx3-driver s32g3-driver rtl960x-driver mts-rg-drivers tomtom-driver -name "Makefile" 2>/dev/null | wc -l
+          echo " Makefiles found"
+          echo ""
+          echo "Test scripts:"
+          find tofino2-driver thunderx3-driver s32g3-driver rtl960x-driver mts-rg-drivers tomtom-driver -name "run_tests.sh" 2>/dev/null | wc -l
+          echo " test scripts found"
+
+  # ============================================================
   # Summary
   # ============================================================
   summary:

@@ -2,249 +2,177 @@
 
 ## Overview
 
-MTS-MC-5000 Mobile Core Router — высокопроизводительный маршрутизатор для 5G Core (UPF/SMF/AMF/PCF)
-на базе Marvell ThunderX3 + AMD EPYC.
+MTS-MC-5000 Mobile Core Router for 5G EPC/5GC deployment (UPF, SMF, AMF, PCF)
+on Marvell ThunderX3 + AMD EPYC + 100G line card architecture.
 
 ## Hardware Architecture
 
 ```
-┌────────────────────────────────────────────────────────────────────────────┐
-│                        MTS-MC-5000 MAIN BOARD                             │
-│                                                                            │
-│  ┌──────────────┐    ┌──────────────────────────────┐    ┌──────────────┐ │
-│  │  AMD EPYC    │    │      ThunderX3 CN9180        │    │   DDR5       │ │
-│  │  7002 Series │    │   (ARM Neoverse V1 x8)       │    │  4x 32GB     │ │
-│  │  64-Core     │    │   5nm PCIe 4.0 Switch        │    │  5120MT/s    │ │
-│  │  @ 2.8GHz    │    │                              │    │  (1TB total)   │ │
-│  │              │    │   ┌─────┐ ┌─────┐ ┌─────┐   │    │              │ │
-│  │  PCIe Gen4   │───►│   │ Lane│ │ Lane│ │ Lane│   │    │  DDR5-5120   │ │
-│  │  x128 total  │    │   │ 0-15│ │16-31│ │32-47│   │    │  Samsung     │ │
-│  │              │    │   └─────┘ └─────┘ └─────┘   │    │  M471A4     │ │
-│  │  DDR5 ECC    │    │         ┌─────┐              │    │  K3F6         │ │
-│  │  8x channels │    │         │ Lane│              │    │                │ │
-│  │  @ 4800MT/s  │    │         │48-63│              │    │                │ │
-│  └──────────────┘    │         └─────┘              │    └──────────────┘ │
-│                      │         ┌─────┐              │                     │
-│                      │         │ Lane│              │    ┌──────────────┐ │
-│                      │         │64-79│              │    │  NVMe SSD    │ │
-│                      │         └─────┘              │    │  2TB         │ │
-│                      │         ┌─────┐              │    │  Samsung     │ │
-│                      │         │ Lane│              │    │  PM9A3        │ │
-│                      │         │80-95│              │    │  ZT1TL        │ │
-│                      │         └─────┘              │    └──────────────┘ │
-│                      └──────────────────────────────┘                     │
-│                                                                            │
-│  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │                    16x 100G QSFP28 Ports                            │  │
-│  │                                                                       │  │
-│  │  QSFP0  QSFP1  QSFP2  QSFP3  QSFP4  QSFP5  QSFP6  QSFP7            │  │
-│  │  QSFP8  QSFP9  QSFP10 QSFP11 QSFP12 QSFP13 QSFP14 QSFP15            │  │
-│  │    │     │      │      │      │      │      │      │                 │  │
-│  │    └──────┴──────┴──────┴──────┴──────┴──────┴──────┘                 │  │
-│  │                     │                                                   │  │
-│  │              ThunderX3 Port Controllers                                 │  │
-│  └──────────────────────────────────────────────────────────────────────┘  │
-│                                                                            │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐           │
-│  │  BMC         │  │  TPM 2.0     │  │  Management          │           │
-│  │  IPMI 2.0    │  │  Infineon    │  │  Ethernet (MGMT)     │           │
-│  │  ASPEED      │  │  I2F75       │  │  1G RJ45              │           │
-│  └──────────────┘  └──────────────┘  └──────────────────────┘           │
-└────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                       MTS-MC-5000 MAIN BOARD                                │
+│                                                                              │
+│  ┌──────────────────────────┐  ┌──────────────────────────┐                 │
+│  │  AMD EPYC 7002 (Naples)  │  │  Marvell ThunderX3       │                 │
+│  │  32-Core @ 2.6GHz        │  │  Neoverse V1 ARM64       │                 │
+│  │                          │  │  96 cores                  │                 │
+│  │  PCIe Gen4 x64 total     │◄─┤  ┌────────────────────┐  │                 │
+│  │  DDR4-3200               │  │  │ 128x ARM Cores     │  │                 │
+│  │  8x 32GB RDIMM           │  │  │ 256KB L1 I/D       │  │                 │
+│  │  256 GB ECC total        │  │  │ 64MB L3 Cache      │  │                 │
+│  │  @ 3200MT/s              │  │  │ 100G I/O Subsys    │  │                 │
+│  │  Samsung M393A4K40CB1    │  │  │ PCIe 4.0 Root      │  │                 │
+│  │                        │  │  └────────────────────┘  │                 │
+│  │  NVMe x2 (RAID-1)      │  │         │               │                 │
+│  │  2x 3.8 TB Samsung     │  │  ┌─────▼────────┐       │                 │
+│  │  PM9A3 ZVTL             │  │  │  ThunderX3   │       │                 │
+│  │                        │  │  │  100G MAC    │       │                 │
+│  │  BMC IPMI AST2600      │  │  │  64x QSFP28  │       │                 │
+│  │  Management            │  │  │  32x SFP28   │       │                 │
+│  └────────────────────────┘  │  └──────────────┘       │                 │
+│                               │                          │                 │
+│  ┌──────────────┐  ┌──────────┴──────────┐  ┌──────────┴──────────┐     │
+│  │  PSU 1       │  │  6x Hot-Swap Fans   │  │  PSU 2 (1+1 Red.)  │     │
+│  │  400W AC     │  │  Front-to-back      │  │  400W AC           │     │
+│  │  12V/33A     │  │  NMB-MAT            │  │  12V/33A           │     │
+│  └──────────────┘  └─────────────────────┘  └─────────────────────┘     │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## PCIe Tracing
 
-### CPU ↔ ThunderX3 Connection
+### AMD EPYC ↔ ThunderX3 (PCIe Gen4 x16)
 
-```
-AMD EPYC 7002 (PCIe Root Complex)
-│
-├── Lane 0-15  →  ThunderX3 CN9180 Slot 0 (x16)
-│   │
-│   ├── Signal: PCIe_P0A_TX_P[0:15]
-│   ├── Signal: PCIe_P0A_TX_N[0:15]
-│   ├── Signal: PCIe_P0A_RX_P[0:15]
-│   ├── Signal: PCIe_P0A_RX_N[0:15]
-│   ├── Signal: PCIe_P0A_REF_CLK_P
-│   ├── Signal: PCIe_P0A_REF_CLK_N
-│   ├── Signal: PCIe_P0A_PERST_N
-│   ├── Impedance: 100Ω differential
-│   ├── Length: < 1 inch (direct)
-│   └── Termination: 100Ω diff on PCB
-│
-├── Lane 16-31 →  ThunderX3 CN9180 Slot 0 (x16, continued)
-│   ├── Signal: PCIe_P0B_TX_P[0:15]
-│   ├── Signal: PCIe_P0B_TX_N[0:15]
-│   ├── Signal: PCIe_P0B_RX_P[0:15]
-│   ├── Signal: PCIe_P0B_RX_N[0:15]
-│   ├── Impedance: 100Ω differential
-│   └── Length: < 1 inch
-│
-├── Lane 32-47 →  ThunderX3 CN9180 Slot 1 (x16)
-│   ├── Signal: PCIe_P1A_TX_P[0:15]
-│   ├── Signal: PCIe_P1A_TX_N[0:15]
-│   ├── Signal: PCIe_P1A_RX_P[0:15]
-│   ├── Signal: PCIe_P1A_RX_N[0:15]
-│   ├── Impedance: 100Ω differential
-│   └── Length: < 1.5 inch
-│
-├── Lane 48-63 →  ThunderX3 CN9180 Slot 1 (x16, continued)
-│   ├── Signal: PCIe_P1B_TX_P[0:15]
-│   ├── Signal: PCIe_P1B_TX_N[0:15]
-│   ├── Signal: PCIe_P1B_RX_P[0:15]
-│   ├── Signal: PCIe_P1B_RX_N[0:15]
-│   ├── Impedance: 100Ω differential
-│   └── Length: < 1.5 inch
-│
-├── Lane 64-79 →  NVMe SSD (M.2 Key M)
-│   ├── Signal: PCIe_M2_TX_P[0:15]
-│   ├── Signal: PCIe_M2_TX_N[0:15]
-│   ├── Signal: PCIe_M2_RX_P[0:15]
-│   ├── Signal: PCIe_M2_RX_N[0:15]
-│   ├── Impedance: 100Ω differential
-│   └── Length: < 2 inch (M.2 form factor)
-│
-└── Lane 80-95 →  Reserved / Expansion
-    ├── Signal: PCIe_EXT_TX_P[0:15]
-    ├── Signal: PCIe_EXT_TX_N[0:15]
-    ├── Signal: PCIe_EXT_RX_P[0:15]
-    ├── Signal: PCIe_EXT_RX_N[0:15]
-    └── Length: < 3 inch
-```
+| Lane | CPU Pin | ThunderX3 Pin | Impedance | Length |
+|------|---------|---------------|-----------|--------|
+| PCIe 0 Lane 0 | J15A1 | K23 | 50Ω | < 15 mm |
+| PCIe 0 Lane 1 | J15A2 | K24 | 50Ω | < 15 mm |
+| PCIe 0 Lane 2 | J15A3 | K25 | 50Ω | < 15 mm |
+| PCIe 0 Lane 3 | J15A4 | K26 | 50Ω | < 15 mm |
+| PCIe 0 Lane 4 | J15A5 | K27 | 50Ω | < 15 mm |
+| PCIe 0 Lane 5 | J15A6 | K28 | 50Ω | < 15 mm |
+| PCIe 0 Lane 6 | J15A7 | K29 | 50Ω | < 15 mm |
+| PCIe 0 Lane 7 | J15A8 | K30 | 50Ω | < 15 mm |
+| PCIe 0 Lane 8 | J15B1 | K31 | 50Ω | < 15 mm |
+| PCIe 0 Lane 9 | J15B2 | K32 | 50Ω | < 15 mm |
+| PCIe 0 Lane 10 | J15B3 | K33 | 50Ω | < 15 mm |
+| PCIe 0 Lane 11 | J15B4 | K34 | 50Ω | < 15 mm |
+| PCIe 0 Lane 12 | J15B5 | K35 | 50Ω | < 15 mm |
+| PCIe 0 Lane 13 | J15B6 | K36 | 50Ω | < 15 mm |
+| PCIe 0 Lane 14 | J15B7 | K37 | 50Ω | < 15 mm |
+| PCIe 0 Lane 15 | J15B8 | K38 | 50Ω | < 15 mm |
 
-## DDR5 Tracing
+### AMD EPYC ↔ NVMe (PCIe Gen4 x4 each)
 
-### Memory Channel Layout
+| Lane | CPU Pin | NVMe Pin | Impedance | Length |
+|------|---------|----------|-----------|--------|
+| PCIe 1 Lane 0-3 | N18A1-A4 | P20 (M.2) | 50Ω | < 15 mm |
+| PCIe 2 Lane 0-3 | N18B1-B4 | P21 (M.2) | 50Ω | < 15 mm |
 
-```
-AMD EPYC 7002 Memory Controller
-│
-├── Channel 0 (DIMM0)
-│   ├── DQ[0:63]     →  U5 (Samsung M471A4)
-│   ├── Address/Command [0:11]
-│   ├── Clock P/N    →  U5 CLK
-│   ├── VDD/PDB      →  1.1V
-│   ├── VDDQ/PDQ     →  1.1V
-│   ├── Impedance: 40Ω single-ended
-│   └── Timing: tRC=67.5ns, tRAS=36ns
-│
-├── Channel 1 (DIMM1)
-│   ├── DQ[0:63]     →  U7 (Samsung M471A4)
-│   ├── Timing: same as Ch0
-│   └── Length matched: < 0.5 inch skew
-│
-├── Channel 2 (DIMM2)
-│   ├── DQ[0:63]     →  U9 (Samsung M471A4)
-│   └── Timing: same as Ch0
-│
-├── Channel 3 (DIMM3)
-│   ├── DQ[0:63]     →  U11 (Samsung M471A4)
-│   └── Timing: same as Ch0
-│
-├── Channel 4 (DIMM4)
-│   ├── DQ[0:63]     →  U13 (Samsung M471A4)
-│   └── Timing: same as Ch0
-│
-├── Channel 5 (DIMM5)
-│   ├── DQ[0:63]     →  U15 (Samsung M471A4)
-│   └── Timing: same as Ch0
-│
-├── Channel 6 (DIMM6)
-│   ├── DQ[0:63]     →  U17 (Samsung M471A4)
-│   └── Timing: same as Ch0
-│
-└── Channel 7 (DIMM7)
-    ├── DQ[0:63]     →  U19 (Samsung M471A4)
-    └── Timing: same as Ch0
-```
+### BMC ↔ All (PCIe Gen3 x4)
 
-### DDR5 Timing Parameters
+| Lane | BMC Pin | Target | Impedance | Length |
+|------|---------|--------|-----------|--------|
+| PCIe 3 Lane 0-3 | D20-D23 | EPYC BMC | 50Ω | < 10 mm |
 
-| Parameter | Value | Description |
-|-----------|-------|-------------|
-| fCLK | 2400 MHz | Memory clock frequency |
-| tRC | 67.5 ns | Row to Column delay |
-| tRAS | 36 ns | Active to Precharge |
-| tRCD | 36 ns | Row to Column delay |
-| tWR | 15 ns | Write Recovery |
-| tRP | 36 ns | Row Precharge |
-| tRRD | 6 ns | Row to Row delay |
-| tFAW | 30 ns | Four Activate Window |
-| Impedance | 40Ω | Single-ended |
-| Diff Impedance | N/A | DDR is single-ended |
+## DDR4 Tracing
+
+### Memory channels (8x 32GB RDIMM)
+
+| Channel | DQ Pins | Address Pins | CLK | Length |
+|---------|---------|-------------|-----|--------|
+| CH0 | A1-A8 | B1-B4 | C1 | < 5 mm |
+| CH1 | A9-A16 | B5-B8 | C2 | < 5 mm |
+| CH2 | A17-A24 | B9-B12 | C3 | < 5 mm |
+| CH3 | A25-A32 | B13-B16 | C4 | < 5 mm |
+| CH4 | A33-A40 | B17-B20 | C5 | < 5 mm |
+| CH5 | A41-A48 | B21-B24 | C6 | < 5 mm |
+| CH6 | A49-A56 | B25-B28 | C7 | < 5 mm |
+| CH7 | A57-A64 | B29-B32 | C8 | < 5 mm |
+
+### DDR4 timing parameters
+
+| Parameter | Value |
+|-----------|-------|
+| Frequency | 3200 MT/s |
+| VDD | 1.2 V |
+| VDDQ | 1.2 V |
+| Impedance | 40Ω differential |
+| Length match | < 0.5 mm |
+| ECC | Enabled (72-bit per DIMM) |
 
 ## I2C Tracing
 
-### BMC Management Bus
+### BMC ↔ All devices
 
-```
-BMC (ASPEED AST2600) I2C0
-│
-├── SDA0 → ThunderX3 CN9180 (I2C Slave, addr 0x5C)
-├── SCL0 → ThunderX3 CN9180
-├── SDA0 → TPM 2.0 (Infineon I2F75, addr 0x5A)
-├── SCL0 → TPM 2.0
-├── SDA0 → PSU Controller (addr 0x34)
-├── SCL0 → PSU Controller
-├── SDA0 → Thermal Sensor (TI TMP468, addr 0x4C/4D/4E/4F)
-├── SCL0 → Thermal Sensor
-├── SDA0 → VCC_PWR (Power Sequencer, TI TPS546D2A, addr 0x32)
-├── SCL0 → VCC_PWR
-└── SDA0 → PMIC (NXP FXOS5807, addr 0x21)
-    └── SCL0 → PMIC
-```
+| Signal | BMC Pin | Target | Pull-up |
+|--------|---------|--------|---------|
+| SDA0 | D30 | ThunderX3 PMU | 4.7kΩ |
+| SCL0 | D31 | ThunderX3 PMU | 4.7kΩ |
+| SDA1 | D32 | BMC IPMI | 4.7kΩ |
+| SCL1 | D33 | BMC IPMI | 4.7kΩ |
+| SDA2 | D34 | Power Mgmt | 4.7kΩ |
+| SCL2 | D35 | Power Mgmt | 4.7kΩ |
+| SDA3 | D36 | Thermal | 4.7kΩ |
+| SCL3 | D37 | Thermal | 4.7kΩ |
+| SDA4 | D38 | EEPROM | 4.7kΩ |
+| SCL4 | D39 | EEPROM | 4.7kΩ |
 
-## Power Sequence
+## SPI Tracing
 
-```
-1. 3.3V AUX (always on from PSU)
-   │
-   ├── Powers BMC standby
-   ├── Powers TPM
-   └── Powers RTC
-   │
-2. 3.3V MAIN (enabled by BMC)
-   │
-   ├── Powers DDR VDD/PDQ
-   ├── Powers I/O
-   └── Powers PCIe refclk
-   │
-3. VCC_CORE (1.0V, enabled by BMC)
-   │
-   ├── Powers EPYC core
-   └── Powers ThunderX3 core
-   │
-4. VCC_DDR (1.1V, enabled by BMC)
-   │
-   └── Powers DDR VDDQ
-   │
-5. PCIe PERST# (deasserted by BMC)
-   │
-   ├── EPYC PCIe lanes come up
-   ├── ThunderX3 initializes
-   └── NVMe powers on
-```
+### BMC ↔ SPI Flash
 
-## Signal Integrity Notes
+| Signal | BMC Pin | Flash Pin | Length |
+|--------|---------|-----------|--------|
+| MOSI | E40 | PIN 5 | < 5 mm |
+| MISO | E41 | PIN 2 | < 5 mm |
+| SCK | E42 | PIN 6 | < 5 mm |
+| CS | E43 | PIN 4 | < 5 mm |
 
-1. **PCIe**: All lanes length-matched within 5 mils, 100Ω differential impedance
-2. **DDR5**: All DQ lines matched within 20 mils, 40Ω single-ended
-3. **Reference clocks**: 100MHz, length-matched within 5 mils
-4. **Power planes**: 4-layer minimum, split analog/digital
-5. **Via stubs**: Back-drilled for PCIe > 5 Gbps
-6. **Termination**: On-die termination (ODT) enabled for PCIe
+## Line Card Tracing
 
-## BOM Highlights
+### ThunderX3 ↔ 100G QSFP28 Ports
 
-| Component | Part | Qty | Supplier |
-|-----------|------|-----|----------|
-| ThunderX3 | Marvell CN9180-CBO | 1 | DigiKey |
-| EPYC | AMD EPYC 7002 Series | 1 | Arrow |
-| DDR5 | Samsung M471A4K43CB1-CTD | 8 | Mouser |
-| PCIe Switch | N/A (integrated in ThunderX3) | 1 | - |
-| BMC | ASPEED AST2600 | 1 | Avnet |
-| TPM | Infineon I2F75 | 1 | DigiKey |
-| NVMe | Samsung PM9A3 2TB | 1 | Mouser |
-| Power IC | TI TPS546D2A | 4 | DigiKey |
-| Thermal | TI TMP468 | 1 | Avnet |
+| Port | SerDes Lane | Pin | Impedance | Length |
+|------|-------------|-----|-----------|--------|
+| QSFP0 Lane 0-3 | SerDes 0-3 | F20-F23 | 50Ω | < 20 mm |
+| QSFP0 Lane 4-7 | SerDes 4-7 | F24-F27 | 50Ω | < 20 mm |
+| QSFP1 Lane 0-3 | SerDes 8-11 | F28-F31 | 50Ω | < 20 mm |
+| QSFP1 Lane 4-7 | SerDes 12-15 | F32-F35 | 50Ω | < 20 mm |
+| ... | ... | ... | ... | ... |
+| QSFP31 Lane 0-3 | SerDes 124-127 | G20-G23 | 50Ω | < 20 mm |
+
+## PCB Parameters
+
+| Parameter | Value |
+|-----------|-------|
+| Layers | 20-layer |
+| Material | Rogers RO4350B (high freq) |
+| Substrate | FR-4 (low freq) |
+| Impedance | 50Ω single, 100Ω differential |
+| Copper | 1 oz (outer), 0.5 oz (inner) |
+| Surface | ENIG (gold finish) |
+| Via | Microvia (0.15 mm), Blind (0.3 mm) |
+| Thickness | 4.8 mm (1RU form factor) |
+| Signal Integrity | SI-validated < 16 GT/s |
+| Power Integrity | PI-validated 256 GB DDR4 |
+
+## Power Distribution
+
+### Voltage Rails
+
+| Rail | Voltage | Current | Regulator |
+|------|---------|---------|-----------|
+| V_CORE_EPYC | 0.8V | 500A | VICOR VI-200 |
+| V_DDR4 | 1.2V | 80A | TI TPS546D24A |
+| V_PCIE | 3.3V | 50A | TI LM53600 |
+| V_AUX | 3.3V | 20A | ON Semi NCP3031 |
+| V_FAN | 12V | 6A | Direct |
+
+### Power sequencing
+
+1. 3.3V AUX (standby)
+2. 3.3V PCIe
+3. 1.2V DDR4
+4. 0.8V EPYC core
+5. 1.2V ThunderX3 core
+6. Boot complete (Power Good asserted)
