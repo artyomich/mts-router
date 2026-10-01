@@ -2,37 +2,37 @@
 # Provides device-specific image configuration
 
 # Core Router image
-IMAGE_INSTALL_append_mts-cr9000 = " \
+IMAGE_INSTALL:append:mts-cr9000 = " \
     ${MTS_CR_PACKAGES} \
 "
 
 # Mobile Core image
-IMAGE_INSTALL_append_mts-mc5000 = " \
+IMAGE_INSTALL:append:mts-mc5000 = " \
     ${MTS_MC_PACKAGES} \
 "
 
 # Mobile Backhaul image
-IMAGE_INSTALL_append_mts-mb3000 = " \
+IMAGE_INSTALL:append:mts-mb3000 = " \
     ${MTS_MB_PACKAGES} \
 "
 
 # OLT GPON image
-IMAGE_INSTALL_append_mts-olt2000 = " \
+IMAGE_INSTALL:append:mts-olt2000 = " \
     ${MTS_OLT_PACKAGES} \
 "
 
 # Enterprise Router image
-IMAGE_INSTALL_append_mts-er1000 = " \
+IMAGE_INSTALL:append:mts-er1000 = " \
     ${MTS_ER_PACKAGES} \
 "
 
 # Residential Gateway image
-IMAGE_INSTALL_append_mts-rg500 = " \
+IMAGE_INSTALL:append:mts-rg500 = " \
     ${MTS_RG_PACKAGES} \
 "
 
 # Common packages for all devices
-IMAGE_INSTALL_append = " \
+IMAGE_INSTALL:append = " \
     ${MTS_COMMON_PACKAGES} \
 "
 

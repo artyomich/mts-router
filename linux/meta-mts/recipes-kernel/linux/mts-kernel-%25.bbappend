@@ -114,22 +114,22 @@ SRC_URI_mts-rg500 += "\
 # ============================================================
 
 # Core Router device tree
-SRC_URI_append_mts-cr9000 = "file://device-tree/mts-cr9000.dts;subdir=git"
+SRC_URI:append:mts-cr9000 = "file://device-tree/mts-cr9000.dts;subdir=git"
 
 # Mobile Core device tree
-SRC_URI_append_mts-mc5000 = "file://device-tree/mts-mc5000.dts;subdir=git"
+SRC_URI:append:mts-mc5000 = "file://device-tree/mts-mc5000.dts;subdir=git"
 
 # Mobile Backhaul device tree
-SRC_URI_append_mts-mb3000 = "file://device-tree/mts-mb3000.dts;subdir=git"
+SRC_URI:append:mts-mb3000 = "file://device-tree/mts-mb3000.dts;subdir=git"
 
 # OLT GPON device tree
-SRC_URI_append_mts-olt2000 = "file://device-tree/mts-olt2000.dts;subdir=git"
+SRC_URI:append:mts-olt2000 = "file://device-tree/mts-olt2000.dts;subdir=git"
 
 # Enterprise Router device tree
-SRC_URI_append_mts-er1000 = "file://device-tree/mts-er1000.dts;subdir=git"
+SRC_URI:append:mts-er1000 = "file://device-tree/mts-er1000.dts;subdir=git"
 
 # Residential Gateway device tree
-SRC_URI_append_mts-rg500 = "file://device-tree/mts-rg500.dts;subdir=git"
+SRC_URI:append:mts-rg500 = "file://device-tree/mts-rg500.dts;subdir=git"
 
 # ============================================================
 # Kernel compile options

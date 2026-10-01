@@ -1,4 +1,4 @@
-# MTS-OLT-2000 OLT GPON API Configuration
+`# MTS-OLT-2000 OLT GPON API Configuration
 # @CMAKE_CONFIG_DIR@/mts-olt2000.conf
 
 [server]

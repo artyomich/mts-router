@@ -1,340 +1,304 @@
 #!/bin/bash
-# Build script for MTS-CR-9000 Core Router API
-# Generates C++ gRPC backend with P4Runtime, BGP, MPLS, SRv6 HAL modules
+# ============================================================
+# MTS-CR-9000 Core Router — Yocto Build Script
+# Autonomous build of mts-core-router-image
+# ============================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-DEVICE_DIR="${PROJECT_DIR}/core-router-api"
-BUILD_DIR="${DEVICE_DIR}/build"
-PROTO_DIR="${DEVICE_DIR}/proto"
-INCLUDE_DIR="${DEVICE_DIR}/include"
-SRC_DIR="${DEVICE_DIR}/src"
-CONFIG_DIR="${DEVICE_DIR}/config"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+POKY_DIR="$HOME/poky"
+BUILD_DIR="$POKY_DIR/build-mts"
+LOG_FILE="$BUILD_DIR/build-$(date +%Y%m%d-%H%M%S).log"
+MTS_LAYER="$PROJECT_DIR/linux/meta-mts"
 
-echo "[CR9000] Building MTS-CR-9000 Core Router API..."
+echo "============================================"
+echo " MTS-CR-9000 Yocto Build"
+echo " Started: $(date)"
+echo "============================================"
 
-# Create directory structure
-mkdir -p "${PROTO_DIR}" "${INCLUDE_DIR}/hal" "${INCLUDE_DIR}/service" \
-         "${SRC_DIR}/hal" "${SRC_DIR}/service" "${SRC_DIR}/p4runtime" \
-         "${SRC_DIR}/bgp" "${SRC_DIR}/mpls" "${SRC_DIR}/srv6" \
-         "${CONFIG_DIR}" "${BUILD_DIR}"
+# ============================================================
+# 1. Verify prerequisites
+# ============================================================
+echo "[1/6] Verifying prerequisites..."
 
-# Generate protobuf definition
-cat > "${PROTO_DIR}/mts_core_router.proto" << 'PROTO_EOF'
-syntax = "proto3";
+if ! command -v python3 &>/dev/null; then
+    echo "ERROR: python3 is required"
+    exit 1
+fi
 
-package mts.core.router.v1;
+if ! command -v git &>/dev/null; then
+    echo "ERROR: git is required"
+    exit 1
+fi
 
-option cc_generic_services = true;
+if ! command -v tar &>/dev/null; then
+    echo "ERROR: tar is required"
+    exit 1
+fi
 
-// Fabric status
-message FabricStatus {
-    string name = 1;
-    uint32 num_slots = 2;
-    repeated SlotStatus slots = 3;
-    double total_bandwidth_gbps = 4;
-    string status = 5; // active, degraded, offline
-}
+if ! command -v bzip2 &>/dev/null; then
+    echo "ERROR: bzip2 is required"
+    exit 1
+fi
 
-message SlotStatus {
-    uint32 slot_id = 1;
-    string card_type = 2; // line-card, control-card, fabric-card
-    string status = 3; // up, down, initializing
-    double cpu_usage = 4;
-    double memory_usage = 5;
-}
+if ! command -v unzip &>/dev/null; then
+    echo "ERROR: unzip is required"
+    exit 1
+fi
 
-// Line card status
-message LineCardStatus {
-    uint32 card_id = 1;
-    string asic_type = 2; // tofino2, tomtom
-    string status = 3;
-    repeated PortStatus ports = 4;
-    uint32 active_sessions = 5;
-    uint64 packets_forwarded = 6;
-    uint64 bytes_forwarded = 7;
-    uint64 errors = 8;
-}
+# Verify Poky exists
+if [ ! -d "$POKY_DIR" ]; then
+    echo "[1/6] Cloning Poky..."
+    git clone --depth 1 --branch kirkstone https://git.yoctoproject.org/git/poky.git "$POKY_DIR"
+fi
 
-// Port status
-message PortStatus {
-    string name = 1;
-    string type = 2; // qsfp_dd, qsfp28, sfp_plus
-    uint32 speed_mbps = 3;
-    string status = 4; // up, down, error
-    double rx_power = 5;
-    double tx_power = 6;
-    double temperature = 7;
-    uint64 rx_bytes = 8;
-    uint64 tx_bytes = 9;
-    uint64 rx_packets = 10;
-    uint64 tx_packets = 11;
-    uint64 rx_errors = 12;
-    uint64 tx_errors = 13;
-}
+# Verify meta-mts layer
+if [ ! -d "$MTS_LAYER" ]; then
+    echo "ERROR: meta-mts layer not found at $MTS_LAYER"
+    exit 1
+fi
 
-// P4 pipeline status
-message P4PipelineStatus {
-    string pipeline_id = 1;
-    string program_name = 2;
-    string version = 3;
-    string status = 4; // compiled, loaded, running, error
-    uint64 compiled_at = 5;
-    uint64 loaded_at = 6;
-    uint32 num_tables = 7;
-    uint64 num_entries = 8;
-}
+# Verify bitbake
+BITBAKE="$POKY_DIR/bitbake/bin/bitbake"
+if [ ! -x "$BITBAKE" ]; then
+    echo "ERROR: bitbake not found at $BITBAKE"
+    exit 1
+fi
 
-// SRv6 status
-message Srv6Status {
-    string sid = 1;
-    uint32 sid_length = 2;
-    string encap_mode = 3; // end, end.x, end.dx
-    string status = 4; // active, inactive
-    uint64 packets = 5;
-    uint64 bytes = 6;
-}
+echo "  [OK] All prerequisites verified"
 
-// MPLS LSP status
-message MplsLspStatus {
-    uint32 lsp_id = 1;
-    string name = 2;
-    string ingress_label = 3;
-    string egress_label = 4;
-    string next_hop = 5;
-    string interface = 6;
-    string status = 7; // up, down, initializing
-    uint64 rx_packets = 8;
-    uint64 tx_packets = 9;
-    uint64 rx_bytes = 10;
-    uint64 tx_bytes = 11;
-}
+# ============================================================
+# 2. Create build environment
+# ============================================================
+echo "[2/6] Setting up build environment..."
 
-// Device health
-message DeviceHealth {
-    string device_id = 1;
-    string model = 2;
-    string firmware = 3;
-    double cpu_usage = 4;
-    double memory_usage = 5;
-    double temperature = 6;
-    string status = 7; // healthy, degraded, critical
-    uint64 uptime_seconds = 8;
-}
+mkdir -p "$BUILD_DIR"
 
-// Responses
-message FabricStatusResponse {
-    FabricStatus fabric = 1;
-}
+# Source oe-init-build-env (create if not exists)
+if [ ! -f "$BUILD_DIR/oe-init-build-env" ]; then
+    cp "$POKY_DIR/oe-init-build-env" "$BUILD_DIR/oe-init-build-env"
+    sed -i "s|OECORE_DEFAULT_SYSROOT.*||" "$BUILD_DIR/oe-init-build-env"
+    sed -i "s|cd .*build.*|cd \"$BUILD_DIR\"|" "$BUILD_DIR/oe-init-build-env"
+fi
 
-message LineCardStatusResponse {
-    repeated LineCardStatus cards = 1;
-}
+# Initialize build env
+source "$BUILD_DIR/oe-init-build-env" >/dev/null 2>&1 || true
 
-message PortStatusResponse {
-    repeated PortStatus ports = 1;
-}
+# ============================================================
+# 3. Configure bblayers.conf
+# ============================================================
+echo "[3/6] Configuring bblayers.conf..."
 
-message P4PipelineStatusResponse {
-    P4PipelineStatus pipeline = 1;
-}
+cat > "$BUILD_DIR/conf/bblayers.conf" <<'BBLAYERS_EOF'
+# POKY_BBLAYERS_CONF_VERSION is increased each time build/conf/bblayers.conf
+# changes incompatibly
+POKY_BBLAYERS_CONF_VERSION = "2"
 
-message Srv6StatusResponse {
-    repeated Srv6Status srv6_entries = 1;
-}
+BBPATH = "${TOPDIR}"
+BBFILES ?= ""
 
-message MplsLspStatusResponse {
-    repeated MplsLspStatus lsps = 1;
-}
+BBFILES += "${BSPDIR}/sources/poky/meta/recipes-*/*/*.bb \
+            ${BSPDIR}/sources/poky/meta/recipes-*/*/*.bbappend \
+            ${BSPDIR}/sources/poky/meta/recipes-core/*/*.bb \
+            ${BSPDIR}/sources/poky/meta/recipes-core/*/*.bbappend \
+            ${BSPDIR}/sources/poky/meta/recipes-devtools/*/*.bb \
+            ${BSPDIR}/sources/poky/meta/recipes-devtools/*/*.bbappend \
+            ${BSPDIR}/sources/poky/meta/recipes-extended/*/*.bb \
+            ${BSPDIR}/sources/poky/meta/recipes-extended/*/*.bbappend \
+            ${BSPDIR}/sources/poky/meta/recipes-filesystem/*/*.bb \
+            ${BSPDIR}/sources/poky/meta/recipes-filesystem/*/*.bbappend \
+            ${BSPDIR}/sources/poky/meta/recipes-kernel/*/*.bb \
+            ${BSPDIR}/sources/poky/meta/recipes-kernel/*/*.bbappend \
+            ${BSPDIR}/sources/poky/meta/recipes-multimedia/*/*.bb \
+            ${BSPDIR}/sources/poky/meta/recipes-multimedia/*/*.bbappend \
+            ${BSPDIR}/sources/poky/meta/recipes-graphics/*/*.bb \
+            ${BSPDIR}/sources/poky/meta/recipes-graphics/*/*.bbappend \
+            ${BSPDIR}/sources/poky/meta/recipes-connectivity/*/*.bb \
+            ${BSPDIR}/sources/poky/meta/recipes-connectivity/*/*.bbappend \
+            ${BSPDIR}/sources/poky/meta/recipes-networking/*/*.bb \
+            ${BSPDIR}/sources/poky/meta/recipes-networking/*/*.bbappend \
+            ${BSPDIR}/sources/poky/meta/recipes-support/*/*.bb \
+            ${BSPDIR}/sources/poky/meta/recipes-support/*/*.bbappend"
 
-message DeviceHealthResponse {
-    DeviceHealth health = 1;
-}
+BBFILES += "${BSPDIR}/sources/meta-openembedded/meta-oe/recipes-*/*/*.bb \
+            ${BSPDIR}/sources/meta-openembedded/meta-oe/recipes-*/*/*.bbappend \
+            ${BSPDIR}/sources/meta-openembedded/meta-oe/recipes-core/*/*.bb \
+            ${BSPDIR}/sources/meta-openembedded/meta-oe/recipes-core/*/*.bbappend \
+            ${BSPDIR}/sources/meta-openembedded/meta-oe/recipes-extended/*/*.bb \
+            ${BSPDIR}/sources/meta-openembedded/meta-oe/recipes-extended/*/*.bbappend \
+            ${BSPDIR}/sources/meta-openembedded/meta-oe/recipes-devtools/*/*.bb \
+            ${BSPDIR}/sources/meta-openembedded/meta-oe/recipes-devtools/*/*.bbappend \
+            ${BSPDIR}/sources/meta-openembedded/meta-oe/recipes-networking/*/*.bb \
+            ${BSPDIR}/sources/meta-openembedded/meta-oe/recipes-networking/*/*.bbappend \
+            ${BSPDIR}/sources/meta-openembedded/meta-oe/recipes-support/*/*.bb \
+            ${BSPDIR}/sources/meta-openembedded/meta-oe/recipes-support/*/*.bbappend"
 
-message CompileP4Request {
-    string program = 1;
-    string target = 2; // tofino2
-}
+BBFILES += "${BSPDIR}/sources/meta-openembedded/meta-networking/recipes-*/*/*.bb \
+            ${BSPDIR}/sources/meta-openembedded/meta-networking/recipes-*/*/*.bbappend"
 
-message CompileP4Response {
-    bool success = 1;
-    string message = 2;
-    string pipeline_id = 3;
-}
+BBFILES += "${BSPDIR}/sources/meta-openembedded/meta-python/recipes-*/*/*.bb \
+            ${BSPDIR}/sources/meta-openembedded/meta-python/recipes-*/*/*.bbappend"
 
-message SetFabricRequest {
-    string config = 1; // JSON config
-}
+# MTS custom layer
+BBLAYERS += "${PROJECT_DIR}/linux/meta-mts"
+BBLAYERS_EOF
 
-message SetFabricResponse {
-    bool success = 1;
-    string message = 2;
-}
+# Set BSPDIR and PROJECT_DIR
+sed -i "s|\${BSPDIR}|$POKY_DIR|g" "$BUILD_DIR/conf/bblayers.conf"
+sed -i "s|\${PROJECT_DIR}|$PROJECT_DIR|g" "$BUILD_DIR/conf/bblayers.conf"
 
-message AddLineCardRequest {
-    uint32 slot = 1;
-    string card_type = 2;
-    string config = 3;
-}
+echo "  [OK] bblayers.conf configured"
 
-message AddLineCardResponse {
-    bool success = 1;
-    string message = 2;
-    uint32 card_id = 3;
-}
+# ============================================================
+# 4. Configure local.conf
+# ============================================================
+echo "[4/6] Configuring local.conf..."
 
-message CreateLspRequest {
-    string name = 1;
-    string ingress_label = 2;
-    string egress_label = 3;
-    string next_hop = 4;
-    string interface = 5;
-}
+cat > "$BUILD_DIR/conf/local.conf" <<'LOCALCONF_EOF'
+# MTS-CR-9000 Build Configuration
+# ============================================================
 
-message CreateLspResponse {
-    bool success = 1;
-    string message = 2;
-    uint32 lsp_id = 3;
-}
+# Machine configuration
+MACHINE = "mts-cr9000"
 
-// MTS Core Router Service
-service MtsCoreRouterService {
-    rpc GetFabricStatus(Empty) returns (FabricStatusResponse);
-    rpc GetLineCardStatus(Empty) returns (LineCardStatusResponse);
-    rpc GetPortStatus(Empty) returns (PortStatusResponse);
-    rpc GetDeviceHealth(Empty) returns (DeviceHealthResponse);
-    rpc GetP4Pipelines(Empty) returns (P4PipelineStatusResponse);
-    rpc CompileP4(CompileP4Request) returns (CompileP4Response);
-    rpc GetSrv6Status(Empty) returns (Srv6StatusResponse);
-    rpc GetMplsLspStatus(Empty) returns (MplsLspStatusResponse);
-    rpc CreateMplsLsp(CreateLspRequest) returns (CreateLspResponse);
-    rpc SetFabric(SetFabricRequest) returns (SetFabricResponse);
-    rpc AddLineCard(AddLineCardRequest) returns (AddLineCardResponse);
-    rpc SubscribeTelemetry(TelemetrySubscription) returns (stream TelemetryData);
-}
+# License configuration
+LICENSE_FLAGS_WHITELIST = "commercial-ml2"
 
-message Empty {}
+# DL_DIR and SSTATE_DIR
+DL_DIR ?= "${TOPDIR}/downloads"
+SSTATE_DIR ?= "${TOPDIR}/sstate-cache"
+TMPDIR = "${TOPDIR}/tmp"
 
-message TelemetrySubscription {
-    repeated string paths = 1;
-    int64 sample_interval = 2;
-}
+# Package manager
+PACKAGE_CLASSES = "package_rpm package_deb"
 
-message TelemetryData {
-    int64 timestamp = 1;
-    map<string, double> metrics = 2;
-    repeated PortStats ports = 3;
-}
+# Parallelism
+PARALLEL_MAKE = "-j$(nproc)"
+BB_NUMBER_THREADS = "$(nproc)"
 
-message PortStats {
-    string name = 1;
-    uint64 rx_bytes = 2;
-    uint64 tx_bytes = 3;
-    uint64 rx_packets = 4;
-    uint64 tx_packets = 5;
-    uint64 rx_errors = 6;
-    uint64 tx_errors = 7;
-}
-PROTO_EOF
+# Kernel configuration
+KERNEL_DEVICETREE = ""
 
-echo "[CR9000] Proto file generated."
+# Image features
+IMAGE_FSTYPES = "ext4 wic.gz"
+IMAGE_ROOTFS_SIZE = "8388608"
+IMAGE_ROOTFS_MAXSIZE = "16777216"
+IMAGE_BOOT_FILES = "boot/vmlinuz boot/extlinux/extlinux.conf"
 
-# Generate CMakeLists.txt
-cat > "${DEVICE_DIR}/CMakeLists.txt" << 'CMAKE_EOF'
-cmake_minimum_required(VERSION 3.14)
-project(mts-cr9000-api VERSION 1.0.0 LANGUAGES CXX)
+# Host tools
+SDKMACHINE = "x86_64"
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# Security
+INHERIT += "rm_work"
 
-find_package(protobuf REQUIRED)
-find_package(gRPC REQUIRED)
-find_package(Threads REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system filesystem)
+# Debug
+INHERIT += "debug-tasks"
 
-include_directories(
-    ${PROJECT_SOURCE_DIR}/include
-    ${PROJECT_SOURCE_DIR}/proto
-    ${PROTOBUF_INCLUDE_DIR}
-    ${gRPC_INCLUDE_DIRS}
-    ${Boost_INCLUDE_DIRS}
-)
+# Network mirror (speed up downloads)
+# PREMIRRORS = ""
+# BB_GENERATE_MIRROR_TARBALLS = "1"
 
-set(PROTO_SRC proto/mts_core_router.proto)
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_SRC})
-grpc_cpp_plugin_location(${CMAKE_CURRENT_BINARY_DIR}/grpc_cpp_plugin)
-grpc_generate_cpp(GRPC_SRCS GRPC_HDRS ${PROTO_SRC})
+# Source directory
+SOURCE_MIRROR_DIR ?= "${TOPDIR}/sourcedir"
+UPSTREAM_MIRROR_DIR ?= "${TOPDIR}/sourcemirror"
+BB_GENERATE_MIRROR_TARBALLS = "1"
+CONFFILES_UPDATE = "1"
+LOCALCONF_EOF
 
-set(SOURCES
-    src/hal/fabric_hal.cpp
-    src/hal/line_card_hal.cpp
-    src/hal/port_hal.cpp
-    src/service/core_router_service.cpp
-    src/p4runtime/p4_manager.cpp
-    src/bgp/bgp_monitor.cpp
-    src/mpls/lsp_manager.cpp
-    src/srv6/srv6_manager.cpp
-    src/main.cpp
-    ${PROTO_SRCS}
-    ${GRPC_SRCS}
-)
+echo "  [OK] local.conf configured"
 
-add_executable(mts-cr9000-server ${SOURCES})
+# ============================================================
+# 5. Fetch dependencies
+# ============================================================
+echo "[5/6] Fetching dependencies..."
 
-target_link_libraries(mts-cr9000-server
-    protobuf::libprotobuf
-    gRPC::grpc++
-    pthread
-    ${Boost_LIBRARIES}
-)
+source "$BUILD_DIR/oe-init-build-env" >/dev/null 2>&1 || true
 
-install(TARGETS mts-cr9000-server DESTINATION bin)
-CMAKE_EOF
+# Fetch required layers
+cd "$POKY_DIR"
+echo "  Fetching meta-openembedded..."
+bitbake --version >/dev/null 2>&1 || true
 
-echo "[CR9000] CMakeLists.txt generated."
+# Clone meta-openembedded if not exists
+if [ ! -d "$POKY_DIR/sources/meta-openembedded" ]; then
+    echo "  [!] Cloning meta-openembedded..."
+    git clone --depth 1 git://git.openembedded.org/meta-openembedded "$POKY_DIR/sources/meta-openembedded"
+    cd "$POKY_DIR/sources/meta-openembedded"
+    # Use kirkstone branch
+    git checkout kirkstone 2>/dev/null || git checkout langdale 2>/dev/null || git checkout dunfell 2>/dev/null || true
+    cd "$POKY_DIR"
+fi
 
-# Generate config
-cat > "${CONFIG_DIR}/mts-cr9000.conf" << 'CONF_EOF'
-{
-    "device_id": "MTS-CR-9000-001",
-    "model": "MTS-CR-9000",
-    "grpc_port": 50051,
-    "health_interval_ms": 5000,
-    "telemetry_interval_ms": 1000,
-    "fabric": {
-        "num_slots": 8,
-        "type": "crossbar",
-        "bandwidth_gbps": 128
-    },
-    "line_cards": {
-        "max_cards": 8,
-        "default_type": "tofino2-32x100g"
-    },
-    "bgp": {
-        "local_as": 65001,
-        "router_id": "10.0.0.1",
-        "hold_time": 90,
-        "keepalive": 30
-    },
-    "mpls": {
-        "label_range_start": 16,
-        "label_range_end": 1048575,
-        "max_lsps": 10000
-    },
-    "srv6": {
-        "sid_base": "2001:db8::",
-        "sid_length": 80,
-        "encap_mode": "end"
-    },
-    "logging": {
-        "level": "info",
-        "file": "/var/log/mts-cr9000.log",
-        "max_size_mb": 100
-    }
-}
-CONF_EOF
+# Clone meta-virtualization for qemu
+if [ ! -d "$POKY_DIR/sources/meta-virtualization" ]; then
+    echo "  [!] Cloning meta-virtualization..."
+    git clone --depth 1 git://git.yoctoproject.org/meta-virtualization "$POKY_DIR/sources/meta-virtualization" 2>/dev/null || \
+    git clone --depth 1 https://github.com/meta-virtualization/meta-virtualization.git "$POKY_DIR/sources/meta-virtualization" 2>/dev/null || \
+    echo "  [!] Could not clone meta-virtualization (optional)"
+fi
 
-echo "[CR9000] Config generated."
-echo "[CR9000] Core Router API skeleton created at ${DEVICE_DIR}"
-echo "[CR9000] To compile: cd ${DEVICE_DIR} && mkdir build && cd build && cmake .. && make"
+# Clone meta-intel for x86-64 support
+if [ ! -d "$POKY_DIR/sources/meta-intel" ]; then
+    echo "  [!] Cloning meta-intel..."
+    git clone --depth 1 git://git.yoctoproject.org/meta-intel "$POKY_DIR/sources/meta-intel" 2>/dev/null || \
+    git clone --depth 1 https://github.com/meta-openembedded/meta-intel.git "$POKY_DIR/sources/meta-intel" 2>/dev/null || \
+    echo "  [!] Could not clone meta-intel (optional)"
+fi
+
+# Clone meta-mingw for cross-compilation
+if [ ! -d "$POKY_DIR/sources/meta-mingw" ]; then
+    echo "  [!] Cloning meta-mingw..."
+    git clone --depth 1 git://git.yoctoproject.org/meta-mingw "$POKY_DIR/sources/meta-mingw" 2>/dev/null || \
+    git clone --depth 1 https://github.com/meta-openembedded/meta-mingw.git "$POKY_DIR/sources/meta-mingw" 2>/dev/null || \
+    echo "  [!] Could not clone meta-mingw (optional)"
+fi
+
+# Clone meta-filesystems
+if [ ! -d "$POKY_DIR/sources/meta-filesystems" ]; then
+    echo "  [!] Cloning meta-filesystems..."
+    git clone --depth 1 git://git.openembedded.org/meta-filesystems "$POKY_DIR/sources/meta-filesystems" 2>/dev/null || \
+    git clone --depth 1 https://github.com/meta-openembedded/meta-filesystems.git "$POKY_DIR/sources/meta-filesystems" 2>/dev/null || \
+    echo "  [!] Could not clone meta-filesystems (optional)"
+fi
+
+echo "  [OK] Dependencies fetched"
+
+# ============================================================
+# 6. Build image
+# ============================================================
+echo "[6/6] Building mts-core-router-image..."
+echo "  Started: $(date)"
+echo "  Log: $LOG_FILE"
+echo "============================================"
+
+# Run bitbake with logging
+source "$BUILD_DIR/oe-init-build-env" >/dev/null 2>&1 || true
+
+cd "$BUILD_DIR"
+
+bitbake mts-core-router-image 2>&1 | tee "$LOG_FILE"
+
+BUILD_EXIT=$?
+
+echo ""
+echo "============================================"
+echo " Build completed: $(date)"
+echo " Exit code: $BUILD_EXIT"
+echo " Log: $LOG_FILE"
+echo "============================================"
+
+if [ $BUILD_EXIT -eq 0 ]; then
+    echo "[SUCCESS] Image built successfully!"
+    echo ""
+    echo "Artifacts:"
+    find "$BUILD_DIR/tmp/deploy/images/mts-cr9000" -type f 2>/dev/null | head -20 || true
+    echo ""
+    echo "Rootfs:"
+    ls -lh "$BUILD_DIR/tmp/work/mts-cr9000-poky-linux/core-image-sato/1.0/temp/deploy/images/mts-cr9000/" 2>/dev/null | head -10 || true
+else
+    echo "[FAILURE] Build failed with exit code $BUILD_EXIT"
+    echo "Check $LOG_FILE for details"
+fi
+
+exit $BUILD_EXIT
